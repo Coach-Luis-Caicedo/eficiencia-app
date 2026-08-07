@@ -482,7 +482,7 @@ body{background:var(--paper)}
 <div class="page-hero"><div class="container">
   <span class="badge badge-dark" style="margin-bottom:14px">Acceso restringido</span>
   <h1>Herramientas EFICIENCIA</h1>
-  <p>Workbook analítico · Cuestionario ICE/IEHS · Sensor Diario SD-MO</p>
+  <p>Workbook analítico · Cuestionario ICE/IEH · Sensor Diario SD-MO</p>
 </div></div>
 
 <section class="section-sm"><div class="container"><div class="tools-grid">
@@ -493,8 +493,8 @@ body{background:var(--paper)}
       <div class="tool-meta"><h3>Workbook analítico</h3><p>Motor EFICIENCIA v5.10.1 · Uso: consultor</p></div>
     </div>
     <div class="tool-body">
-      <p>Panel ejecutivo completo. Importa los JSON del cuestionario y el SD-MO, calcula el IIE, genera el tablero de deterioro, impacto económico y plan de intervención.</p>
-      <div class="tool-specs"><span class="spec-pill">IIE · IAO · ICE · IEHS</span><span class="spec-pill">DEP · VRI · T_rec</span><span class="spec-pill">Motor v5.10.1</span><span class="spec-pill">Solo consultor</span></div>
+      <p>Panel ejecutivo completo. Importa los JSON del cuestionario y el SD-MO, genera el tablero de deterioro, impacto económico y plan de intervención.</p>
+      <div class="tool-specs"><span class="spec-pill">ICE · IEH · IAO · CFO</span><span class="spec-pill">Motor v5.10.1</span><span class="spec-pill">Solo consultor</span></div>
     </div>
     <div class="tool-footer">
       <a href="workbook.html" class="btn btn-primary" target="_blank">Abrir Workbook</a>
@@ -505,15 +505,16 @@ body{background:var(--paper)}
   <div class="tool-card fade-up">
     <div class="tool-header">
       <div class="tool-icon tool-icon-cue"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#1A5C3A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="12" y2="17"/></svg></div>
-      <div class="tool-meta"><h3>Cuestionario ICE/IEHS</h3><p>Instrumento diagnóstico · Uso: empleados</p></div>
+      <div class="tool-meta"><h3>Cuestionario ICE/IEH</h3><p>Instrumento diagnóstico · Uso: empleados</p></div>
     </div>
     <div class="tool-body">
-      <p>50 ítems en 10 bloques miden coherencia estructural (ICE) y experiencia humána sistémica (IEHS). El respondente descarga un JSON al finalizar.</p>
-      <div class="tool-specs"><span class="spec-pill">50 ítems · 10 bloques</span><span class="spec-pill">~8 minutos</span><span class="spec-pill">Exporta JSON</span><span class="spec-pill">Empleados</span></div>
+      <p>25 ítems en 5 pares miden coherencia estructural (ICE) y experiencia humana (IEH), más un ítem bipolar que compara ambos en cada par. El respondente envía sus respuestas directamente al completar.</p>
+      <div class="tool-specs"><span class="spec-pill">25 ítems · 5 pares</span><span class="spec-pill">~5 minutos</span><span class="spec-pill">Envío directo</span><span class="spec-pill">Empleados</span></div>
     </div>
     <div class="tool-footer">
       <a href="cuestionario.html" class="btn btn-dark" target="_blank">Abrir cuestionario</a>
-      <div style="display:flex;gap:8px"><a href="#enlace-empleado" class="btn btn-outline btn-sm" style="flex:1">Generar enlace</a><a href="#flujo" class="btn btn-outline btn-sm" style="flex:1">Instrucciones</a></div>
+      <a href="#enlace-empleado" class="btn btn-outline btn-sm">Ingresar código</a>
+      <a href="#flujo" class="btn btn-outline btn-sm">Instrucciones</a>
     </div>
   </div>
 
@@ -523,12 +524,13 @@ body{background:var(--paper)}
       <div class="tool-meta"><h3>Sensor Diario SD-MO</h3><p>Monitoreo operativo · Uso: empleados</p></div>
     </div>
     <div class="tool-body">
-      <p>7 preguntas 3 veces por semana capturan el estado regulatorio en tiempo real. Genera IDA, IDC e IFO para el cálculo del IAO.</p>
-      <div class="tool-specs"><span class="spec-pill">7 preguntas</span><span class="spec-pill">&lt;1 minuto</span><span class="spec-pill">3× / semana</span><span class="spec-pill">IDA · IDC · IFO</span></div>
+      <p>4 preguntas bipolares (Confianza↔Temor, Colaboración↔Retención, Compromiso↔Desmotivación, Creatividad↔Estrés) 3 veces por semana capturan el estado regulatorio en tiempo real.</p>
+      <div class="tool-specs"><span class="spec-pill">4 preguntas</span><span class="spec-pill">~30 segundos</span><span class="spec-pill">3× / semana</span><span class="spec-pill">4 ejes bipolares</span></div>
     </div>
     <div class="tool-footer">
       <a href="sdmo.html" class="btn btn-dark" target="_blank">Abrir SD-MO</a>
-      <div style="display:flex;gap:8px"><a href="#enlace-empleado" class="btn btn-outline btn-sm" style="flex:1">Generar enlace</a><a href="#flujo" class="btn btn-outline btn-sm" style="flex:1">Instrucciones</a></div>
+      <a href="#enlace-empleado" class="btn btn-outline btn-sm">Ingresar código</a>
+      <a href="#flujo" class="btn btn-outline btn-sm">Instrucciones</a>
     </div>
   </div>
 
@@ -540,29 +542,30 @@ body{background:var(--paper)}
     <h2 style="margin-top:10px">Cómo usar los instrumentos</h2>
   </div>
   <div class="flow-grid">
-    <div class="flow-step fade-up"><div class="flow-num">1</div><h4>Distribuir enlace</h4><p>El consultor envía el enlace a los empleados. Funciona en cualquier dispositivo.</p></div>
-    <div class="flow-step fade-up"><div class="flow-num">2</div><h4>Respondentes completan</h4><p>Cada empleado responde (~8 min / ~1 min). Al finalizar se genera un archivo JSON.</p></div>
-    <div class="flow-step fade-up"><div class="flow-num">3</div><h4>Entregar JSON</h4><p>El empleado envía el JSON al consultor por correo. Los datos nunca suben al servidor.</p></div>
-    <div class="flow-step fade-up"><div class="flow-num">4</div><h4>Consolidar en Workbook</h4><p>El consultor importa los JSON. El Workbook calcula el IIE y genera el tablero ejecutivo.</p></div>
+    <div class="flow-step fade-up"><div class="flow-num">1</div><h4>Generar código</h4><p>El consultor genera un código de invitación individual por empleado. El mismo código sirve para el Cuestionario y el SD-MO.</p></div>
+    <div class="flow-step fade-up"><div class="flow-num">2</div><h4>Empleado responde</h4><p>Ingresa su código en el launcher o llega directo por su enlace, y responde (~5 min el cuestionario, ~30 seg el SD-MO).</p></div>
+    <div class="flow-step fade-up"><div class="flow-num">3</div><h4>Envío directo</h4><p>Las respuestas se envían al completar — sin exportar ni reenviar ningún archivo por correo.</p></div>
   </div>
 </div></section>
 
 <section class="section-sm" id="enlace-empleado"><div class="container" style="max-width:760px">
   <div class="section-header fade-up" style="margin-bottom:28px">
-    <span class="badge badge-azul">Para el consultor</span>
-    <h2 style="margin-top:10px">Generar enlace para empleados</h2>
-    <p>El empleado no necesita código de acceso.</p>
+    <span class="badge badge-azul">Para empleados</span>
+    <h2 style="margin-top:10px">Ingresa tu código de invitación</h2>
+    <p>Usa el código individual que te compartió tu consultor de EFICIENCIA. Es el mismo código para el Cuestionario y el SD-MO.</p>
   </div>
   <div class="card fade-up" style="padding:32px">
-    <div class="form-group"><label class="form-label">Nombre de la organización</label><input type="text" class="form-input" id="org-name" placeholder="Empresa S.A.S"></div>
-    <div class="form-group"><label class="form-label">Instrumento</label><select class="form-select" id="org-tool"><option value="cuestionario.html">Cuestionario ICE/IEHS</option><option value="sdmo.html">Sensor Diario SD-MO</option></select></div>
-    <button class="btn btn-primary" onclick="generarEnlace()" style="margin-bottom:16px">Generar enlace</button>
-    <div id="enlace-resultado" style="display:none">
-      <label class="form-label" style="margin-bottom:6px">Enlace para compartir</label>
-      <div style="display:flex;gap:8px;align-items:center">
-        <input type="text" class="form-input" id="enlace-url" readonly style="font-family:var(--f-mono);font-size:13px;background:var(--paper)">
-        <button class="btn btn-outline btn-sm" onclick="copiarEnlace()" style="white-space:nowrap" id="copy-btn">Copiar</button>
+    <div id="codigo-form">
+      <div class="form-group"><label class="form-label">Código de invitación</label><input type="text" class="form-input mono" id="codigo-input" placeholder="Pega aquí tu código" style="letter-spacing:.04em"></div>
+      <button class="btn btn-primary" onclick="enviarCodigo()">Continuar</button>
+    </div>
+    <div id="codigo-resultado" style="display:none">
+      <p style="margin-bottom:16px;color:var(--ink-m)">Código detectado. Usa estos enlaces:</p>
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <a href="#" id="link-cuestionario" class="btn btn-dark" target="_blank">Abrir Cuestionario</a>
+        <a href="#" id="link-sdmo" class="btn btn-dark" target="_blank">Abrir SD-MO</a>
       </div>
+      <p style="margin-top:16px;font-size:13px;color:var(--ink-s)">¿No es tu código? <a href="#" id="cambiar-codigo" style="color:var(--azul-l)">Ingresa otro</a>.</p>
     </div>
   </div>
 </div></section>
@@ -572,10 +575,10 @@ body{background:var(--paper)}
   <h2>Instrucciones para el consultor</h2>
   <p style="color:rgba(255,255,255,.55);margin-bottom:40px;font-size:15px">Referencia de uso para cada instrumento.</p>
   <div class="inst-grid">
-    <div class="inst-card fade-up"><h4>Cuestionario ICE/IEHS</h4><ol><li>Genera el enlace con el nombre de la organización</li><li>Distribuye por correo a todos los respondentes</li><li>Cada respondente descarga su <strong>JSON individual</strong></li><li>Importa en Workbook: <strong>Modo admin → Importar cuestionario</strong></li><li>El Workbook consolida ICE e IEHS automáticamente</li></ol></div>
-    <div class="inst-card fade-up"><h4>Sensor Diario SD-MO</h4><ol><li>Distribuye el enlace 3 veces por semana</li><li>Cada jornada genera un <strong>JSON de jornada</strong></li><li>Importa cada jornada: <strong>Importar SD-MO</strong></li><li>El Workbook calcula el IAO con ventana λ=0.80</li><li>Con 4+ jornadas tienes señal estable del IAO</li></ol></div>
-    <div class="inst-card fade-up"><h4>Workbook — motor analítico</h4><ol><li>Abre el Workbook en este dispositivo</li><li>Importa los consolidados del cuestionario y SD-MO</li><li>Configura el PIIO con los KPIs operativos</li><li>Ingresa N empleados y CIE</li><li>El tablero calcula IIE, DEP, impacto $, VRI y T_rec</li></ol></div>
-    <div class="inst-card fade-up"><h4>Privacidad y datos</h4><ol><li>Los JSON <strong>nunca se suben a ningún servidor</strong></li><li>Todo el procesamiento ocurre en el navegador</li><li>Guarda los JSON en carpeta segura por organización</li><li>El Workbook no almacena datos entre sesiones</li><li>Informa a respondentes antes de aplicar (habeas data)</li></ol></div>
+    <div class="inst-card fade-up"><h4>Cuestionario ICE/IEH</h4><ol><li>Genera un <strong>código de invitación individual</strong> por empleado</li><li>Comparte el código, o el enlace directo con el código incluido</li><li>El empleado responde y <strong>envía directamente</strong> — sin JSON</li><li>Las 25 preguntas (5 pares) quedan asociadas a su organización</li><li>Un mismo código sirve también para el SD-MO</li></ol></div>
+    <div class="inst-card fade-up"><h4>Sensor Diario SD-MO</h4><ol><li>Comparte el mismo código de invitación, 3 veces por semana</li><li>Cada jornada son 4 preguntas bipolares (~30 seg)</li><li>Se envía directamente al completar — sin JSON</li><li>Queda asociada a la organización con la fecha de esa jornada</li><li>Más jornadas registradas dan una señal más estable del IAO</li></ol></div>
+    <div class="inst-card fade-up"><h4>Workbook — motor analítico</h4><ol><li>Abre el Workbook en este dispositivo</li><li>Importa los consolidados del cuestionario y SD-MO</li><li>Configura el PIIO con los KPIs operativos</li><li>Ingresa N empleados y CIE</li><li>El tablero calcula los índices del sistema, impacto económico y plan de intervención</li></ol></div>
+    <div class="inst-card fade-up"><h4>Privacidad y datos</h4><ol><li>Las respuestas se envían de forma <strong>directa y cifrada</strong>, asociadas solo a un código de invitación — nunca a un nombre</li><li>El sistema nunca reporta resultados a nivel individual</li><li>Los reportes agregados requieren un mínimo de respondentes por grupo</li><li>El acceso del consultor está limitado a las organizaciones vinculadas a su cuenta</li><li>Informa a respondentes antes de aplicar (habeas data)</li></ol></div>
   </div>
 </div></section>
 
@@ -588,7 +591,7 @@ body{background:var(--paper)}
     </div>
     <div class="footer-col"><h5>Herramientas</h5><ul><li><a href="workbook.html">Workbook</a></li><li><a href="cuestionario.html">Cuestionario</a></li><li><a href="sdmo.html">SD-MO</a></li></ul></div>
     <!-- TODO: actualizar los 3 links a eficiencia-site a dominio propio cuando eficiencia.co esté conectado --><div class="footer-col"><h5>Sitio</h5><ul><li><a href="https://eficiencia-site.coach-luiscaicedo.workers.dev/">Inicio</a></li><li><a href="https://eficiencia-site.coach-luiscaicedo.workers.dev/blog/">Blog</a></li><li><a href="https://eficiencia-site.coach-luiscaicedo.workers.dev/campus/">Campus</a></li></ul></div>
-    <div class="footer-col"><h5>Soporte</h5><ul><li><a href="#flujo">Flujo de uso</a></li><li><a href="#enlace-empleado">Generar enlace</a></li><li><a href="mailto:hola@eficiencia.co">hola@eficiencia.co</a></li></ul></div>
+    <div class="footer-col"><h5>Soporte</h5><ul><li><a href="#flujo">Flujo de uso</a></li><li><a href="#enlace-empleado">Ingresar código</a></li><li><a href="mailto:hola@eficiencia.co">hola@eficiencia.co</a></li></ul></div>
   </div>
   <div class="footer-bottom"><span>Bogotá, Colombia &middot; 2026</span><span>Propiedad intelectual protegida</span></div>
 </div></footer>
@@ -608,18 +611,39 @@ document.getElementById('gate-btn').addEventListener('click',function(){
   else{var e=document.getElementById('gate-error');e.style.display='block';setTimeout(function(){e.style.display='none'},3000)}
 });
 document.getElementById('gate-input').addEventListener('keydown',function(e){if(e.key==='Enter')document.getElementById('gate-btn').click()});
-function generarEnlace(){
-  var org=document.getElementById('org-name').value.trim();
-  var tool=document.getElementById('org-tool').value;
-  var base=window.location.href.replace(/index\.html.*/,'').replace(/\?.*$/,'')+tool;
-  var url=base+(org?'?org='+encodeURIComponent(org):'');
-  document.getElementById('enlace-url').value=url;
-  document.getElementById('enlace-resultado').style.display='block';
+// Código de invitación individual (marco, sección 9.5) — reemplaza el
+// viejo "Generar enlace" por nombre de organización (?org=...). El código
+// se comparte entre cuestionario.html y sdmo.html (misma persona, misma
+// clave de localStorage 'efi_codigo' que usan esos dos archivos).
+function baseUrl(){
+  return window.location.href.replace(/index\.html.*/,'').replace(/\?.*$/,'');
 }
-function copiarEnlace(){
-  var input=document.getElementById('enlace-url');input.select();
-  navigator.clipboard.writeText(input.value).then(function(){
-    var btn=document.getElementById('copy-btn');btn.textContent='Copiado';setTimeout(function(){btn.textContent='Copiar'},2000);
+function mostrarEnlacesCodigo(codigo){
+  var base=baseUrl();
+  document.getElementById('link-cuestionario').href=base+'cuestionario.html?codigo='+encodeURIComponent(codigo);
+  document.getElementById('link-sdmo').href=base+'sdmo.html?codigo='+encodeURIComponent(codigo);
+  document.getElementById('codigo-form').style.display='none';
+  document.getElementById('codigo-resultado').style.display='block';
+}
+function enviarCodigo(){
+  var val=document.getElementById('codigo-input').value.trim();
+  if(!val)return;
+  localStorage.setItem('efi_codigo',val);
+  mostrarEnlacesCodigo(val);
+}
+function initCodigoEmpleado(){
+  var params=new URLSearchParams(window.location.search);
+  var codigoUrl=params.get('codigo');
+  if(codigoUrl)localStorage.setItem('efi_codigo',codigoUrl);
+  var codigo=codigoUrl||localStorage.getItem('efi_codigo');
+  if(codigo)mostrarEnlacesCodigo(codigo);
+  var cambiar=document.getElementById('cambiar-codigo');
+  if(cambiar)cambiar.addEventListener('click',function(e){
+    e.preventDefault();
+    localStorage.removeItem('efi_codigo');
+    document.getElementById('codigo-input').value='';
+    document.getElementById('codigo-resultado').style.display='none';
+    document.getElementById('codigo-form').style.display='block';
   });
 }
 (function(){
@@ -628,6 +652,7 @@ function copiarEnlace(){
   document.querySelectorAll('a[href^="#"]').forEach(function(a){a.addEventListener('click',function(e){var el=document.getElementById(this.getAttribute('href').slice(1));if(el){e.preventDefault();el.scrollIntoView({behavior:'smooth',block:'start'})}})});
   if('IntersectionObserver' in window){var io=new IntersectionObserver(function(entries){entries.forEach(function(e){if(e.isIntersecting){e.target.classList.add('visible');io.unobserve(e.target)}})},{threshold:.1});document.querySelectorAll('.fade-up').forEach(function(el){io.observe(el)})}
   checkAccess();
+  initCodigoEmpleado();
 })();
 </script>
 </body>
