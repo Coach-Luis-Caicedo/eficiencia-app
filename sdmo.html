@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>EFICIENCIA &#8212; SD-MO · Sensor Diario</title>
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@600;700;800&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <style>
 :root{
   --azul:#0D2340; --azul-m:#1B3A5C; --azul-l:#2563A8; --azul-bg:#D6E4F7;
@@ -141,7 +142,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--paper);color:var(--ink);f
       </div>
     </div>
     <div class="header-progress">
-      <div class="prog-label"><span>Preguntas respondidas</span><span id="prog-text">0 / 7</span></div>
+      <div class="prog-label"><span>Preguntas respondidas</span><span id="prog-text">0 / 4</span></div>
       <div class="prog-bar"><div class="prog-fill" id="prog-fill" style="width:0%"></div></div>
     </div>
   </div>
@@ -151,10 +152,10 @@ body{font-family:'DM Sans',sans-serif;background:var(--paper);color:var(--ink);f
 <div class="wrap">
   <div class="intro-card">
     <div class="intro-title">Sensor Diario de Modo Operativo</div>
-    <div class="intro-desc">7 preguntas sobre cómo operó el sistema hoy. Marca el número que mejor refleja tu experiencia real de esta jornada.</div>
+    <div class="intro-desc">4 preguntas bipolares sobre cómo viviste hoy tu trabajo. Cada una tiene un polo de Seguridad y un polo de Defensa — marca el número que mejor refleja tu experiencia real de esta jornada.</div>
     <div class="meta-pills">
-      <span class="meta-pill">7 preguntas</span>
-      <span class="meta-pill">&#8776; 1 minuto</span>
+      <span class="meta-pill">4 preguntas</span>
+      <span class="meta-pill">&#8776; 30 segundos</span>
       <span class="meta-pill">3 veces por semana</span>
     </div>
   </div>
@@ -162,7 +163,6 @@ body{font-family:'DM Sans',sans-serif;background:var(--paper);color:var(--ink);f
   <div style="background:#fff;border:1px solid var(--rule);border-radius:var(--r);padding:18px 22px;margin-bottom:18px;box-shadow:var(--shadow)">
     <div style="font-family:'Montserrat',sans-serif;font-size:11px;font-weight:700;color:var(--azul);margin-bottom:12px;text-transform:uppercase;letter-spacing:.06em">Datos de la jornada</div>
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px">
-      <div class="fg"><label class="fl">Organización</label><input type="text" class="fi" id="resp-org" placeholder="Nombre"></div>
       <div class="fg"><label class="fl">Fecha</label><input type="date" class="fi" id="resp-fecha"></div>
       <div class="fg"><label class="fl">Área</label><input type="text" class="fi" id="resp-area" placeholder="Ej. Operaciones"></div>
     </div>
@@ -170,16 +170,12 @@ body{font-family:'DM Sans',sans-serif;background:var(--paper);color:var(--ink);f
 </div>
 
 <div class="wrap">
-  <div class="layer-hdr">
-    <div class="layer-title">Capa 1 &#8212; Estado operativo del sistema</div>
-    <div class="layer-sub">Q1&#8211;Q6</div>
-  </div>
 
   <div class="q-card" id="qcard-1">
-    <div class="q-hdr"><span class="q-n">Q1</span><span class="q-badge badge-ida">IDA · P1 · 0.30</span></div>
-    <div class="q-txt">Hoy, el nivel de tensión en mi trabajo fue:</div>
+    <div class="q-hdr"><span class="q-n">Q1</span><span class="q-badge badge-ida">Confianza &#8596; Temor</span></div>
+    <div class="q-txt">&#191;D&#243;nde te ubicas hoy?</div>
     <div class="bip-row">
-      <span class="bip-anc bip-l">Muy bajo</span>
+      <span class="bip-anc bip-l">Actu&#233; con confianza y tranquilidad</span>
       <div class="lik-wrap">
         <label class="lik-lbl"><input type="radio" name="q1" value="1" onchange="answer(1,1)"><span class="lik-btn">1</span></label>
         <label class="lik-lbl"><input type="radio" name="q1" value="2" onchange="answer(1,2)"><span class="lik-btn">2</span></label>
@@ -187,15 +183,14 @@ body{font-family:'DM Sans',sans-serif;background:var(--paper);color:var(--ink);f
         <label class="lik-lbl"><input type="radio" name="q1" value="4" onchange="answer(1,4)"><span class="lik-btn">4</span></label>
         <label class="lik-lbl"><input type="radio" name="q1" value="5" onchange="answer(1,5)"><span class="lik-btn">5</span></label>
       </div>
-      <span class="bip-anc bip-r">Muy alto</span>
+      <span class="bip-anc bip-r">Actu&#233; con temor y cautela</span>
     </div>
   </div>
 
   <div class="q-card" id="qcard-2">
-    <div class="q-hdr"><span class="q-n">Q2</span><span class="q-badge badge-ida">IDA · P2 · 0.40</span></div>
-    <div class="q-txt">Hoy, la energía del equipo estuvo principalmente orientada a:</div>
+    <div class="q-hdr"><span class="q-n">Q2</span><span class="q-badge badge-ida">Colaboraci&#243;n &#8596; Retenci&#243;n</span></div>
     <div class="bip-row">
-      <span class="bip-anc bip-l">Defender posiciones o proteger información</span>
+      <span class="bip-anc bip-l">Colabor&#233; abiertamente con los dem&#225;s</span>
       <div class="lik-wrap">
         <label class="lik-lbl"><input type="radio" name="q2" value="1" onchange="answer(2,1)"><span class="lik-btn">1</span></label>
         <label class="lik-lbl"><input type="radio" name="q2" value="2" onchange="answer(2,2)"><span class="lik-btn">2</span></label>
@@ -203,15 +198,14 @@ body{font-family:'DM Sans',sans-serif;background:var(--paper);color:var(--ink);f
         <label class="lik-lbl"><input type="radio" name="q2" value="4" onchange="answer(2,4)"><span class="lik-btn">4</span></label>
         <label class="lik-lbl"><input type="radio" name="q2" value="5" onchange="answer(2,5)"><span class="lik-btn">5</span></label>
       </div>
-      <span class="bip-anc bip-r">Crear valor, innovar y colaborar</span>
+      <span class="bip-anc bip-r">Me guard&#233; lo que pensaba, evitando exponerme</span>
     </div>
   </div>
 
   <div class="q-card" id="qcard-3">
-    <div class="q-hdr"><span class="q-n">Q3</span><span class="q-badge badge-ida">IDA · P3 · 0.20</span><span class="q-badge badge-idc">IDC</span></div>
-    <div class="q-txt">Las decisiones y directrices que experimenté hoy fueron:</div>
+    <div class="q-hdr"><span class="q-n">Q3</span><span class="q-badge badge-ida">Compromiso &#8596; Presencia vac&#237;a</span></div>
     <div class="bip-row">
-      <span class="bip-anc bip-l">Incoherentes o contradictorias</span>
+      <span class="bip-anc bip-l">Estuve genuinamente comprometido con lo que hac&#237;a</span>
       <div class="lik-wrap">
         <label class="lik-lbl"><input type="radio" name="q3" value="1" onchange="answer(3,1)"><span class="lik-btn">1</span></label>
         <label class="lik-lbl"><input type="radio" name="q3" value="2" onchange="answer(3,2)"><span class="lik-btn">2</span></label>
@@ -219,15 +213,14 @@ body{font-family:'DM Sans',sans-serif;background:var(--paper);color:var(--ink);f
         <label class="lik-lbl"><input type="radio" name="q3" value="4" onchange="answer(3,4)"><span class="lik-btn">4</span></label>
         <label class="lik-lbl"><input type="radio" name="q3" value="5" onchange="answer(3,5)"><span class="lik-btn">5</span></label>
       </div>
-      <span class="bip-anc bip-r">Totalmente coherentes y claras</span>
+      <span class="bip-anc bip-r">Estuve presente pero desconectado, sin motivaci&#243;n real</span>
     </div>
   </div>
 
   <div class="q-card" id="qcard-4">
-    <div class="q-hdr"><span class="q-n">Q4</span><span class="q-badge badge-ifo">IFO</span></div>
-    <div class="q-txt">Hoy el trabajo fluyó de manera:</div>
+    <div class="q-hdr"><span class="q-n">Q4</span><span class="q-badge badge-ida">Creatividad &#8596; Estr&#233;s laboral</span></div>
     <div class="bip-row">
-      <span class="bip-anc bip-l">Muy difícil</span>
+      <span class="bip-anc bip-l">Pude pensar con claridad y explorar nuevas ideas</span>
       <div class="lik-wrap">
         <label class="lik-lbl"><input type="radio" name="q4" value="1" onchange="answer(4,1)"><span class="lik-btn">1</span></label>
         <label class="lik-lbl"><input type="radio" name="q4" value="2" onchange="answer(4,2)"><span class="lik-btn">2</span></label>
@@ -235,72 +228,10 @@ body{font-family:'DM Sans',sans-serif;background:var(--paper);color:var(--ink);f
         <label class="lik-lbl"><input type="radio" name="q4" value="4" onchange="answer(4,4)"><span class="lik-btn">4</span></label>
         <label class="lik-lbl"><input type="radio" name="q4" value="5" onchange="answer(4,5)"><span class="lik-btn">5</span></label>
       </div>
-      <span class="bip-anc bip-r">Muy fluida</span>
+      <span class="bip-anc bip-r">Sent&#237; estr&#233;s que me impidi&#243; pensar con claridad</span>
     </div>
   </div>
 
-  <div class="q-card" id="qcard-5">
-    <div class="q-hdr"><span class="q-n">Q5</span><span class="q-badge badge-ifo">IFO</span></div>
-    <div class="q-txt">Hoy la coordinación entre personas o áreas fue:</div>
-    <div class="bip-row">
-      <span class="bip-anc bip-l">Muy difícil</span>
-      <div class="lik-wrap">
-        <label class="lik-lbl"><input type="radio" name="q5" value="1" onchange="answer(5,1)"><span class="lik-btn">1</span></label>
-        <label class="lik-lbl"><input type="radio" name="q5" value="2" onchange="answer(5,2)"><span class="lik-btn">2</span></label>
-        <label class="lik-lbl"><input type="radio" name="q5" value="3" onchange="answer(5,3)"><span class="lik-btn">3</span></label>
-        <label class="lik-lbl"><input type="radio" name="q5" value="4" onchange="answer(5,4)"><span class="lik-btn">4</span></label>
-        <label class="lik-lbl"><input type="radio" name="q5" value="5" onchange="answer(5,5)"><span class="lik-btn">5</span></label>
-      </div>
-      <span class="bip-anc bip-r">Muy fácil</span>
-    </div>
-  </div>
-
-  <div class="q-card" id="qcard-6">
-    <div class="q-hdr"><span class="q-n">Q6</span><span class="q-badge badge-ifo">IFO</span></div>
-    <div class="q-txt">Hoy tuve claridad sobre las prioridades de trabajo:</div>
-    <div class="bip-row">
-      <span class="bip-anc bip-l">Nada clara</span>
-      <div class="lik-wrap">
-        <label class="lik-lbl"><input type="radio" name="q6" value="1" onchange="answer(6,1)"><span class="lik-btn">1</span></label>
-        <label class="lik-lbl"><input type="radio" name="q6" value="2" onchange="answer(6,2)"><span class="lik-btn">2</span></label>
-        <label class="lik-lbl"><input type="radio" name="q6" value="3" onchange="answer(6,3)"><span class="lik-btn">3</span></label>
-        <label class="lik-lbl"><input type="radio" name="q6" value="4" onchange="answer(6,4)"><span class="lik-btn">4</span></label>
-        <label class="lik-lbl"><input type="radio" name="q6" value="5" onchange="answer(6,5)"><span class="lik-btn">5</span></label>
-      </div>
-      <span class="bip-anc bip-r">Totalmente clara</span>
-    </div>
-  </div>
-
-  <div class="layer-hdr" style="margin-top:24px">
-    <div class="layer-title">Capa 2 &#8212; Participación individual</div>
-    <div class="layer-sub">Q7</div>
-  </div>
-
-  <div class="q-card" id="qcard-7">
-    <div class="q-hdr"><span class="q-n">Q7</span><span class="q-badge badge-ida">IDA · P4 · 0.10</span><span class="q-badge badge-idc">IDC</span></div>
-    <div class="q-txt">Mi participación hoy contribuyó principalmente a:</div>
-    <div class="bip-row">
-      <span class="bip-anc bip-l">Generar fricción o bloqueo</span>
-      <div class="lik-wrap">
-        <label class="lik-lbl"><input type="radio" name="q7" value="1" onchange="answer(7,1)"><span class="lik-btn">1</span></label>
-        <label class="lik-lbl"><input type="radio" name="q7" value="2" onchange="answer(7,2)"><span class="lik-btn">2</span></label>
-        <label class="lik-lbl"><input type="radio" name="q7" value="3" onchange="answer(7,3)"><span class="lik-btn">3</span></label>
-        <label class="lik-lbl"><input type="radio" name="q7" value="4" onchange="answer(7,4)"><span class="lik-btn">4</span></label>
-        <label class="lik-lbl"><input type="radio" name="q7" value="5" onchange="answer(7,5)"><span class="lik-btn">5</span></label>
-      </div>
-      <span class="bip-anc bip-r">Aumentar fluidez y cooperación</span>
-    </div>
-  </div>
-
-  <div class="open-card" style="margin-top:4px">
-    <div class="q-hdr">
-      <span class="q-n">Q8</span>
-      <span style="font-size:10px;background:var(--paper-w);color:var(--ink-s);padding:2px 8px;border-radius:20px;font-weight:600">observación · no puntuable</span>
-    </div>
-    <div class="q-txt" style="font-size:14px">Si algo afectó significativamente el funcionamiento del trabajo hoy, descríbelo brevemente.</div>
-    <textarea id="q8-open" maxlength="200" placeholder="Máximo 200 caracteres..." oninput="updateChar(this)"></textarea>
-    <div class="open-note"><span id="char-count">0</span>/200 caracteres · No entra al cálculo de índices</div>
-  </div>
 </div>
 
 <div class="submit-wrap" style="margin-top:20px">
@@ -311,7 +242,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--paper);color:var(--ink);f
   </div>
 </div>
 
-<div class="float-counter" id="float-counter">0 / 7</div>
+<div class="float-counter" id="float-counter">0 / 4</div>
 
 <!-- ADMIN PANEL -->
 <div class="done-overlay" id="done-overlay">
@@ -321,6 +252,13 @@ body{font-family:'DM Sans',sans-serif;background:var(--paper);color:var(--ink);f
   <div class="done-actions">
     <button class="btn btn-ghost" onclick="document.getElementById('done-overlay').classList.remove('show')">Continuar</button>
   </div>
+</div>
+
+<!-- Bloqueo si no hay código de invitación individual (URL ?codigo=... o localStorage) -->
+<div class="done-overlay" id="sin-codigo-overlay">
+  <div class="done-icon">&#9888;</div>
+  <div class="done-title">Enlace no válido</div>
+  <div class="done-sub">Este sensor requiere el enlace de invitación individual que te compartió tu organización. Si lo perdiste, pídele a tu consultor de EFICIENCIA que te lo reenvíe.</div>
 </div>
 
 <script>
@@ -337,98 +275,96 @@ function answer(qn, val) {
 }
 
 function updateProgress() {
-  var pct = answered / 7;
+  var pct = answered / 4;
   document.getElementById('prog-fill').style.width = (pct * 100) + '%';
-  document.getElementById('prog-text').textContent = answered + ' / 7';
-  document.getElementById('float-counter').textContent = answered + ' / 7';
+  document.getElementById('prog-text').textContent = answered + ' / 4';
+  document.getElementById('float-counter').textContent = answered + ' / 4';
 }
 
-function updateChar(el) {
-  document.getElementById('char-count').textContent = el.value.length;
-}
+// SDMO_DELTA (δ): peso del promedio vs. el segundo_mayor en el IDA diario
+// (marco DOCUMENTO_MARCO_SISTEMA_EFICIENCIA.md, sección 8.1). Sin validar —
+// mismo criterio que α, γ, w_neg: se calibra con datos del piloto. 0.50 es
+// un punto de partida neutro (ni el promedio ni el segundo_mayor dominan),
+// no un valor derivado de ningún dato. Constante fácilmente editable.
+var SDMO_DELTA = 0.50;
 
+// calcScores: IDA_i = 100 × [δ×promedio(4) + (1−δ)×segundo_mayor(4)] de las
+// 4 preguntas normalizadas a [0,1] — marco, sección 8.1. Reemplaza el IDA/
+// IDC/IFO de la versión de 8 preguntas: con solo 4 ejes bipolares no hay
+// preguntas dedicadas a causa estructural (IDC) ni a fricción operativa
+// (IFO) — ambos quedaron fuera del rediseño (SD_MO_4_PREGUNTAS_EFICIENCIA.md).
 function calcScores(resp) {
-  var P1c = 6 - (resp[1] || 3);
-  var P2c = 6 - (resp[2] || 3);
-  var P3c = 6 - (resp[3] || 3);
-  var P4_ifo = 6 - (resp[4] || 3);
-  var P5c = 6 - (resp[5] || 3);
-  var P6c = 6 - (resp[6] || 3);
-  var P7c = 6 - (resp[7] || 3);
-  var ida = Math.max(0, Math.min(1, (0.40*P2c + 0.30*P1c + 0.20*P3c + 0.10*P7c - 1) / 4));
-  var idc = Math.max(0, Math.min(1, (0.50*P3c + 0.50*P7c - 1) / 4));
-  var ifo = Math.max(0, Math.min(1, (P4_ifo + P5c + P6c - 3) / 12));
-  return {ida: ida, idc: idc, ifo: ifo};
+  var norm = [1,2,3,4].map(function(n){ return (resp[n] - 1) / 4; });
+  var promedio = norm.reduce(function(a,b){return a+b;}, 0) / norm.length;
+  var segundoMayor = norm.slice().sort(function(a,b){return b-a;})[1];
+  var ida_i = 100 * (SDMO_DELTA * promedio + (1 - SDMO_DELTA) * segundoMayor);
+  return { ida_i: ida_i, norm: norm };
 }
 
 function exportar() {
-  var sc        = calcScores(answers);
-  var orgNombre = document.getElementById('resp-org').value  || '';
-  var area      = document.getElementById('resp-area').value || '';
-  var obs       = document.getElementById('q8-open') ? document.getElementById('q8-open').value : '';
-  var jornada   = document.getElementById('resp-fecha').value || new Date().toISOString().slice(0,10);
-  var orgId     = (new URLSearchParams(window.location.search).get('org'))
-                  || orgNombre.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'')
-                  || 'sin-org';
-  var respondId = sessionStorage.getItem('efi_rid') || (function(){
-    var r='xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,function(c){
-      var rv=Math.random()*16|0; return(c==='x'?rv:(rv&0x3|0x8)).toString(16);
-    });
-    sessionStorage.setItem('efi_rid', r); return r;
-  })();
-  function rn(v){ return v!=null ? Math.round((v-1)/4*10000)/10000 : null; }
-  var payload = JSON.stringify({
-    org_id: orgId, org_nombre: orgNombre, area: area,
-    respondente_id: respondId, jornada: jornada, observacion: obs,
-    ida: sc.ida, idc: sc.idc, ifo: sc.ifo,
-    p1: rn(answers[1]), p2: rn(answers[2]), p3: rn(answers[3]),
-    p4: rn(answers[4]), p5: rn(answers[5]), p6: rn(answers[6]),
-    p7: rn(answers[7])
-  });
+  if (!CODIGO_INVITACION) {
+    document.getElementById('sin-codigo-overlay').classList.add('show');
+    return;
+  }
+  var sc      = calcScores(answers);
+  var area    = document.getElementById('resp-area').value || '';
+  var jornada = document.getElementById('resp-fecha').value || new Date().toISOString().slice(0,10);
 
   function mostrarOk() {
     var msg = document.getElementById('done-msg');
-    if (msg) msg.textContent = 'Tu registro del dia ha sido guardado en el servidor correctamente.';
+    if (msg) msg.textContent = 'Tu registro del día ha sido guardado correctamente.';
     document.getElementById('done-overlay').classList.add('show');
   }
-  function mostrarError() {
+  function mostrarError(detalle) {
     var msg = document.getElementById('done-msg');
-    if (msg) msg.textContent = 'Sin conexion. Verifica tu internet e intenta de nuevo.';
+    if (msg) msg.textContent = 'No se pudo enviar. ' + (detalle || 'Verifica tu internet e intenta de nuevo.');
     document.getElementById('done-overlay').classList.add('show');
   }
 
-  var xhr = new XMLHttpRequest();
-  xhr.open('POST', 'https://eficiencia-api-production.up.railway.app/api/sdmo', true);
-  xhr.setRequestHeader('Content-Type', 'application/json');
-  xhr.timeout = 10000;
-  xhr.onload = function() {
-    if (xhr.status === 201 || xhr.status === 200) {
-      try {
-        var res = JSON.parse(xhr.responseText);
-        if (res.ok) { mostrarOk(); return; }
-      } catch(e) {}
+  supa.rpc('enviar_respuesta_sdmo', {
+    p_codigo: CODIGO_INVITACION,
+    p_area: area,
+    p_jornada: jornada,
+    p_ida_i: sc.ida_i,
+    p_confianza_temor: sc.norm[0],
+    p_colaboracion_retencion: sc.norm[1],
+    p_compromiso_desmotivacion: sc.norm[2],
+    p_creatividad_estres: sc.norm[3]
+  }).then(function(res){
+    if (res.error) {
+      if (/código de invitación/.test(res.error.message || '')) {
+        document.getElementById('sin-codigo-overlay').classList.add('show');
+        return;
+      }
+      mostrarError(res.error.message);
+      return;
     }
-    mostrarError();
-  };
-  xhr.onerror = function() {
-    try {
-      var pending = JSON.parse(localStorage.getItem('efi_sdmo_pending') || '[]');
-      pending.push({ts: new Date().toISOString(), data: payload});
-      localStorage.setItem('efi_sdmo_pending', JSON.stringify(pending.slice(-20)));
-    } catch(e) {}
     mostrarOk();
-  };
-  xhr.ontimeout = xhr.onerror;
-  xhr.send(payload);
+  }).catch(function(err){
+    mostrarError(err && err.message);
+  });
 }
 </script>
 
 <script>
+// Proyecto Supabase de EFICIENCIA — separado del de A.M.A.R. (migración 001).
+// La anon key es pública por diseño; la protección real es RLS + las
+// funciones SECURITY DEFINER que exigen un código de invitación válido.
+var SUPA_URL = 'https://kapxcjehfaasttwfnnzq.supabase.co';
+var SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImthcHhjamVoZmFhc3R0d2ZubnpxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODYxMzQ1NjYsImV4cCI6MjEwMTcxMDU2Nn0.s0NC1ILswMQHPf-rsY1kvGSn0LpBSckNdlw2TvzMXws';
+var supa = supabase.createClient(SUPA_URL, SUPA_KEY);
+
 (function(){
-  var org = new URLSearchParams(window.location.search).get('org');
-  if (org) {
-    var el = document.getElementById('resp-org');
-    if (el && !el.value) el.value = org.replace(/-/g,' ').replace(/\b\w/g,function(c){return c.toUpperCase();});
+  var params = new URLSearchParams(window.location.search);
+  var codigoUrl = params.get('codigo');
+  if (codigoUrl) {
+    // Mismo código que usa cuestionario.html — misma persona, misma clave
+    // de localStorage. Si viene por URL, siempre gana sobre lo guardado.
+    localStorage.setItem('efi_codigo', codigoUrl);
+  }
+  window.CODIGO_INVITACION = codigoUrl || localStorage.getItem('efi_codigo') || null;
+  if (!window.CODIGO_INVITACION) {
+    document.getElementById('sin-codigo-overlay').classList.add('show');
   }
 })();
 </script>
