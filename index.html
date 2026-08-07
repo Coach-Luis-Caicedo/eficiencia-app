@@ -1,0 +1,634 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Herramientas — EFICIENCIA</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="icon" type="image/png" href="../assets/img/logo.png">
+<style>
+/* ================================================================
+   EFICIENCIA — Design System v1.0
+   Una sola fuente de verdad para todo el sitio.
+   Importar en cada página:    ================================================================ */
+
+/* ── Tokens ─────────────────────────────────────────────────────── */
+:root {
+  /* Marca */
+  --azul:      #0D2340;
+  --azul-m:    #1B3A5C;
+  --azul-l:    #2563A8;
+  --azul-bg:   #D6E4F7;
+  --dorado:    #C9A227;
+  --dorado-lt: #FEF8E3;
+  --dorado-dk: #A07D0F;
+
+  /* Neutros */
+  --paper:   #F7F4EF;
+  --paper-w: #EDE8DF;
+  --rule:    #D6CEBE;
+  --ink:     #0D1B2A;
+  --ink-m:   #3D5A73;
+  --ink-s:   #7A97AD;
+
+  /* Semánticos */
+  --success:    #1A5C3A;
+  --success-lt: #EAF5EF;
+  --warn:       #9A6000;
+  --warn-lt:    #FFF3CD;
+  --danger:     #B03A2E;
+  --danger-lt:  #FDEDEC;
+
+  /* Tipografía */
+  --f-display: 'Montserrat', sans-serif;
+  --f-body:    'DM Sans', sans-serif;
+  --f-mono:    'DM Mono', monospace;
+
+  /* Espaciado y forma */
+  --r-sm: 6px;
+  --r:    10px;
+  --r-lg: 16px;
+  --r-xl: 24px;
+  --sh:   0 2px 14px rgba(13,27,42,.08);
+  --sh-lg:0 8px 32px rgba(13,27,42,.14);
+  --tr:   .2s cubic-bezier(.4,0,.2,1);
+
+  /* Layout */
+  --max-w: 1160px;
+  --max-w-narrow: 760px;
+}
+
+/* ── Reset ───────────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; font-size: 16px; }
+body {
+  font-family: var(--f-body);
+  background: var(--paper);
+  color: var(--ink);
+  line-height: 1.65;
+  -webkit-font-smoothing: antialiased;
+}
+img, video { max-width: 100%; display: block; }
+a { color: var(--azul-l); text-decoration: none; transition: color var(--tr); }
+a:hover { color: var(--dorado); }
+
+/* ── Tipografía ──────────────────────────────────────────────────── */
+h1, h2, h3, h4, h5 {
+  font-family: var(--f-display);
+  font-weight: 700;
+  line-height: 1.18;
+  color: var(--ink);
+}
+h1 { font-size: clamp(2rem, 5vw, 3.2rem); }
+h2 { font-size: clamp(1.5rem, 3.5vw, 2.2rem); }
+h3 { font-size: clamp(1.15rem, 2.5vw, 1.5rem); }
+h4 { font-size: 1.1rem; font-weight: 600; }
+p  { font-size: 1rem; line-height: 1.75; color: var(--ink-m); }
+.lead { font-size: clamp(1rem, 2vw, 1.2rem); color: var(--ink-m); line-height: 1.7; }
+.mono { font-family: var(--f-mono); }
+.efi    { color: var(--dorado); }
+.ciencia{ color: #fff; }
+
+/* ── Layout ──────────────────────────────────────────────────────── */
+.container       { max-width: var(--max-w); margin: 0 auto; padding: 0 24px; }
+.container-narrow{ max-width: var(--max-w-narrow); margin: 0 auto; padding: 0 24px; }
+.section         { padding: 80px 0; }
+.section-sm      { padding: 48px 0; }
+.section-lg      { padding: 120px 0; }
+.grid-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 32px; }
+.grid-3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 24px; }
+.grid-4 { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 20px; }
+.flex   { display: flex; align-items: center; gap: 16px; }
+.flex-between { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.text-center { text-align: center; }
+.text-right  { text-align: right; }
+
+/* ── Componente: Navbar ──────────────────────────────────────────── */
+.nav {
+  background: var(--azul);
+  position: sticky; top: 0; z-index: 200;
+  padding: 0;
+  box-shadow: 0 1px 0 rgba(255,255,255,.06);
+}
+.nav-inner {
+  max-width: var(--max-w);
+  margin: 0 auto;
+  padding: 0 24px;
+  height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+}
+.nav-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+  text-decoration: none;
+}
+.nav-brand img { width: 36px; height: 36px; object-fit: contain; }
+.nav-brand-text { font-family: var(--f-display); font-weight: 800; font-size: 17px; line-height: 1; }
+.nav-brand-sub  { font-size: 10px; color: rgba(255,255,255,.35); letter-spacing: .14em; text-transform: uppercase; margin-top: 2px; }
+.nav-links {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  list-style: none;
+}
+.nav-links a {
+  color: rgba(255,255,255,.70);
+  font-size: 13.5px;
+  font-weight: 500;
+  padding: 6px 14px;
+  border-radius: var(--r-sm);
+  transition: all var(--tr);
+  text-decoration: none;
+  letter-spacing: .01em;
+}
+.nav-links a:hover, .nav-links a.active {
+  color: #fff;
+  background: rgba(255,255,255,.10);
+}
+.nav-cta {
+  background: var(--dorado);
+  color: var(--azul) !important;
+  font-weight: 700 !important;
+  padding: 8px 20px !important;
+  border-radius: var(--r-sm) !important;
+}
+.nav-cta:hover { background: var(--dorado-dk) !important; }
+.nav-toggle {
+  display: none;
+  background: none; border: none;
+  cursor: pointer; padding: 8px;
+  flex-direction: column; gap: 5px;
+}
+.nav-toggle span {
+  display: block; width: 22px; height: 2px;
+  background: rgba(255,255,255,.8);
+  border-radius: 2px;
+  transition: all var(--tr);
+}
+
+/* ── Componente: Footer ──────────────────────────────────────────── */
+.footer {
+  background: var(--azul);
+  color: rgba(255,255,255,.55);
+  padding: 56px 0 32px;
+  margin-top: auto;
+}
+.footer-grid {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr 1fr;
+  gap: 48px;
+  margin-bottom: 48px;
+}
+.footer-brand p { font-size: 13px; line-height: 1.7; margin-top: 12px; max-width: 280px; }
+.footer-col h5 {
+  font-family: var(--f-display);
+  font-size: 11px; font-weight: 700;
+  letter-spacing: .12em; text-transform: uppercase;
+  color: rgba(255,255,255,.40);
+  margin-bottom: 14px;
+}
+.footer-col ul { list-style: none; display: flex; flex-direction: column; gap: 8px; }
+.footer-col a { color: rgba(255,255,255,.60); font-size: 13.5px; transition: color var(--tr); }
+.footer-col a:hover { color: var(--dorado); }
+.footer-bottom {
+  border-top: 1px solid rgba(255,255,255,.08);
+  padding-top: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  font-size: 12px;
+}
+
+/* ── Componente: Botones ─────────────────────────────────────────── */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  font-family: var(--f-display);
+  font-weight: 700; font-size: 13px;
+  letter-spacing: .04em; text-transform: uppercase;
+  padding: 13px 28px;
+  border-radius: var(--r-sm);
+  border: none; cursor: pointer;
+  text-decoration: none;
+  transition: all var(--tr);
+  white-space: nowrap;
+}
+.btn-primary { background: var(--dorado); color: var(--azul); }
+.btn-primary:hover { background: var(--dorado-dk); box-shadow: 0 6px 24px rgba(201,162,39,.4); transform: translateY(-2px); color: var(--azul); }
+.btn-dark    { background: var(--azul); color: #fff; }
+.btn-dark:hover { background: var(--azul-m); box-shadow: 0 6px 24px rgba(13,35,64,.35); transform: translateY(-2px); color: #fff; }
+.btn-outline  { background: transparent; color: var(--azul); border: 2px solid var(--azul); }
+.btn-outline:hover { background: var(--azul); color: #fff; }
+.btn-ghost    { background: rgba(255,255,255,.10); color: #fff; border: 1px solid rgba(255,255,255,.20); }
+.btn-ghost:hover { background: rgba(255,255,255,.18); color: #fff; }
+.btn-sm { padding: 9px 18px; font-size: 12px; }
+.btn-lg { padding: 16px 40px; font-size: 14px; }
+
+/* ── Componente: Cards ───────────────────────────────────────────── */
+.card {
+  background: #fff;
+  border: 1px solid var(--rule);
+  border-radius: var(--r-lg);
+  padding: 28px;
+  box-shadow: var(--sh);
+  transition: box-shadow var(--tr), transform var(--tr);
+}
+.card:hover { box-shadow: var(--sh-lg); transform: translateY(-3px); }
+.card-blue   { background: var(--azul-bg); border-color: rgba(37,99,168,.20); }
+.card-dark   { background: var(--azul); color: #fff; border-color: var(--azul-m); }
+.card-dark p, .card-dark h2, .card-dark h3 { color: rgba(255,255,255,.75); }
+.card-gold   { background: var(--dorado-lt); border-color: rgba(201,162,39,.25); }
+.card-icon   { width: 48px; height: 48px; border-radius: var(--r); background: var(--azul-bg); display: flex; align-items: center; justify-content: center; margin-bottom: 18px; }
+.card-icon svg { width: 24px; height: 24px; }
+
+/* ── Componente: Badges / Pills ──────────────────────────────────── */
+.badge {
+  display: inline-block;
+  font-family: var(--f-display);
+  font-size: 10px; font-weight: 700;
+  letter-spacing: .1em; text-transform: uppercase;
+  padding: 3px 10px;
+  border-radius: 20px;
+}
+.badge-dorado { background: var(--dorado-lt); color: var(--dorado-dk); }
+.badge-azul   { background: var(--azul-bg);   color: var(--azul-l); }
+.badge-dark   { background: var(--azul);       color: var(--dorado); }
+.badge-success{ background: var(--success-lt); color: var(--success); }
+
+/* ── Componente: Section header ──────────────────────────────────── */
+.section-header { margin-bottom: 56px; }
+.section-header .badge { margin-bottom: 14px; }
+.section-header h2 { margin-bottom: 16px; }
+.section-header p  { max-width: 560px; font-size: 1.05rem; }
+.section-header.center { text-align: center; }
+.section-header.center p { margin: 0 auto; }
+
+/* ── Componente: Divider ─────────────────────────────────────────── */
+.divider { height: 1px; background: var(--rule); margin: 0; border: none; }
+.divider-gold { height: 2px; background: var(--dorado); width: 48px; border: none; margin: 20px 0; }
+
+/* ── Componente: Alerta / Banner ─────────────────────────────────── */
+.alert {
+  display: flex; align-items: flex-start; gap: 12px;
+  padding: 14px 18px;
+  border-radius: var(--r);
+  font-size: 14px; line-height: 1.6;
+}
+.alert-info    { background: var(--azul-bg);   border: 1px solid rgba(37,99,168,.25); color: var(--azul-m); }
+.alert-success { background: var(--success-lt); border: 1px solid rgba(26,92,58,.20); color: var(--success); }
+.alert-warn    { background: var(--warn-lt);    border: 1px solid rgba(154,96,0,.20);  color: var(--warn); }
+.alert-danger  { background: var(--danger-lt);  border: 1px solid rgba(176,58,46,.20); color: var(--danger); }
+
+/* ── Hero ────────────────────────────────────────────────────────── */
+.hero {
+  background: var(--azul);
+  color: #fff;
+  padding: 96px 0 80px;
+  position: relative;
+  overflow: hidden;
+}
+.hero::before {
+  content: '';
+  position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+  background: radial-gradient(ellipse 900px 600px at 70% -10%, rgba(201,162,39,.12) 0%, transparent 65%);
+  pointer-events: none;
+}
+.hero-badge { margin-bottom: 20px; }
+.hero h1 { color: #fff; margin-bottom: 22px; }
+.hero .lead { color: rgba(255,255,255,.68); margin-bottom: 36px; }
+.hero-actions { display: flex; gap: 14px; flex-wrap: wrap; }
+
+/* ── Protección de acceso ────────────────────────────────────────── */
+.gate {
+  display: none;
+  min-height: 100vh;
+  align-items: center;
+  justify-content: center;
+  background: var(--azul);
+}
+.gate.show { display: flex; }
+.gate-card {
+  background: #fff;
+  border-radius: var(--r-xl);
+  padding: 48px 40px;
+  max-width: 400px;
+  width: 100%;
+  box-shadow: 0 24px 64px rgba(13,27,42,.35);
+  text-align: center;
+}
+.gate-card img { width: 56px; margin: 0 auto 20px; }
+.gate-card h2  { margin-bottom: 8px; }
+.gate-card p   { margin-bottom: 28px; font-size: 14px; }
+.gate-input {
+  width: 100%; padding: 13px 16px;
+  border: 1.5px solid var(--rule);
+  border-radius: var(--r);
+  font-family: var(--f-body); font-size: 15px;
+  margin-bottom: 12px; outline: none;
+  transition: border-color var(--tr);
+}
+.gate-input:focus { border-color: var(--azul-l); box-shadow: 0 0 0 3px rgba(37,99,168,.10); }
+.gate-error { color: var(--danger); font-size: 13px; margin-top: 8px; display: none; }
+
+/* ── Blog ────────────────────────────────────────────────────────── */
+.post-card { text-decoration: none; display: block; color: inherit; }
+.post-card:hover { color: inherit; }
+.post-card .card { height: 100%; }
+.post-meta { font-size: 12px; color: var(--ink-s); margin-bottom: 8px; }
+.post-title { font-family: var(--f-display); font-size: 1.1rem; font-weight: 700; margin-bottom: 10px; line-height: 1.3; color: var(--ink); }
+.post-excerpt { font-size: 13.5px; color: var(--ink-m); line-height: 1.65; }
+.post-tag { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: var(--azul-l); }
+
+/* ── Campus ──────────────────────────────────────────────────────── */
+.module-card { position: relative; }
+.module-progress {
+  height: 4px;
+  background: var(--rule);
+  border-radius: 2px;
+  margin-top: 16px;
+  overflow: hidden;
+}
+.module-progress-fill {
+  height: 100%;
+  background: var(--dorado);
+  border-radius: 2px;
+  transition: width .4s ease;
+}
+.module-lock {
+  position: absolute; top: 16px; right: 16px;
+  width: 28px; height: 28px;
+  background: var(--paper-w);
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+}
+
+/* ── Formulario de contacto ──────────────────────────────────────── */
+.form-group { display: flex; flex-direction: column; gap: 6px; margin-bottom: 18px; }
+.form-label { font-size: 12px; font-weight: 600; color: var(--ink-m); text-transform: uppercase; letter-spacing: .06em; }
+.form-input, .form-select, .form-textarea {
+  padding: 12px 16px;
+  border: 1.5px solid var(--rule);
+  border-radius: var(--r);
+  font-family: var(--f-body); font-size: 15px;
+  color: var(--ink);
+  background: #fff;
+  outline: none;
+  transition: border-color var(--tr), box-shadow var(--tr);
+  width: 100%;
+}
+.form-input:focus, .form-select:focus, .form-textarea:focus {
+  border-color: var(--azul-l);
+  box-shadow: 0 0 0 3px rgba(37,99,168,.09);
+}
+.form-textarea { resize: vertical; min-height: 120px; }
+
+/* ── Utilidades ──────────────────────────────────────────────────── */
+.mt-0{margin-top:0}.mt-1{margin-top:8px}.mt-2{margin-top:16px}.mt-3{margin-top:24px}
+.mt-4{margin-top:32px}.mt-5{margin-top:48px}.mt-6{margin-top:64px}
+.mb-0{margin-bottom:0}.mb-1{margin-bottom:8px}.mb-2{margin-bottom:16px}
+.mb-3{margin-bottom:24px}.mb-4{margin-bottom:32px}.mb-5{margin-bottom:48px}
+.gap-sm{gap:8px}.gap-md{gap:16px}.gap-lg{gap:32px}
+.fw-700{font-weight:700}.fw-800{font-weight:800}
+.text-dorado{color:var(--dorado)}.text-azul{color:var(--azul-l)}.text-muted{color:var(--ink-s)}
+.bg-azul{background:var(--azul)}.bg-paper{background:var(--paper)}.bg-white{background:#fff}
+.rounded{border-radius:var(--r)}.rounded-lg{border-radius:var(--r-lg)}
+.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0)}
+.hidden{display:none}
+
+/* ── Responsive ──────────────────────────────────────────────────── */
+@media (max-width: 900px) {
+  .footer-grid { grid-template-columns: 1fr 1fr; gap: 32px; }
+  .nav-links { display: none; flex-direction: column; position: absolute; top: 64px; left: 0; right: 0; background: var(--azul); padding: 16px 24px; border-top: 1px solid rgba(255,255,255,.08); }
+  .nav-links.open { display: flex; }
+  .nav-toggle { display: flex; }
+}
+@media (max-width: 600px) {
+  .section { padding: 56px 0; }
+  .section-lg { padding: 72px 0; }
+  .hero { padding: 64px 0 56px; }
+  .footer-grid { grid-template-columns: 1fr; }
+  .hero-actions { flex-direction: column; }
+  .btn-lg { width: 100%; }
+  .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; }
+}
+
+/* ── Animaciones de entrada ──────────────────────────────────────── */
+@media (prefers-reduced-motion: no-preference) {
+  .fade-up {
+    opacity: 0;
+    transform: translateY(24px);
+    transition: opacity .55s ease, transform .55s ease;
+  }
+  .fade-up.visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  .fade-up:nth-child(2) { transition-delay: .10s; }
+  .fade-up:nth-child(3) { transition-delay: .20s; }
+  .fade-up:nth-child(4) { transition-delay: .30s; }
+}
+
+body{background:var(--paper)}
+.gate-overlay{display:none;position:fixed;inset:0;z-index:500;background:var(--azul);align-items:center;justify-content:center}
+.gate-overlay.show{display:flex}
+.gate-card{background:#fff;border-radius:var(--r-xl);padding:48px 40px;max-width:420px;width:100%;box-shadow:0 24px 64px rgba(13,27,42,.40);text-align:center}
+.gate-card img{width:52px;margin:0 auto 18px}
+.gate-card h2{margin-bottom:8px;font-size:1.4rem}
+.gate-card p{margin-bottom:28px;font-size:14px;color:var(--ink-m)}
+.gate-input{width:100%;padding:13px 16px;border:1.5px solid var(--rule);border-radius:var(--r);font-family:var(--f-body);font-size:15px;margin-bottom:12px;outline:none;transition:border-color var(--tr);text-align:center;letter-spacing:.08em}
+.gate-input:focus{border-color:var(--azul-l);box-shadow:0 0 0 3px rgba(37,99,168,.10)}
+.gate-error{color:var(--danger);font-size:13px;margin-top:8px;display:none}
+.gate-hint{font-size:12px;color:var(--ink-s);margin-top:14px;line-height:1.6}
+.page-hero{background:var(--azul);padding:56px 0 48px}
+.page-hero h1{color:#fff;font-size:clamp(1.6rem,3.5vw,2.2rem);margin-bottom:10px}
+.page-hero p{color:rgba(255,255,255,.55);font-size:15px}
+.tools-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:24px;margin-top:40px}
+.tool-card{background:#fff;border:1px solid var(--rule);border-radius:var(--r-xl);overflow:hidden;box-shadow:var(--sh);display:flex;flex-direction:column;transition:box-shadow var(--tr),transform var(--tr)}
+.tool-card:hover{box-shadow:var(--sh-lg);transform:translateY(-3px)}
+.tool-header{padding:28px 28px 20px;border-bottom:1px solid var(--rule);display:flex;align-items:flex-start;gap:16px}
+.tool-icon{width:52px;height:52px;border-radius:var(--r-lg);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.tool-icon-wb{background:var(--azul)}.tool-icon-cue{background:#EAF5EF}.tool-icon-sdmo{background:var(--dorado-lt)}
+.tool-meta{flex:1}.tool-meta h3{font-size:1.1rem;margin-bottom:4px}.tool-meta p{font-size:13px;color:var(--ink-s);margin:0}
+.tool-body{padding:20px 28px;flex:1}.tool-body p{font-size:14px;line-height:1.7;margin-bottom:16px}
+.tool-specs{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:20px}
+.spec-pill{font-size:11px;font-weight:600;padding:3px 10px;border-radius:20px;background:var(--paper);border:1px solid var(--rule);color:var(--ink-m)}
+.tool-footer{padding:16px 28px 24px;display:flex;flex-direction:column;gap:10px}
+.flow-section{background:var(--paper-w);padding:64px 0}
+.flow-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:0;border:1px solid var(--rule);border-radius:var(--r-xl);overflow:hidden;background:#fff;box-shadow:var(--sh)}
+.flow-step{padding:28px 24px;border-right:1px solid var(--rule)}
+.flow-step:last-child{border-right:none}
+.flow-num{width:32px;height:32px;border-radius:50%;background:var(--azul);color:var(--dorado);font-family:var(--f-display);font-size:13px;font-weight:800;display:flex;align-items:center;justify-content:center;margin-bottom:14px}
+.flow-step h4{font-size:14px;margin-bottom:6px}
+.flow-step p{font-size:13px;color:var(--ink-m);line-height:1.65;margin:0}
+.instructions{background:var(--azul);color:#fff;padding:64px 0}
+.instructions h2{color:#fff;margin-bottom:8px}
+.inst-grid{display:grid;grid-template-columns:1fr 1fr;gap:24px}
+.inst-card{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.10);border-radius:var(--r-lg);padding:24px 26px}
+.inst-card h4{font-size:13px;font-weight:700;color:var(--dorado);text-transform:uppercase;letter-spacing:.08em;margin-bottom:14px}
+.inst-card ol{padding-left:18px;display:flex;flex-direction:column;gap:8px}
+.inst-card li{font-size:13.5px;color:rgba(255,255,255,.65);line-height:1.6}
+.inst-card li strong{color:rgba(255,255,255,.90);font-weight:600}
+@media(max-width:700px){.inst-grid{grid-template-columns:1fr}.flow-grid{grid-template-columns:1fr}.flow-step{border-right:none;border-bottom:1px solid var(--rule)}.flow-step:last-child{border-bottom:none}.gate-card{padding:32px 24px}}
+</style></head><body>
+<div class="gate-overlay" id="gate"><div class="gate-card"><img src="../assets/img/logo-light.png" alt="EFICIENCIA"><h2>Acceso a herramientas</h2><p>Ingresa el código de acceso que te proporcionó tu consultor EFICIENCIA.</p><input type="password" class="gate-input" id="gate-input" placeholder="••••••••••••" autocomplete="off"><button class="btn btn-primary btn-lg" id="gate-btn" style="width:100%">Ingresar</button><div class="gate-error" id="gate-error">Código incorrecto. Verifica con tu consultor.</div><p class="gate-hint">¿No tienes un código? <a href="../index.html#contacto" style="color:var(--azul-l)">Solicita un diagnóstico</a> y tu consultor te lo enviará.</p></div></div>
+<nav class="nav"><div class="nav-inner"><a href="../index.html" class="nav-brand"><img src="../assets/img/logo-light.png" alt="EFICIENCIA" style="width:36px;height:36px;object-fit:contain"><div><div class="nav-brand-text"><span class="efi">EFI</span><span class="ciencia">CIENCIA</span></div><div class="nav-brand-sub">Regulación organizacional</div></div></a><ul class="nav-links" id="nav-links"><li><a href="../index.html">Inicio</a></li><li><a href="../blog/index.html">Blog</a></li><li><a href="../campus/index.html">Campus</a></li><li><a href="index.html" class="active">Herramientas</a></li></ul><button class="nav-toggle" id="nav-toggle" aria-label="Menú"><span></span><span></span><span></span></button></div></nav>
+
+<div class="page-hero"><div class="container">
+  <span class="badge badge-dark" style="margin-bottom:14px">Acceso restringido</span>
+  <h1>Herramientas EFICIENCIA</h1>
+  <p>Workbook analítico · Cuestionario ICE/IEHS · Sensor Diario SD-MO</p>
+</div></div>
+
+<section class="section-sm"><div class="container"><div class="tools-grid">
+
+  <div class="tool-card fade-up">
+    <div class="tool-header">
+      <div class="tool-icon tool-icon-wb"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#C9A227" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><line x1="9" y1="9" x2="15" y2="9"/><line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="15" x2="12" y2="15"/></svg></div>
+      <div class="tool-meta"><h3>Workbook analítico</h3><p>Motor EFICIENCIA v5.10.1 · Uso: consultor</p></div>
+    </div>
+    <div class="tool-body">
+      <p>Panel ejecutivo completo. Importa los JSON del cuestionario y el SD-MO, calcula el IIE, genera el tablero de deterioro, impacto económico y plan de intervención.</p>
+      <div class="tool-specs"><span class="spec-pill">IIE · IAO · ICE · IEHS</span><span class="spec-pill">DEP · VRI · T_rec</span><span class="spec-pill">Motor v5.10.1</span><span class="spec-pill">Solo consultor</span></div>
+    </div>
+    <div class="tool-footer">
+      <a href="workbook.html" class="btn btn-primary" target="_blank">Abrir Workbook</a>
+      <a href="#flujo" class="btn btn-outline btn-sm">Ver instrucciones</a>
+    </div>
+  </div>
+
+  <div class="tool-card fade-up">
+    <div class="tool-header">
+      <div class="tool-icon tool-icon-cue"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#1A5C3A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="12" y2="17"/></svg></div>
+      <div class="tool-meta"><h3>Cuestionario ICE/IEHS</h3><p>Instrumento diagnóstico · Uso: empleados</p></div>
+    </div>
+    <div class="tool-body">
+      <p>50 ítems en 10 bloques miden coherencia estructural (ICE) y experiencia humána sistémica (IEHS). El respondente descarga un JSON al finalizar.</p>
+      <div class="tool-specs"><span class="spec-pill">50 ítems · 10 bloques</span><span class="spec-pill">~8 minutos</span><span class="spec-pill">Exporta JSON</span><span class="spec-pill">Empleados</span></div>
+    </div>
+    <div class="tool-footer">
+      <a href="cuestionario.html" class="btn btn-dark" target="_blank">Abrir cuestionario</a>
+      <div style="display:flex;gap:8px"><a href="#enlace-empleado" class="btn btn-outline btn-sm" style="flex:1">Generar enlace</a><a href="#flujo" class="btn btn-outline btn-sm" style="flex:1">Instrucciones</a></div>
+    </div>
+  </div>
+
+  <div class="tool-card fade-up">
+    <div class="tool-header">
+      <div class="tool-icon tool-icon-sdmo"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#A07D0F" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></div>
+      <div class="tool-meta"><h3>Sensor Diario SD-MO</h3><p>Monitoreo operativo · Uso: empleados</p></div>
+    </div>
+    <div class="tool-body">
+      <p>7 preguntas 3 veces por semana capturan el estado regulatorio en tiempo real. Genera IDA, IDC e IFO para el cálculo del IAO.</p>
+      <div class="tool-specs"><span class="spec-pill">7 preguntas</span><span class="spec-pill">&lt;1 minuto</span><span class="spec-pill">3× / semana</span><span class="spec-pill">IDA · IDC · IFO</span></div>
+    </div>
+    <div class="tool-footer">
+      <a href="sdmo.html" class="btn btn-dark" target="_blank">Abrir SD-MO</a>
+      <div style="display:flex;gap:8px"><a href="#enlace-empleado" class="btn btn-outline btn-sm" style="flex:1">Generar enlace</a><a href="#flujo" class="btn btn-outline btn-sm" style="flex:1">Instrucciones</a></div>
+    </div>
+  </div>
+
+</div></div></section>
+
+<section class="flow-section" id="flujo"><div class="container">
+  <div class="section-header fade-up" style="margin-bottom:32px">
+    <span class="badge badge-azul">Flujo de trabajo</span>
+    <h2 style="margin-top:10px">Cómo usar los instrumentos</h2>
+  </div>
+  <div class="flow-grid">
+    <div class="flow-step fade-up"><div class="flow-num">1</div><h4>Distribuir enlace</h4><p>El consultor envía el enlace a los empleados. Funciona en cualquier dispositivo.</p></div>
+    <div class="flow-step fade-up"><div class="flow-num">2</div><h4>Respondentes completan</h4><p>Cada empleado responde (~8 min / ~1 min). Al finalizar se genera un archivo JSON.</p></div>
+    <div class="flow-step fade-up"><div class="flow-num">3</div><h4>Entregar JSON</h4><p>El empleado envía el JSON al consultor por correo. Los datos nunca suben al servidor.</p></div>
+    <div class="flow-step fade-up"><div class="flow-num">4</div><h4>Consolidar en Workbook</h4><p>El consultor importa los JSON. El Workbook calcula el IIE y genera el tablero ejecutivo.</p></div>
+  </div>
+</div></section>
+
+<section class="section-sm" id="enlace-empleado"><div class="container" style="max-width:760px">
+  <div class="section-header fade-up" style="margin-bottom:28px">
+    <span class="badge badge-azul">Para el consultor</span>
+    <h2 style="margin-top:10px">Generar enlace para empleados</h2>
+    <p>El empleado no necesita código de acceso.</p>
+  </div>
+  <div class="card fade-up" style="padding:32px">
+    <div class="form-group"><label class="form-label">Nombre de la organización</label><input type="text" class="form-input" id="org-name" placeholder="Empresa S.A.S"></div>
+    <div class="form-group"><label class="form-label">Instrumento</label><select class="form-select" id="org-tool"><option value="cuestionario.html">Cuestionario ICE/IEHS</option><option value="sdmo.html">Sensor Diario SD-MO</option></select></div>
+    <button class="btn btn-primary" onclick="generarEnlace()" style="margin-bottom:16px">Generar enlace</button>
+    <div id="enlace-resultado" style="display:none">
+      <label class="form-label" style="margin-bottom:6px">Enlace para compartir</label>
+      <div style="display:flex;gap:8px;align-items:center">
+        <input type="text" class="form-input" id="enlace-url" readonly style="font-family:var(--f-mono);font-size:13px;background:var(--paper)">
+        <button class="btn btn-outline btn-sm" onclick="copiarEnlace()" style="white-space:nowrap" id="copy-btn">Copiar</button>
+      </div>
+    </div>
+  </div>
+</div></section>
+
+<section class="instructions"><div class="container">
+  <span class="badge badge-dark" style="margin-bottom:14px">Guía rápida</span>
+  <h2>Instrucciones para el consultor</h2>
+  <p style="color:rgba(255,255,255,.55);margin-bottom:40px;font-size:15px">Referencia de uso para cada instrumento.</p>
+  <div class="inst-grid">
+    <div class="inst-card fade-up"><h4>Cuestionario ICE/IEHS</h4><ol><li>Genera el enlace con el nombre de la organización</li><li>Distribuye por correo a todos los respondentes</li><li>Cada respondente descarga su <strong>JSON individual</strong></li><li>Importa en Workbook: <strong>Modo admin → Importar cuestionario</strong></li><li>El Workbook consolida ICE e IEHS automáticamente</li></ol></div>
+    <div class="inst-card fade-up"><h4>Sensor Diario SD-MO</h4><ol><li>Distribuye el enlace 3 veces por semana</li><li>Cada jornada genera un <strong>JSON de jornada</strong></li><li>Importa cada jornada: <strong>Importar SD-MO</strong></li><li>El Workbook calcula el IAO con ventana λ=0.80</li><li>Con 4+ jornadas tienes señal estable del IAO</li></ol></div>
+    <div class="inst-card fade-up"><h4>Workbook — motor analítico</h4><ol><li>Abre el Workbook en este dispositivo</li><li>Importa los consolidados del cuestionario y SD-MO</li><li>Configura el PIIO con los KPIs operativos</li><li>Ingresa N empleados y CIE</li><li>El tablero calcula IIE, DEP, impacto $, VRI y T_rec</li></ol></div>
+    <div class="inst-card fade-up"><h4>Privacidad y datos</h4><ol><li>Los JSON <strong>nunca se suben a ningún servidor</strong></li><li>Todo el procesamiento ocurre en el navegador</li><li>Guarda los JSON en carpeta segura por organización</li><li>El Workbook no almacena datos entre sesiones</li><li>Informa a respondentes antes de aplicar (habeas data)</li></ol></div>
+  </div>
+</div></section>
+
+<footer class="footer"><div class="container">
+  <div class="footer-grid">
+    <div class="footer-brand">
+      <div style="font-family:'Montserrat',sans-serif;font-size:20px;font-weight:800"><span class="efi">EFI</span><span class="ciencia">CIENCIA</span></div>
+      <p>Arquitectura de regulación organizacional con base neurobiología y resultados medibles.</p>
+      <p style="margin-top:8px;font-size:12px">&#169; 2026 &middot; Luis Caicedo Sevillano</p>
+    </div>
+    <div class="footer-col"><h5>Herramientas</h5><ul><li><a href="workbook.html">Workbook</a></li><li><a href="cuestionario.html">Cuestionario</a></li><li><a href="sdmo.html">SD-MO</a></li></ul></div>
+    <div class="footer-col"><h5>Sitio</h5><ul><li><a href="../index.html">Inicio</a></li><li><a href="../blog/index.html">Blog</a></li><li><a href="../campus/index.html">Campus</a></li></ul></div>
+    <div class="footer-col"><h5>Soporte</h5><ul><li><a href="#flujo">Flujo de uso</a></li><li><a href="#enlace-empleado">Generar enlace</a></li><li><a href="mailto:hola@eficiencia.co">hola@eficiencia.co</a></li></ul></div>
+  </div>
+  <div class="footer-bottom"><span>Bogotá, Colombia &middot; 2026</span><span>Propiedad intelectual protegida</span></div>
+</div></footer>
+<script>
+var ACCESS_TOKEN='efi-tools-2025';
+var STORAGE_KEY='efi_token_herramientas';
+function checkAccess(){
+  var stored=localStorage.getItem(STORAGE_KEY);
+  var urlParam=new URLSearchParams(window.location.search).get('t');
+  if(urlParam===ACCESS_TOKEN){localStorage.setItem(STORAGE_KEY,ACCESS_TOKEN);window.history.replaceState({},'',window.location.pathname);return}
+  if(stored===ACCESS_TOKEN)return;
+  document.getElementById('gate').classList.add('show');
+}
+document.getElementById('gate-btn').addEventListener('click',function(){
+  var val=document.getElementById('gate-input').value.trim();
+  if(val===ACCESS_TOKEN){localStorage.setItem(STORAGE_KEY,ACCESS_TOKEN);document.getElementById('gate').classList.remove('show')}
+  else{var e=document.getElementById('gate-error');e.style.display='block';setTimeout(function(){e.style.display='none'},3000)}
+});
+document.getElementById('gate-input').addEventListener('keydown',function(e){if(e.key==='Enter')document.getElementById('gate-btn').click()});
+function generarEnlace(){
+  var org=document.getElementById('org-name').value.trim();
+  var tool=document.getElementById('org-tool').value;
+  var base=window.location.href.replace(/index\.html.*/,'').replace(/\?.*$/,'')+tool;
+  var url=base+(org?'?org='+encodeURIComponent(org):'');
+  document.getElementById('enlace-url').value=url;
+  document.getElementById('enlace-resultado').style.display='block';
+}
+function copiarEnlace(){
+  var input=document.getElementById('enlace-url');input.select();
+  navigator.clipboard.writeText(input.value).then(function(){
+    var btn=document.getElementById('copy-btn');btn.textContent='Copiado';setTimeout(function(){btn.textContent='Copiar'},2000);
+  });
+}
+(function(){
+  var t=document.getElementById('nav-toggle'),l=document.getElementById('nav-links');
+  if(t&&l){t.addEventListener('click',function(){l.classList.toggle('open')});document.addEventListener('click',function(e){if(!e.target.closest('.nav'))l.classList.remove('open')})}
+  document.querySelectorAll('a[href^="#"]').forEach(function(a){a.addEventListener('click',function(e){var el=document.getElementById(this.getAttribute('href').slice(1));if(el){e.preventDefault();el.scrollIntoView({behavior:'smooth',block:'start'})}})});
+  if('IntersectionObserver' in window){var io=new IntersectionObserver(function(entries){entries.forEach(function(e){if(e.isIntersecting){e.target.classList.add('visible');io.unobserve(e.target)}})},{threshold:.1});document.querySelectorAll('.fade-up').forEach(function(el){io.observe(el)})}
+  checkAccess();
+})();
+</script>
+</body>
+</html>
