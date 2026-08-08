@@ -207,7 +207,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--paper);color:var(--ink);f
     <h3>Datos de identificación</h3>
     <div class="form-grid">
       <div class="fg"><label class="fl">Fecha</label><input type="date" class="fi" id="resp-fecha"></div>
-      <div class="fg"><label class="fl">Área / Departamento</label><input type="text" class="fi" id="resp-area" placeholder="Ej. Operaciones"></div>
+      <div class="fg"><label class="fl">Área / Departamento <span style="color:#A32D2D">*</span></label><input type="text" class="fi" id="resp-area" placeholder="Ej. Operaciones" required></div>
       <div class="fg"><label class="fl">Antigüedad</label>
         <select class="fi" id="resp-antig">
           <option value="">Seleccionar...</option>
@@ -504,6 +504,9 @@ body{font-family:'DM Sans',sans-serif;background:var(--paper);color:var(--ink);f
     <div class="incomplete-warn" id="incomplete-warn">
       Aún hay <strong id="missing-count">0</strong> preguntas sin responder. Puedes exportar de todas formas.
     </div>
+    <div class="incomplete-warn" id="area-warn">
+      Falta indicar tu área / departamento — es el único dato de identificación obligatorio.
+    </div>
     <button class="btn btn-gold" onclick="exportar()">&#10003; Enviar respuestas</button>
   </div>
 </div>
@@ -654,12 +657,18 @@ function exportar() {
     document.getElementById('incomplete-warn').style.display = 'block';
     return;
   }
+  var area = document.getElementById('resp-area').value.trim();
+  if (!area) {
+    document.getElementById('area-warn').style.display = 'block';
+    document.getElementById('resp-area').focus();
+    return;
+  }
+  document.getElementById('area-warn').style.display = 'none';
   if (!CODIGO_INVITACION) {
     document.getElementById('sin-codigo-overlay').classList.add('show');
     return;
   }
   var scores = calcScores(answers);
-  var area   = document.getElementById('resp-area').value  || '';
   var antig  = document.getElementById('resp-antig').value || '';
   var nivelEl = document.getElementById('resp-nivel');
   var nivel  = nivelEl ? (nivelEl.value || '') : '';
