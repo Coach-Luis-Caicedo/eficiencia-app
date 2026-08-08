@@ -477,11 +477,111 @@ hr.rl{border:none;border-top:1px solid var(--rule);margin:20px 0}
 .piio-tab:hover{color:var(--azul-l)}
 .piio-tab.active{color:var(--azul-l);border-bottom-color:var(--azul-l)}
 </style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 </head>
 <body>
 
+<!-- ══ ACCESO — login de consultor + resolución de organización ══
+     Reemplaza el flujo viejo de "ID de organización" en texto libre.
+     Bloquea sidebar + main hasta que haya sesión y una organización
+     resuelta (marco, sección 10 — RLS exige auth.uid() vinculado en
+     consultor_organizacion). ══ -->
+<div id="auth-gate" style="position:fixed;inset:0;z-index:10000;background:var(--azul);display:flex;align-items:center;justify-content:center">
+  <div style="background:#fff;border-radius:16px;padding:40px 36px;width:100%;max-width:400px;box-shadow:0 24px 64px rgba(0,0,0,.35)">
+    <div style="font-family:'Montserrat',sans-serif;font-size:20px;font-weight:800;margin-bottom:4px"><span class="efi">EFI</span><span class="ciencia">CIENCIA</span></div>
+    <div style="font-size:12px;color:var(--ink-s);margin-bottom:24px">Workbook — acceso de consultor</div>
+    <div style="margin-bottom:14px">
+      <label style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#555;display:block;margin-bottom:6px">Email</label>
+      <input type="email" id="auth-email" autocomplete="username" style="width:100%;padding:10px 14px;border:1.5px solid #ddd;border-radius:8px;font-size:14px;box-sizing:border-box" onkeydown="if(event.key==='Enter')document.getElementById('auth-pass').focus()">
+    </div>
+    <div style="margin-bottom:18px">
+      <label style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#555;display:block;margin-bottom:6px">Contraseña</label>
+      <input type="password" id="auth-pass" autocomplete="current-password" style="width:100%;padding:10px 14px;border:1.5px solid #ddd;border-radius:8px;font-size:14px;box-sizing:border-box" onkeydown="if(event.key==='Enter')iniciarSesion()">
+    </div>
+    <button id="auth-btn" onclick="iniciarSesion()" style="width:100%;padding:12px;background:#C9A227;color:#0D2340;font-weight:700;font-size:14px;border:none;border-radius:8px;cursor:pointer">Entrar</button>
+    <div id="auth-status" style="font-size:12px;margin-top:12px;min-height:16px;color:#A32D2D"></div>
+  </div>
+</div>
+
+<div id="org-gate" style="display:none;position:fixed;inset:0;z-index:10000;background:var(--azul);align-items:center;justify-content:center">
+  <div style="background:#fff;border-radius:16px;padding:40px 36px;width:100%;max-width:420px;box-shadow:0 24px 64px rgba(0,0,0,.35)">
+    <div style="font-size:12px;color:var(--ink-s);margin-bottom:16px">Selecciona la organización</div>
+    <select id="org-select" style="width:100%;padding:10px 14px;border:1.5px solid #ddd;border-radius:8px;font-size:14px;margin-bottom:16px;box-sizing:border-box"></select>
+    <button onclick="continuarConOrganizacion()" style="width:100%;padding:12px;background:#C9A227;color:#0D2340;font-weight:700;font-size:14px;border:none;border-radius:8px;cursor:pointer">Continuar</button>
+  </div>
+</div>
+
+<script>
+// Proyecto Supabase de EFICIENCIA — mismo patrón que cuestionario.html/sdmo.html.
+// La anon key es pública por diseño; la protección real es RLS +
+// auth.uid() vinculado en consultor_organizacion (migración 001).
+var SUPA_URL = 'https://kapxcjehfaasttwfnnzq.supabase.co';
+var SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImthcHhjamVoZmFhc3R0d2ZubnpxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODYxMzQ1NjYsImV4cCI6MjEwMTcxMDU2Nn0.s0NC1ILswMQHPf-rsY1kvGSn0LpBSckNdlw2TvzMXws';
+var supa = supabase.createClient(SUPA_URL, SUPA_KEY);
+var S_ORG = { id: null, nombre: null };
+
+function iniciarSesion(){
+  var email = document.getElementById('auth-email').value.trim();
+  var pass  = document.getElementById('auth-pass').value;
+  var btn = document.getElementById('auth-btn');
+  var status = document.getElementById('auth-status');
+  if(!email || !pass){ status.textContent = 'Completa email y contraseña.'; return; }
+  btn.disabled = true; btn.textContent = 'Entrando…';
+  status.textContent = '';
+  supa.auth.signInWithPassword({ email: email, password: pass }).then(function(res){
+    btn.disabled = false; btn.textContent = 'Entrar';
+    if(res.error){ status.textContent = res.error.message; return; }
+    resolverOrganizaciones();
+  });
+}
+
+function resolverOrganizaciones(){
+  supa.from('organizaciones').select('id,nombre').order('nombre').then(function(res){
+    if(res.error){
+      document.getElementById('auth-status').textContent = 'No se pudieron cargar las organizaciones: ' + res.error.message;
+      return;
+    }
+    var orgs = res.data || [];
+    if(orgs.length === 0){
+      document.getElementById('auth-status').textContent = 'Este consultor no tiene organizaciones vinculadas todavía.';
+      return;
+    }
+    if(orgs.length === 1){
+      entrarConOrganizacion(orgs[0].id, orgs[0].nombre);
+      return;
+    }
+    var sel = document.getElementById('org-select');
+    sel.innerHTML = orgs.map(function(o){
+      return '<option value="'+o.id+'">'+o.nombre+'</option>';
+    }).join('');
+    document.getElementById('auth-gate').style.display = 'none';
+    document.getElementById('org-gate').style.display = 'flex';
+  });
+}
+
+function continuarConOrganizacion(){
+  var sel = document.getElementById('org-select');
+  var opt = sel.options[sel.selectedIndex];
+  entrarConOrganizacion(opt.value, opt.textContent);
+}
+
+function entrarConOrganizacion(orgId, orgNombre){
+  S_ORG.id = orgId; S_ORG.nombre = orgNombre;
+  document.getElementById('auth-gate').style.display = 'none';
+  document.getElementById('org-gate').style.display = 'none';
+  document.getElementById('sidebar').style.display = '';
+  document.getElementById('main').style.display = '';
+  cargarDiagnostico();
+}
+
+// Sesión persistida (recarga de página) — evita pedir login otra vez.
+supa.auth.getSession().then(function(res){
+  if(res.data && res.data.session){ resolverOrganizaciones(); }
+});
+</script>
+
 <!-- ══ SIDEBAR (hidden on cover) ══ -->
-<aside class="sidebar" id="sidebar">
+<aside class="sidebar" id="sidebar" style="display:none">
   <div class="sb-logo">
     <img src="data:image/png;base64,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" alt="isotipo">
     <div class="brand">
@@ -493,18 +593,24 @@ hr.rl{border:none;border-top:1px solid var(--rule);margin:20px 0}
     <div class="nav-grp">Inicio</div>
     <div class="nav-item active" onclick="show('p-cover')"><span class="nav-icon">🏠</span> Portada</div>
     <div class="nav-item" onclick="show('p-acrostico')"><span class="nav-icon">🔤</span> Acróstico</div>
+    <div class="nav-grp">Diagnóstico EFICIENCIA</div>
+    <div class="nav-item" onclick="show('p-cuestionario')"><span class="nav-icon">📋</span> ICE / IEH</div>
+    <div class="nav-item" onclick="show('p-sdmo')"><span class="nav-icon">📡</span> SD-MO — Sensor Diario</div>
+    <!-- ── Paneles CFF (Costo Financiero de la Fricción) — ocultos del nav
+         mientras se reconstruye el motor sobre IAO/CFF (marco, sección 8).
+         El HTML/JS internos siguen en el archivo, intactos, para esa
+         reconstrucción — no son alcanzables desde aquí. ── -->
+    <!--
     <div class="nav-grp">Configuración</div>
     <div class="nav-item" onclick="show('p-config')"><span class="nav-icon">⚙️</span> Organización & KPIs</div>
-    <div class="nav-grp">Medición</div>
-    <div class="nav-item" onclick="show('p-cuestionario')"><span class="nav-icon">📋</span> Cuestionario EFICIENCIA</div>
-    <div class="nav-item" onclick="show('p-sdmo')"><span class="nav-icon">📡</span> SDMO — Sensor Diario</div>
     <div class="nav-item" onclick="show('p-areas')"><span class="nav-icon">🏢</span> Datos por Área</div>
-    <div class="nav-grp">Diagnóstico</div>
+    <div class="nav-grp">CFF</div>
     <div class="nav-item" onclick="show('p-piio')"><span class="nav-icon">📈</span> PIIO — Predictor Económico</div>
     <div class="nav-item" onclick="show('p-motor')"><span class="nav-icon">⚡</span> Motor · Impacto Económico</div>
     <div class="nav-grp">Análisis avanzado</div>
     <div class="nav-item" onclick="show('p-longitudinal')"><span class="nav-icon">📉</span> Seguimiento Longitudinal</div>
     <div class="nav-item" onclick="show('p-predictor')"><span class="nav-icon">🔮</span> Predictor IFT</div>
+    -->
     <div class="nav-grp">Resultado</div>
     <div class="nav-item" onclick="show('p-dashboard')"><span class="nav-icon">📊</span> Tablero Ejecutivo</div>
   </nav>
@@ -512,7 +618,7 @@ hr.rl{border:none;border-top:1px solid var(--rule);margin:20px 0}
 </aside>
 
 <!-- ══ MAIN ══ -->
-<div class="main" id="main">
+<div class="main" id="main" style="display:none">
 <!-- Fallback notification banner for sandboxed environments -->
 <div id="toast-banner" class="alert warn" style="display:none;position:sticky;top:0;z-index:500;margin:0;border-radius:0;border-left:none;border-right:none;border-top:none"></div>
 <div class="prog-top"><div class="prog-top-fill" id="top-prog" style="width:0%"></div></div>
@@ -578,7 +684,7 @@ hr.rl{border:none;border-top:1px solid var(--rule);margin:20px 0}
     </table>
     <div class="btn-row">
       <button class="btn btn-ghost" onclick="show('p-cover')">← Portada</button>
-      <button class="btn btn-primary" onclick="show('p-config')">Iniciar diagnóstico →</button>
+      <button class="btn btn-primary" onclick="show('p-cuestionario')">Iniciar diagnóstico →</button>
     </div>
   </div>
 </div>
@@ -728,112 +834,27 @@ hr.rl{border:none;border-top:1px solid var(--rule);margin:20px 0}
 <div id="p-cuestionario" class="panel">
   <div class="panel-inner">
     <div class="ph">
-      <div class="ph-tag">Paso 2 &middot; Resultados ICE &amp; IEHS</div>
-      <div class="ph-title">Resultados del Cuestionario</div>
-      <div class="ph-desc">&#205;ndices consolidados cargados desde la API. Los respondentes completan el cuestionario en el enlace independiente generado para cada organizaci&#243;n.</div>
+      <div class="ph-tag">Cuestionario EFICIENCIA</div>
+      <div class="ph-title">ICE / IEH</div>
+      <div class="ph-desc">Cargado directo desde el diagnóstico de la organización — sin reimplementar fórmulas aquí, solo se muestra lo que ya llegó calculado.</div>
     </div>
-    <div class="split">
-      <div class="split-left">
 
-        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px;margin-bottom:24px">
-          <div class="icard" style="padding:20px">
-            <div class="icard-tag">ICE</div>
-            <div class="icard-name" id="cuest-ice-val" style="font-size:2rem;font-weight:800;color:var(--dorado)">&#8212;</div>
-            <div class="icard-desc" style="font-size:12px">Coherencia Estructural</div>
-          </div>
-          <div class="icard" style="padding:20px">
-            <div class="icard-tag">IEHS</div>
-            <div class="icard-name" id="cuest-iehs-val" style="font-size:2rem;font-weight:800;color:var(--dorado)">&#8212;</div>
-            <div class="icard-desc" style="font-size:12px">Experiencia Humana</div>
-          </div>
-          <div class="icard" style="padding:20px">
-            <div class="icard-tag">Respondentes</div>
-            <div class="icard-name" id="cuest-n-val" style="font-size:2rem;font-weight:800;color:var(--dorado)">&#8212;</div>
-            <div class="icard-desc" style="font-size:12px">Total cuestionarios</div>
-          </div>
-          <div class="icard" style="padding:20px">
-            <div class="icard-tag">Per&#237;odo</div>
-            <div class="icard-name" id="cuest-periodo-val" style="font-size:1.1rem;font-weight:700;color:var(--dorado)">&#8212;</div>
-            <div class="icard-desc" style="font-size:12px">Semestre activo</div>
-          </div>
-        </div>
+    <div id="cuest-status" style="font-size:13px;color:var(--ink-s);margin-bottom:16px"></div>
 
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;margin-bottom:8px" id="cuest-cards">
+      <!-- ICE / IEH — sin semáforo, descripción fija en vez de número (marco,
+           sección 2: son promedios descriptivos, no métricas de amenaza
+           concentrada — fabricar un umbral aquí sería una calibración no
+           respaldada). El valor numérico va en "Ver detalle técnico". -->
+    </div>
 
-        <!-- Botón cargar desde API -->
-        <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;flex-wrap:wrap">
-          <button class="btn btn-primary" onclick="abrirModalAPI()" style="display:inline-flex;align-items:center;gap:8px">
-            &#8659; Cargar desde API
-          </button>
-          <button class="btn btn-ghost btn-sm" onclick="show('p-respondentes')" style="display:inline-flex;align-items:center;gap:6px">
-            &#128101; Ver respondentes
-          </button>
-          <span id="cuest-org-badge" style="font-size:12px;color:var(--ink-s);font-style:italic"></span>
-        </div>
+    <details style="margin-top:20px">
+      <summary style="cursor:pointer;font-size:12px;color:var(--ink-s);font-weight:700;text-transform:uppercase;letter-spacing:.06em">Ver detalle técnico</summary>
+      <div id="cuest-detalle" style="margin-top:12px;font-size:12px;font-family:'DM Mono',monospace;color:var(--ink-s);line-height:1.8"></div>
+    </details>
 
-        <div id="cuest-no-data" class="alert" style="background:var(--azul-bg);border:1px solid rgba(37,99,168,.20);border-radius:var(--r);padding:18px 20px;margin-bottom:20px">
-          <span class="ai">&#8681;</span>
-          <div>
-            <strong>Sin datos cargados</strong><br>
-            <span style="font-size:13px;display:block;margin-bottom:12px">Ingresa el ID de la organizaci&#243;n para importar los resultados del cuestionario desde el servidor.</span>
-            <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-              <input type="text" id="cuest-org-input" placeholder="ej: rve-2026" style="padding:8px 12px;border:1.5px solid rgba(37,99,168,.30);border-radius:6px;font-size:13px;font-family:monospace;background:#fff;width:200px" onkeydown="if(event.key==='Enter')cargarDesdePanelCuest()">
-              <button class="btn btn-primary btn-sm" id="cuest-load-btn" onclick="cargarDesdePanelCuest()" style="white-space:nowrap">&#8659; Cargar datos</button>
-            </div>
-            <div id="cuest-load-status" style="font-size:12px;margin-top:8px;min-height:16px"></div>
-          </div>
-        </div>
-
-        <div id="cuest-areas-wrap" style="display:none">
-          <div class="card-title" style="margin-bottom:12px">Resultados por &#225;rea</div>
-          <div style="overflow-x:auto">
-            <table id="cuest-areas-table" style="width:100%;border-collapse:collapse;font-size:13px">
-              <thead>
-                <tr style="background:var(--azul);color:#fff">
-                  <th style="padding:10px 14px;text-align:left">&#193;rea</th>
-                  <th style="padding:10px 14px;text-align:center">N</th>
-                  <th style="padding:10px 14px;text-align:center">ICE</th>
-                  <th style="padding:10px 14px;text-align:center">IEHS</th>
-                  <th style="padding:10px 14px;text-align:center">Zona</th>
-                </tr>
-              </thead>
-              <tbody id="cuest-areas-tbody"></tbody>
-            </table>
-          </div>
-        </div>
-
-        <div id="cuest-dims-wrap" style="display:none;margin-top:24px">
-          <div class="card-title" style="margin-bottom:12px">Dimensiones ICE &amp; IEHS</div>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px" id="cuest-dims-grid"></div>
-        </div>
-
-        <div class="btn-row" style="margin-top:24px">
-          <button class="btn btn-ghost" onclick="show('p-config')">&#8592; Configuraci&#243;n</button>
-          <button class="btn btn-primary" onclick="show('p-sdmo')">SD-MO &#8594;</button>
-        </div>
-      </div>
-
-      <div class="split-right">
-        <div class="results-panel">
-          <div class="rp-title">Resumen</div>
-          <div class="rp-metric">
-            <div class="rp-label">Respondentes</div>
-            <div class="rp-val"><span id="q-cnt">0</span><span style="font-size:14px;color:rgba(255,255,255,.3)"> cuest.</span></div>
-          </div>
-          <div class="rp-bar"><div class="rp-fill" id="q-fill" style="width:0%"></div></div>
-          <div class="rp-div"></div>
-          <div class="rp-metric"><div class="rp-label">IEHS</div><div class="rp-val" id="rp-iehs">&#8212;</div></div>
-          <div class="rp-bar"><div class="rp-fill" id="rp-iehs-f" style="width:0%"></div></div>
-          <div class="rp-div"></div>
-          <div class="rp-metric"><div class="rp-label">ICE</div><div class="rp-val" id="rp-ice">&#8212;</div></div>
-          <div class="rp-bar"><div class="rp-fill" id="rp-ice-f" style="width:0%"></div></div>
-          <div class="rp-div"></div>
-          <div id="rp-blk-warn" style="display:none" class="alert bad">
-            <span class="ai">&#128683;</span>
-            <div style="font-size:11px">IEHS &lt; 0.50 &mdash; Condici&#243;n de bloqueo activa</div>
-          </div>
-          <span id="q-counter" style="display:none">0 / 0</span>
-        </div>
-      </div>
+    <div class="btn-row" style="margin-top:24px">
+      <button class="btn btn-primary" onclick="show('p-dashboard')">Ver desglose completo y acciones →</button>
     </div>
   </div>
 </div>
@@ -842,104 +863,23 @@ hr.rl{border:none;border-top:1px solid var(--rule);margin:20px 0}
 <div id="p-sdmo" class="panel">
   <div class="panel-inner">
     <div class="ph">
-      <div class="ph-tag">Paso 3 &middot; IDA &middot; IDC &middot; IFO</div>
-      <div class="ph-title">Resultados SD-MO</div>
-      <div class="ph-desc">Estado regulatorio operativo cargado desde la API. Los respondentes registran el SD-MO 3 veces por semana desde el instrumento independiente.</div>
+      <div class="ph-tag">SD-MO — Sensor Diario</div>
+      <div class="ph-title">Resumen SD-MO</div>
+      <div class="ph-desc">Estado del sensor diario de la organización — cargado directo desde el diagnóstico, sin recalcular nada aquí.</div>
     </div>
-    <div class="split">
-      <div class="split-left">
 
-        <!-- Tarjetas principales -->
-        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:14px;margin-bottom:24px">
-          <div class="icard" style="padding:20px">
-            <div class="icard-tag">IAO</div>
-            <div class="icard-name" id="sdmo-iao-val" style="font-size:2rem;font-weight:800;color:var(--dorado)">&#8212;</div>
-            <div class="icard-desc" style="font-size:12px">&#205;ndice Adaptativo Operativo</div>
-          </div>
-          <div class="icard" style="padding:20px">
-            <div class="icard-tag">IDA promedio</div>
-            <div class="icard-name" id="sdmo-ida-val" style="font-size:2rem;font-weight:800;color:var(--dorado)">&#8212;</div>
-            <div class="icard-desc" style="font-size:12px">Din&#225;mica Adaptativa</div>
-          </div>
-          <div class="icard" style="padding:20px">
-            <div class="icard-tag">IDC</div>
-            <div class="icard-name" id="sdmo-idc-val" style="font-size:2rem;font-weight:800;color:var(--dorado)">&#8212;</div>
-            <div class="icard-desc" style="font-size:12px">Diagn&#243;stico Causal</div>
-          </div>
-          <div class="icard" style="padding:20px">
-            <div class="icard-tag">IFO</div>
-            <div class="icard-name" id="sdmo-ifo-val" style="font-size:2rem;font-weight:800;color:var(--dorado)">&#8212;</div>
-            <div class="icard-desc" style="font-size:12px">Fricci&#243;n Operativa</div>
-          </div>
-          <div class="icard" style="padding:20px">
-            <div class="icard-tag">Jornadas</div>
-            <div class="icard-name" id="sdmo-n-val" style="font-size:2rem;font-weight:800;color:var(--dorado)">&#8212;</div>
-            <div class="icard-desc" style="font-size:12px">Registros SD-MO</div>
-          </div>
-        </div>
+    <div id="sdmo-status" style="font-size:13px;color:var(--ink-s);margin-bottom:16px"></div>
 
-        <!-- Sin datos -->
-        <div id="sdmo-no-data" class="alert" style="background:var(--azul-bg);border:1px solid rgba(37,99,168,.20);border-radius:var(--r);padding:18px 20px;margin-bottom:20px">
-          <span class="ai">&#8681;</span>
-          <div><strong>Sin datos SD-MO</strong><br>
-          <span style="font-size:13px">Usa <strong>&#8659; Cargar desde API</strong> para importar las jornadas SD-MO de esta organizaci&#243;n.</span></div>
-        </div>
+    <div id="sdmo-card"></div>
 
-        <!-- Tabla de jornadas recientes -->
-        <div id="sdmo-jornadas-wrap" style="display:none">
-          <div class="card-title" style="margin-bottom:12px">&#218;ltimas jornadas (IAO acumulado)</div>
-          <div style="overflow-x:auto">
-            <table style="width:100%;border-collapse:collapse;font-size:13px">
-              <thead>
-                <tr style="background:var(--azul);color:#fff">
-                  <th style="padding:9px 14px;text-align:left">Jornada</th>
-                  <th style="padding:9px 14px;text-align:center">IDA prom.</th>
-                  <th style="padding:9px 14px;text-align:center">IAO acum.</th>
-                  <th style="padding:9px 14px;text-align:center">IDC</th>
-                  <th style="padding:9px 14px;text-align:center">IFO</th>
-                  <th style="padding:9px 14px;text-align:center">N</th>
-                </tr>
-              </thead>
-              <tbody id="sdmo-jornadas-tbody"></tbody>
-            </table>
-          </div>
-        </div>
+    <details style="margin-top:20px">
+      <summary style="cursor:pointer;font-size:12px;color:var(--ink-s);font-weight:700;text-transform:uppercase;letter-spacing:.06em">Ver detalle técnico</summary>
+      <div id="sdmo-detalle" style="margin-top:12px;font-size:12px;font-family:'DM Mono',monospace;color:var(--ink-s);line-height:1.8"></div>
+    </details>
 
-        <div class="btn-row" style="margin-top:24px">
-          <button class="btn btn-ghost" onclick="show('p-cuestionario')">&#8592; ICE / IEHS</button>
-          <button class="btn btn-primary" onclick="show('p-areas')">&#193;reas &#8594;</button>
-        </div>
-      </div>
-
-      <!-- Panel derecho — IDs que usa calcSDMO() internamente -->
-      <div class="split-right">
-        <div class="results-panel">
-          <div class="rp-title">Estado operativo</div>
-          <div class="rp-metric"><div class="rp-label">IDA</div><div class="rp-val" id="rp-ida">&#8212;</div></div>
-          <div class="rp-bar"><div class="rp-fill" id="rp-ida-f" style="width:0%"></div></div>
-          <div class="rp-div"></div>
-          <div class="rp-metric"><div class="rp-label">IAO</div><div class="rp-val" id="rp-iao">&#8212;</div></div>
-          <div class="rp-div"></div>
-          <div class="rp-metric"><div class="rp-label">IDC</div><div class="rp-val" id="rp-idc">&#8212;</div></div>
-          <div class="rp-bar"><div class="rp-fill" id="rp-idc-f" style="width:0%"></div></div>
-          <div class="rp-div"></div>
-          <div class="rp-metric"><div class="rp-label">IFO</div><div class="rp-val" id="rp-ifo">&#8212;</div></div>
-          <div class="rp-bar"><div class="rp-fill" id="rp-ifo-f" style="width:0%"></div></div>
-          <div class="rp-div"></div>
-          <div id="rp-tension-clase" style="display:none" class="alert"></div>
-          <div id="rp-mop-s" style="display:none"></div>
-          <div id="rp-sc-txt" style="display:none"></div>
-          <!-- IDs para compatibilidad con inputs del sdmo original -->
-          <span id="sdmo-q1" style="display:none"></span>
-          <span id="sdmo-q2" style="display:none"></span>
-          <span id="sdmo-q3" style="display:none"></span>
-          <span id="sdmo-q4" style="display:none"></span>
-          <span id="sdmo-q5" style="display:none"></span>
-          <span id="sdmo-q6" style="display:none"></span>
-          <span id="sdmo-q7" style="display:none"></span>
-          <span id="sdmo-open" style="display:none"></span>
-        </div>
-      </div>
+    <div class="btn-row" style="margin-top:24px">
+      <button class="btn btn-ghost" onclick="show('p-cuestionario')">← ICE / IEH</button>
+      <button class="btn btn-primary" onclick="show('p-dashboard')">Ver desglose completo y acciones →</button>
     </div>
   </div>
 </div>
@@ -1433,35 +1373,27 @@ hr.rl{border:none;border-top:1px solid var(--rule);margin:20px 0}
 <div id="p-dashboard" class="panel">
   <div class="panel-inner">
     <div class="ph">
-      <div class="ph-tag">Dashboard
-    <div id="dash-autocalc" class="autocalc-banner" style="display:none"><span class="autocalc-dot"></span><span class="autocalc-label">Auto-calculado</span><span class="autocalc-vals"></span></div></div>
-      <div class="ph-title">Tablero Ejecutivo EFICIENCIA</div>
+      <div class="ph-tag">Diagnóstico EFICIENCIA</div>
+      <div class="ph-title">Tablero Ejecutivo</div>
+      <div class="ph-desc">ICE, IEH e IAO como tres lecturas separadas — nunca combinadas en un solo número (esa fue la razón explícita de eliminar el IIE, marco sección 4).</div>
     </div>
 
-    <!-- Campo de costo ESTÁTICO — fuera de dash-content para no perder foco al tipear -->
-    <div id="dash-interv-box" style="display:none;background:rgba(13,27,42,0.06);border:1.5px solid rgba(13,27,42,0.12);border-radius:10px;padding:14px 18px;margin-bottom:14px">
-      <div style="font-size:9px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:#3D5A73;margin-bottom:10px">💡 Costo de intervención — editable</div>
-      <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
-        <div style="flex:1;min-width:220px">
-          <label style="font-size:11px;color:#3D5A73;display:block;margin-bottom:4px">Monto de la intervención (COP / año)</label>
-          <input type="number" id="dash-costo-interv"
-            style="width:100%;padding:8px 10px;border-radius:6px;border:1.5px solid #a8c8f0;background:#fff;color:#0D1B2A;font-family:'DM Mono',monospace;font-size:13px;outline:none;box-sizing:border-box"
-            placeholder="Déjalo en blanco para usar el estimado automático"
-            oninput="S.costoIntervManual=this.value?parseFloat(this.value):null;_recalcROI()">
-        </div>
-        <div id="dash-interv-nota" style="font-size:11px;color:#3D5A73;max-width:260px;line-height:1.5">
-          Por defecto: costo estimado como <strong>% de nómina efectiva</strong> según tamaño y profundidad del deterioro.<br>
-          <span id="dash-interv-estimado" style="color:#9A6000">Calculando…</span>
-        </div>
-      </div>
-    </div>
+    <div id="dash-status" style="font-size:13px;color:var(--ink-s);margin-bottom:16px"></div>
 
-    <div id="dash-iio-zero-banner" class="alert warn" style="display:none;margin-bottom:14px"></div>
-    <div id="dash-selfheal-banner" class="alert warn" style="display:none;margin-bottom:14px"></div>
-    <div id="dash-content"><div class="alert info"><span class="ai">ℹ</span><div>Completa todos los pasos para ver el tablero.</div></div></div>
+    <!-- ICE / IEH / IAO — tres tarjetas, nunca un blend -->
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;margin-bottom:28px" id="dash-indices"></div>
+
+    <!-- Desglose por par — nombre, estado (Seguridad/Alerta/Amenaza), lectura
+         simple, acción del catálogo. Detalle numérico colapsado por tarjeta. -->
+    <div class="card-title" style="margin-bottom:12px">Desglose por par</div>
+    <div id="dash-pares" style="display:grid;gap:14px;margin-bottom:28px"></div>
+
+    <!-- SD-MO resumido -->
+    <div class="card-title" style="margin-bottom:12px">SD-MO — Sensor Diario</div>
+    <div id="dash-sdmo" style="margin-bottom:14px"></div>
+
     <div class="btn-row">
-      <button class="btn btn-ghost" onclick="show('p-economico')">← Volver</button>
-      <button class="btn btn-ghost btn-sm" onclick="S.iie=null;calcMotor();renderDash();" title="Forzar recálculo completo">🔄 Recalcular</button>
+      <button class="btn btn-ghost btn-sm" onclick="cargarDiagnostico()" title="Volver a consultar el diagnóstico">🔄 Recargar diagnóstico</button>
       <button class="btn btn-gold" onclick="window.print()">🖨 Imprimir</button>
     </div>
   </div>
@@ -1894,7 +1826,8 @@ const S={
   gco_cref:null,            // C_ref custom (margen operativo por empleado)
   gco_delta_custom:null,    // δ ingresado manualmente por el cliente
   gcoCache:null,            // {conservador, moderado, alto, phi, iie1, delta, cref, sector, ts}
-  vbeCache:null             // {brep_efect, kappa, fITO, deltaCC, gco, gcoCache, ts}
+  vbeCache:null,            // {brep_efect, kappa, fITO, deltaCC, gco, gcoCache, ts}
+  diagnostico:null          // resultado crudo de resumen_organizacion_completo (Supabase)
 };
 
 /* ── Constantes de betas adaptativos y benchmarks sectoriales ──────────────
@@ -5509,634 +5442,310 @@ function getArrastreNoInterv() {
 }
 </script>
 
-<!-- Modal: Cargar desde API -->
-<div id="efi-api-modal" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(13,27,42,.70);align-items:center;justify-content:center;">
-  <div style="background:#fff;border-radius:16px;padding:36px 32px;width:100%;max-width:440px;box-shadow:0 24px 64px rgba(0,0,0,.35);position:relative;">
-    <button onclick="cerrarModalAPI()" style="position:absolute;top:14px;right:16px;background:none;border:none;font-size:20px;cursor:pointer;color:#888;line-height:1;">×</button>
-    <div style="font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#2563A8;margin-bottom:8px;">Cargar desde API</div>
-    <h2 style="font-size:1.2rem;font-weight:700;color:#0D2340;margin-bottom:6px;">Importar datos de la organización</h2>
-    <p style="font-size:13px;color:#666;margin-bottom:20px;line-height:1.6;">Introduce el <strong>mismo ID</strong> que se usó al enviar el cuestionario. Si los respondentes usaron el enlace <code style="background:#f5f4f0;padding:1px 5px;border-radius:3px">?org=rve</code>, el ID es <code style="background:#f5f4f0;padding:1px 5px;border-radius:3px">rve</code>.</p>
-
-    <div style="margin-bottom:16px;">
-      <label style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#555;display:block;margin-bottom:6px;">ID de la organización <span style="color:#e74c3c">*</span></label>
-      <input type="text" id="efi-api-org-input" placeholder="ej: rve"
-        style="width:100%;padding:10px 14px;border:1.5px solid #ddd;border-radius:8px;font-size:15px;outline:none;font-family:monospace;letter-spacing:.05em;"
-        onkeydown="if(event.key==='Enter')cargarDesdeAPI()"
-        oninput="this.value=this.value.toLowerCase().replace(/[^a-z0-9-]/g,'')">
-      <div style="font-size:11px;color:#888;margin-top:5px;">Solo letras minúsculas, números y guiones. Ej: <strong>rve</strong>, <strong>empresa-abc</strong>, <strong>grupo-norte-2026</strong></div>
-    </div>
-
-    <div style="margin-bottom:20px;">
-      <label style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#555;display:block;margin-bottom:6px;">Período (opcional)</label>
-      <input type="text" id="efi-api-periodo" placeholder="ej: 2026-S1  —  dejar vacío para todos"
-        style="width:100%;padding:10px 14px;border:1.5px solid #ddd;border-radius:8px;font-size:14px;outline:none;"
-        onkeydown="if(event.key==='Enter')cargarDesdeAPI()">
-    </div>
-
-    <button id="efi-api-btn" onclick="cargarDesdeAPI()"
-      style="width:100%;padding:12px;background:#C9A227;color:#0D2340;font-weight:700;font-size:14px;border:none;border-radius:8px;cursor:pointer;transition:background .15s;"
-      onmouseover="this.style.background='#b8911f'" onmouseout="this.style.background='#C9A227'">
-      Cargar datos
-    </button>
-
-    <div id="efi-api-status" style="margin-top:14px;font-size:13px;line-height:1.6;min-height:20px;"></div>
-
-    <div style="margin-top:20px;padding-top:16px;border-top:1px solid #f0ede6;">
-      <div style="font-size:11px;color:#999;line-height:1.6;">
-        Los datos se cargan directamente desde <strong>eficiencia-api-production.up.railway.app</strong>.<br>
-        Después de cargar serás redirigido al dashboard ejecutivo.
-      </div>
-    </div>
-  </div>
-</div>
-
 <script>
 /* ═══════════════════════════════════════════════════════════════════════
-   EFICIENCIA — Integración API + Panel de respondentes v2.0
+   EFICIENCIA — Diagnóstico desde Supabase (resumen_organizacion_completo)
+   Reemplaza la integración vieja con la API de Railway. Auth + resolución
+   de organización ya ocurrieron antes de este punto (script justo después
+   de <body>) — aquí solo se consume S_ORG.id ya resuelto.
    ═══════════════════════════════════════════════════════════════════════ */
 
-var EFI_API_URL = 'https://eficiencia-api-production.up.railway.app';
-var _efiData = null;  // cache de la última carga
-
-// ── Modal ──────────────────────────────────────────────────────────────────
-function abrirModalAPI(){
-  document.getElementById('efi-api-modal').style.display = 'flex';
-  var input = document.getElementById('efi-api-org-input');
-  if(input && !input.value){
-    var orgEl = document.getElementById('org-n');
-    if(orgEl && orgEl.value){
-      input.value = orgEl.value.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
+// ── Catálogo de intervención — texto tal cual CATALOGO_INTERVENCION_EFICIENCIA.md,
+// sin narrativa nueva. Cruza par × signo de brecha_final × severidad. ──────
+var CATALOGO_INTERVENCION = {
+  1: {
+    nombre: 'Estructura / Fortaleza',
+    responsable: 'Empresario',
+    positiva: {
+      lectura: 'La estructura está bien diseñada, pero el colaborador no la percibe como segura. Problema de visibilidad/comunicación de la estructura, no de diseño.',
+      seguridad: 'Reforzar comunicación existente sobre las condiciones estructurales ya vigentes. Formalidad baja.',
+      alerta: 'Sesión formal de socialización de la estructura, con espacio explícito para preguntas y verificación de comprensión.',
+      amenaza: 'Empresario + Directivo co-responsables. Auditoría de comunicación estructural con plan de cierre de brecha y seguimiento medido.',
+      corresponsabilidad: 'Participar activamente cuando se abre el espacio de socialización — preguntar en vez de asumir lo peor en silencio; la brecha de comunicación se cierra desde los dos lados.'
+    },
+    negativa: {
+      lectura: 'El colaborador percibe más seguridad de la que la estructura formal sostiene. Fortaleza cultural informal, no institucionalizada — frágil.',
+      seguridad: 'Documentar qué genera esa percepción de seguridad informal.',
+      alerta: 'Iniciar formalización de al menos un elemento de esa fortaleza informal.',
+      amenaza: 'Empresario + Directivo co-responsables. Priorizar institucionalización antes de que dependa de la permanencia de personas específicas.',
+      corresponsabilidad: 'Ayudar a nombrar concretamente qué le da esa sensación de seguridad (qué persona, qué práctica) — sin ese insumo, la organización no puede institucionalizar lo que hoy solo vive en la percepción.'
+    }
+  },
+  2: {
+    nombre: 'Intención / Coherencia',
+    responsable: 'Directivo',
+    positiva: {
+      lectura: 'La visión está bien declarada, pero el colaborador no ve coherencia entre esa visión y la conducta real.',
+      seguridad: 'Autoevaluación del Directivo sobre momentos recientes de posible incoherencia; ajuste de comportamiento.',
+      alerta: 'Conversación directa con el equipo reconociendo la brecha percibida, sin justificarla.',
+      amenaza: 'Directivo + Empresario co-responsables. Revisión estructurada de decisiones contra la visión declarada, con compromiso público de corrección.',
+      corresponsabilidad: 'Dar retroalimentación específica y concreta sobre dónde se percibe la incoherencia (no una queja vaga), y dar el beneficio de la duda genuino durante el período de corrección — sin eso, el Directivo no tiene sobre qué actuar.'
+    },
+    negativa: {
+      lectura: 'El colaborador percibe más coherencia de la que la visión formal articula.',
+      seguridad: 'Articular y comunicar la visión que ya se está viviendo en la práctica.',
+      alerta: 'Taller de definición/documentación formal de la visión con participación del equipo.',
+      amenaza: 'Directivo + Empresario co-responsables. Formalizar antes de escalar o rotar liderazgo.',
+      corresponsabilidad: 'Ayudar a poner en palabras lo que hoy percibe como coherente pero nunca se ha articulado formalmente — es quien mejor puede describir la visión vivida desde su propia experiencia.'
+    }
+  },
+  3: {
+    nombre: 'Impacto / Equilibrio',
+    responsable: 'Empresario',
+    positiva: {
+      lectura: 'El impacto real es positivo, pero no se percibe como justo.',
+      seguridad: 'Comunicar con más claridad los criterios detrás de decisiones que afectan al colaborador.',
+      alerta: 'Revisión conjunta de criterios de equidad con representación del equipo.',
+      amenaza: 'Empresario + Directivo co-responsables. Auditoría de equidad interna con plan de corrección de cualquier asimetría real encontrada.',
+      corresponsabilidad: 'Comunicar específicamente qué se percibe como injusto, en vez de acumular resentimiento en silencio; participar constructivamente en la revisión de criterios cuando se abra el espacio.'
+    },
+    negativa: {
+      lectura: 'El colaborador percibe más justicia de la que el impacto real sostiene. Riesgo de colchón que se agota sin aviso.',
+      seguridad: 'Monitorear indicadores de impacto real para confirmar que la percepción tiene base sostenible.',
+      alerta: 'Revisión honesta de si las condiciones reales están a la altura de la percepción.',
+      amenaza: 'Empresario + Directivo co-responsables. Corrección estructural urgente de condiciones reales.',
+      corresponsabilidad: 'Dar retroalimentación honesta y continua, incluso cuando la percepción general es positiva — nombrar la brecha real que empieza a sentir, antes de que el colchón se agote, en vez de sostenerla en silencio por lealtad o por no querer parecer desagradecido.'
+    }
+  },
+  4: {
+    nombre: 'Nexo / Confianza',
+    responsable: 'Directivo',
+    positiva: {
+      lectura: 'Existe vínculo estructural, pero no se traduce en confianza percibida.',
+      seguridad: 'Aumentar consistencia en cumplimiento de compromisos pequeños y visibles.',
+      alerta: 'Espacio formal de retroalimentación bidireccional para identificar dónde se rompe la credibilidad.',
+      amenaza: 'Directivo + Empresario co-responsables. Plan de reconstrucción de confianza con hitos verificables.',
+      corresponsabilidad: 'Otorgar confianza de forma incremental conforme se cumplen los compromisos, en vez de retenerla por reflejo aunque la infraestructura relacional ya exista — la confianza también se construye dándola, no solo recibiéndola.'
+    },
+    negativa: {
+      lectura: 'El colaborador confía más de lo que el vínculo formal sostiene. Dependencia en relaciones personales — riesgo si esas personas se van.',
+      seguridad: 'Identificar qué relación personal sostiene esa confianza.',
+      alerta: 'Formalizar al menos un canal de vínculo que hoy depende solo de una persona.',
+      amenaza: 'Directivo + Empresario co-responsables. Plan de transferencia / institucionalización con prioridad urgente.',
+      corresponsabilidad: 'Participar activamente en la institucionalización de ese vínculo (ej. documentar la relación de mentoría informal) en vez de dejar que dependa solo de una persona — protege al propio colaborador si esa persona se va.'
+    }
+  },
+  5: {
+    nombre: 'Integración / Actitud',
+    responsable: 'Directivo',
+    positiva: {
+      lectura: 'La organización gestiona relaciones con inteligencia, pero no genera la respuesta conductual esperada. El flujo no se está cerrando.',
+      seguridad: 'Verificar que el esfuerzo relacional sea visible y percibido, no solo real internamente.',
+      alerta: 'Conversación directa para entender por qué la respuesta esperada no se está dando.',
+      amenaza: 'Directivo + Empresario co-responsables. Revisión de si el esfuerzo está mal dirigido o mal comunicado.',
+      corresponsabilidad: 'Comunicar activamente qué necesitaría ver para responder distinto, en vez de desconectarse en silencio — el flujo bidireccional requiere que ambos lados hagan visible lo que perciben.'
+    },
+    negativa: {
+      lectura: 'El colaborador responde con mejor actitud de la que la gestión relacional amerita — está dando más de lo que recibe.',
+      seguridad: 'Reconocer explícitamente el esfuerzo del colaborador como primer paso de reciprocidad.',
+      alerta: 'Ajustar la gestión relacional para estar a la altura del esfuerzo que el colaborador ya está dando.',
+      amenaza: 'Directivo + Empresario co-responsables. Riesgo alto de agotamiento o salida.',
+      corresponsabilidad: 'Reconocer y comunicar su propio límite antes de llegar al agotamiento — nombrar el desequilibrio con anticipación es la forma en que este colaborador ejerce su propia responsabilidad compartida, no sosteniendo el vínculo solo hasta que se rompa.'
     }
   }
-  setTimeout(function(){ var inp=document.getElementById('efi-api-org-input'); if(inp) inp.focus(); }, 100);
+};
+
+// ── Escala de severidad: Seguridad · Alerta · Amenaza (marco, sección 2) ──
+// Aplica a amenaza_par (por par) y al IAO — nunca a ICE/IEH (sección 2: son
+// promedios descriptivos, no métricas de amenaza concentrada — fabricar un
+// umbral de severidad para ellos sería una calibración no respaldada).
+// Umbrales provisionales — mismos números de partida que |Brecha_final|
+// (sección 6.4: 0.15/0.35) pero declarados aparte, porque amenaza_par es
+// una métrica distinta (incluye el piso de amenaza absoluta) — pendiente
+// de su propia calibración con el piloto.
+var V_UMBRAL_ALERTA  = 0.15;
+var V_UMBRAL_AMENAZA = 0.35;
+
+function estadoDesdeAmenaza(amenaza){
+  if(amenaza == null) return null;
+  if(amenaza > V_UMBRAL_AMENAZA) return 'amenaza';
+  if(amenaza > V_UMBRAL_ALERTA)  return 'alerta';
+  return 'seguridad';
 }
-function cerrarModalAPI(){
-  document.getElementById('efi-api-modal').style.display = 'none';
+function estadoDesdeIAO(iao){
+  // IAO ya está en escala 0-100 (100×Incongruencia) — mismos umbrales
+  // reescalados, porque el IAO se construye directamente desde amenaza_par.
+  if(iao == null) return null;
+  return estadoDesdeAmenaza(iao / 100);
 }
-document.addEventListener('keydown', function(e){
-  if(e.key === 'Escape') cerrarModalAPI();
-});
+var ESTADO_LABEL = { seguridad: 'Seguridad', alerta: 'Alerta', amenaza: 'Amenaza' };
+var ESTADO_COLOR = { seguridad: '#1A5C3A',   alerta: '#9A6000', amenaza: '#A32D2D' };
+var ESTADO_BG    = { seguridad: '#EAF5EF',   alerta: '#FEF3D9', amenaza: '#FCEBEB' };
 
-// ── Cargar desde API ───────────────────────────────────────────────────────
-function cargarDesdeAPI(){
-  var orgId  = document.getElementById('efi-api-org-input').value.trim().toLowerCase();
-  if(!orgId){ alert('Ingresa el ID de la organización'); return; }
-  var periodo = document.getElementById('efi-api-periodo').value.trim() || null;
-  var url = EFI_API_URL + '/api/organizacion/' + encodeURIComponent(orgId);
-  if(periodo) url += '?periodo=' + encodeURIComponent(periodo);
-
-  var btn    = document.getElementById('efi-api-btn');
-  var status = document.getElementById('efi-api-status');
-  btn.disabled = true;
-  btn.textContent = 'Cargando...';
-  status.innerHTML = '';
-  status.style.color = '';
-
-  fetch(url)
-    .then(function(r){
-      if(r.status === 404) throw new Error('Organización "' + orgId + '" no encontrada. Verifica el ID.');
-      if(!r.ok) throw new Error('Error del servidor: HTTP ' + r.status);
-      return r.json();
-    })
-    .then(function(data){
-      _efiData = data;
-      var c = data.consolidado;
-
-      if(c.ice == null && c.iehs == null && c.iao == null){
-        throw new Error('La organización existe pero aún no tiene datos.');
-      }
-
-      // ── 1. Inyectar en S ────────────────────────────────────────────────
-      if(c.ice  != null) S.ice  = c.ice;
-      if(c.iehs != null) S.iehs = c.iehs;
-      if(c.iao  != null) S.iao  = c.iao;
-      if(!S.ice  && S.iehs) S.ice  = S.iehs;
-      if(!S.iehs && S.ice)  S.iehs = S.ice;
-      if(!S.iao)             S.iao  = (S.ice + S.iehs) / 2;
-
-      // Pre-llenar config
-      var orgEl = document.getElementById('org-n');
-      if(orgEl && data.org_nombre) orgEl.value = data.org_nombre;
-      S.orgNombre = data.org_nombre || orgId;
-      var nEl = document.getElementById('org-emp');
-      if(nEl && data.n_respondentes > 0 && (parseInt(nEl.value)||0) < data.n_respondentes){
-        nEl.value = data.n_respondentes;
-        S.n = data.n_respondentes;
-      }
-
-      // Pre-llenar S.areas desde cuestionarios por área
-      _preCargarAreas(data);
-
-      // ── 2. Propagar a todo el sistema ────────────────────────────────────
-      try{ readConfig(); }catch(e){}
-      try{ _cascadeAll(); }catch(e){}
-
-      // ── 3. Renderizar paneles ────────────────────────────────────────────
-      try{ _renderCuest(data); }catch(e){ console.warn('renderCuest:', e); }
-      try{ _renderSDMO(data);  }catch(e){ console.warn('renderSDMO:', e); }
-      try{ _renderResp(data);  }catch(e){ console.warn('renderResp:', e); }
-
-      // ── 4. Feedback y navegación ─────────────────────────────────────────
-      var nC = data.n_respondentes  || 0;
-      var nS = data.n_jornadas_sdmo || 0;
-      status.style.color = '#1A5C3A';
-      status.innerHTML =
-        '&#10003; <strong>' + (data.org_nombre || orgId) + '</strong><br>' +
-        'ICE=' + _f(c.ice) + ' &middot; IEHS=' + _f(c.iehs) +
-        ' &middot; IAO=' + _f(c.iao) + ' &middot; IIE=' + _f(c.iie) + '<br>' +
-        nC + ' respondentes &middot; ' + nS + ' jornadas SD-MO';
-
-      try{ showToast('<strong>API cargada</strong> &mdash; ' + (data.org_nombre||orgId) +
-        ' &middot; IIE=' + _f(c.iie), 'good'); }catch(e){}
-
-      setTimeout(function(){ cerrarModalAPI(); show('p-cuestionario'); }, 1500);
-    })
-    .catch(function(err){
-      status.style.color = '#A32D2D';
-      status.textContent = '&#10007; ' + err.message;
-      try{ showToast('<strong>Error API</strong> &mdash; ' + err.message, 'bad'); }catch(e){}
-    })
-    .finally(function(){
-      btn.disabled = false;
-      btn.textContent = 'Cargar datos';
-    });
+function _badgeEstado(estado){
+  if(!estado) return '';
+  return '<span style="background:' + ESTADO_BG[estado] + ';color:' + ESTADO_COLOR[estado] +
+    ';padding:3px 10px;border-radius:10px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em">' +
+    ESTADO_LABEL[estado] + '</span>';
+}
+function _sinDatos(minimo){
+  return '<div style="font-size:13px;color:var(--ink-s);font-style:italic">Datos insuficientes para reportar (mínimo ' + (minimo || 8) + ' respuestas)</div>';
 }
 
-// ── Utilidades ─────────────────────────────────────────────────────────────
-function _f(v, d){ return v != null ? v.toFixed(d||3) : '—'; }
-function _avg(arr){ return arr.length ? arr.reduce(function(a,b){return a+b;},0)/arr.length : null; }
-function _set(id, v){ var e=document.getElementById(id); if(e) e.textContent=v; }
-function _nivelLabel(v){
-  var m={'directivo':'Directivo','mando_medio':'Mando medio','colaborador':'Colaborador'};
-  return m[v]||v||'—';
-}
-function _zona(v){
-  if(v==null) return '—';
-  return v>=0.75?'Regulado':v>=0.65?'Certif.':v>=0.50?'Transic.':'Defensivo';
-}
-function _zonaColor(v){
-  if(v==null) return '';
-  return v>=0.65?'#EAF5EF':v>=0.50?'#FEF8E3':'#FCEBEB';
-}
+// ── Carga del diagnóstico — una sola llamada, resultados ya calculados ───
+function cargarDiagnostico(){
+  if(!S_ORG.id) return;
+  var st  = document.getElementById('dash-status');
+  var stc = document.getElementById('cuest-status');
+  var sts = document.getElementById('sdmo-status');
+  [st, stc, sts].forEach(function(el){ if(el) el.textContent = 'Cargando diagnóstico…'; });
 
-// ── Pre-llenar S.areas ─────────────────────────────────────────────────────
-function _preCargarAreas(data){
-  var cuest = data.cuestionarios || [];
-  if(!cuest.length) return;
-  var areas = {};
-  cuest.forEach(function(r){
-    var a = (r.area||'').trim() || 'Sin área';
-    if(!areas[a]) areas[a] = {ice:[], iehs:[]};
-    if(r.ice  != null) areas[a].ice.push(r.ice);
-    if(r.iehs != null) areas[a].iehs.push(r.iehs);
-  });
-  var newAreas = [];
-  Object.keys(areas).sort().forEach(function(a){
-    var d = areas[a];
-    var iceA  = _avg(d.ice);
-    var iehsA = _avg(d.iehs);
-    var iaoA  = (data.consolidado||{}).iao || (iceA&&iehsA?(iceA+iehsA)/2:null);
-    if(iceA!=null && iehsA!=null)
-      newAreas.push({nombre:a, iao:iaoA, ice:iceA, iehs:iehsA});
-  });
-  if(newAreas.length > 0){
-    S.areas = newAreas;
-    try{ renderAreas(); }catch(e){}
-  }
-}
-
-// ── Render panel Cuestionario ──────────────────────────────────────────────
-function _renderCuest(data){
-  var c    = data.consolidado || {};
-  var cuest = data.cuestionarios || [];
-
-  _set('cuest-ice-val',    _f(c.ice));
-  _set('cuest-iehs-val',   _f(c.iehs));
-  _set('cuest-n-val',      data.n_respondentes || 0);
-  _set('cuest-periodo-val', data.periodo || '—');
-  var badge = document.getElementById('cuest-org-badge');
-  if(badge) badge.textContent = data.org_nombre ? 'Cargado: ' + data.org_nombre : '';
-  _set('rp-ice',  _f(c.ice));
-  _set('rp-iehs', _f(c.iehs));
-  try{ setFill('rp-ice-f',  c.ice,  true); }catch(e){}
-  try{ setFill('rp-iehs-f', c.iehs, true); }catch(e){}
-  var bw = document.getElementById('rp-blk-warn');
-  if(bw) bw.style.display = (c.iehs!=null && c.iehs<0.5) ? 'flex' : 'none';
-
-  var nd = document.getElementById('cuest-no-data');
-  if(nd) nd.style.display = cuest.length ? 'none' : 'block';
-  var qcnt = document.getElementById('q-cnt');
-  if(qcnt) qcnt.textContent = data.n_respondentes || 0;
-
-  if(!cuest.length) return;
-
-  // Tabla por área
-  var areas = {};
-  cuest.forEach(function(r){
-    var a = (r.area||'').trim() || 'Sin área';
-    if(!areas[a]) areas[a] = {n:0, ice:[], iehs:[]};
-    areas[a].n++;
-    if(r.ice  != null) areas[a].ice.push(r.ice);
-    if(r.iehs != null) areas[a].iehs.push(r.iehs);
-  });
-  var aNames = Object.keys(areas).sort();
-  var aw = document.getElementById('cuest-areas-wrap');
-  var tb = document.getElementById('cuest-areas-tbody');
-  if(aw && tb && aNames.length){
-    aw.style.display = 'block';
-    tb.innerHTML = '';
-    aNames.forEach(function(a, idx){
-      var d = areas[a];
-      var iceA  = _avg(d.ice);
-      var iehsA = _avg(d.iehs);
-      var iie   = (iceA!=null&&iehsA!=null) ? 0.30*iceA+0.30*iehsA : null;
-      var tr = document.createElement('tr');
-      tr.style.background = idx%2===0?'#f8f7f4':'#fff';
-      tr.innerHTML =
-        '<td style="padding:9px 14px;font-weight:600">'+a+'</td>'+
-        '<td style="padding:9px 14px;text-align:center">'+d.n+'</td>'+
-        '<td style="padding:9px 14px;text-align:center">'+_f(iceA)+'</td>'+
-        '<td style="padding:9px 14px;text-align:center">'+_f(iehsA)+'</td>'+
-        '<td style="padding:9px 14px;text-align:center">'+
-          '<span style="background:'+_zonaColor(iie)+';padding:2px 8px;'+
-          'border-radius:10px;font-size:11px;font-weight:700">'+_zona(iie)+'</span></td>';
-      tb.appendChild(tr);
-    });
-  }
-
-  // Dimensiones
-  var dg = document.getElementById('cuest-dims-grid');
-  var dw = document.getElementById('cuest-dims-wrap');
-  if(dg && dw){
-    var DL = {
-      ice_d1:'ICE-D1 Adherencia', ice_d2:'ICE-D2 Comunicación',
-      ice_d3:'ICE-D3 Cultura',    ice_d4:'ICE-D4 Decisiones', ice_d5:'ICE-D5 Integridad',
-      iehs_d1:'IEHS-D1 Reconocimiento', iehs_d2:'IEHS-D2 Desarrollo',
-      iehs_d3:'IEHS-D3 Seguridad',      iehs_d4:'IEHS-D4 Sentido',
-      iehs_d5:'IEHS-D5 Proporción'
-    };
-    var ds={}, dc={};
-    cuest.forEach(function(r){
-      var dims_ice  = r.dimensiones ? r.dimensiones.ice  : null;
-      var dims_iehs = r.dimensiones ? r.dimensiones.iehs : null;
-      var hasData   = (dims_ice != null) || (r.ice_d1 != null);
-      if(!hasData) return;
-      for(var n=1;n<=5;n++){
-        var ki='ice_d'+n,  kh='iehs_d'+n;
-        var vi = dims_ice  ? dims_ice[n-1]  : r[ki];
-        var vh = dims_iehs ? dims_iehs[n-1] : r[kh];
-        if(vi!=null){ds[ki]=(ds[ki]||0)+vi; dc[ki]=(dc[ki]||0)+1;}
-        if(vh!=null){ds[kh]=(ds[kh]||0)+vh; dc[kh]=(dc[kh]||0)+1;}
-      }
-    });
-    if(Object.keys(ds).length){
-      dw.style.display='block'; dg.innerHTML='';
-      Object.keys(DL).forEach(function(k){
-        var v = dc[k] ? ds[k]/dc[k] : null;
-        var pct = v!=null ? Math.round(v*100) : 0;
-        var col = v==null?'#ccc':v>=0.65?'#2563A8':v>=0.50?'#C9A227':'#e74c3c';
-        var el = document.createElement('div');
-        el.style.cssText='background:#fff;border:1px solid #e0ddd6;border-radius:8px;padding:12px 14px';
-        el.innerHTML=
-          '<div style="font-size:11px;font-weight:700;color:#555;margin-bottom:4px">'+DL[k]+'</div>'+
-          '<div style="font-size:1.05rem;font-weight:800;color:'+col+'">'+_f(v)+'</div>'+
-          '<div style="height:4px;background:#f0ede6;border-radius:2px;margin-top:6px">'+
-          '<div style="height:100%;width:'+pct+'%;background:'+col+';border-radius:2px"></div></div>';
-        dg.appendChild(el);
-      });
+  supa.rpc('resumen_organizacion_completo', { p_organizacion_id: S_ORG.id }).then(function(res){
+    if(res.error){
+      var msg = 'Error al cargar el diagnóstico: ' + res.error.message;
+      [st, stc, sts].forEach(function(el){ if(el) el.textContent = msg; });
+      try{ showToast('<strong>Error</strong> — ' + res.error.message, 'bad'); }catch(e){}
+      return;
     }
+    S.diagnostico = res.data;
+    // ICE/IEH/IAO quedan disponibles en S para lo que los siga leyendo — el
+    // motor viejo (S.iie, calcMotor) no se toca desde aquí y ya no se llama.
+    S.ice  = res.data.ice;
+    S.iehs = res.data.ieh;
+    S.iao  = res.data.iao;
+
+    [st, stc, sts].forEach(function(el){ if(el) el.textContent = ''; });
+    renderDiagnostico();
+    try{ showToast('<strong>Diagnóstico cargado</strong> — ' + (S_ORG.nombre || ''), 'good'); }catch(e){}
+  }).catch(function(err){
+    var msg = 'Error de conexión: ' + (err && err.message || err);
+    [st, stc, sts].forEach(function(el){ if(el) el.textContent = msg; });
+  });
+}
+
+function renderDiagnostico(){
+  var d = S.diagnostico;
+  if(!d) return;
+  _renderCuestionarioNuevo(d);
+  _renderSDMONuevo(d);
+  _renderDashboardNuevo(d);
+}
+
+// ── p-cuestionario: ICE / IEH, sin semáforo, descripción fija en vez de número ──
+function _renderCuestionarioNuevo(d){
+  var wrap = document.getElementById('cuest-cards');
+  if(!wrap) return;
+  var descICE = 'Cómo la organización diseña y declara sus condiciones — estructura, intención, impacto, nexo, integración.';
+  var descIEH = 'Cómo el colaborador vive y percibe esas mismas condiciones.';
+  wrap.innerHTML =
+    '<div class="icard" style="padding:20px"><div class="icard-tag">ICE</div>' +
+    '<div style="font-size:13px;color:var(--ink-s);margin-top:8px;line-height:1.5">' + descICE + '</div></div>' +
+    '<div class="icard" style="padding:20px"><div class="icard-tag">IEH</div>' +
+    '<div style="font-size:13px;color:var(--ink-s);margin-top:8px;line-height:1.5">' + descIEH + '</div></div>';
+
+  var det = document.getElementById('cuest-detalle');
+  if(det){
+    det.innerHTML =
+      'ICE = ' + (d.ice != null ? d.ice : '—') + ' · IEH = ' + (d.ieh != null ? d.ieh : '—') +
+      ' · n suficiente: ' + (d.ice_ieh_n_suficiente ? 'sí' : 'no') +
+      ' · periodo: ' + (d.periodo || '—');
   }
 }
 
-// ── Render panel SD-MO ─────────────────────────────────────────────────────
-function _renderSDMO(data){
-  var c  = data.consolidado  || {};
-  var js = data.jornadas_sdmo || [];
+// ── p-sdmo: resumen SD-MO ──────────────────────────────────────────────────
+function _renderSDMONuevo(d){
+  var card = document.getElementById('sdmo-card');
+  if(!card) return;
+  var s = d.sdmo || {};
+  if(!s.n_suficiente){
+    card.innerHTML = '<div class="icard" style="padding:20px">' + _sinDatos(8) +
+      '<div style="font-size:11px;color:var(--ink-s);margin-top:6px">n=' + (s.n || 0) + ' en los últimos ' + (s.ventana_dias || 30) + ' días</div></div>';
+  } else {
+    var estado = estadoDesdeIAO(s.ida_prom);
+    var tendTxt = '';
+    if(s.tendencia){
+      var dirLabel = s.tendencia.direccion === 'deterioro' ? 'en deterioro' : s.tendencia.direccion === 'mejora' ? 'en mejora' : 'estable';
+      tendTxt = '<div style="font-size:12px;color:var(--ink-s);margin-top:6px">Tendencia: ' + dirLabel + ' frente a la ventana anterior.</div>';
+    }
+    card.innerHTML =
+      '<div class="icard" style="padding:20px">' +
+      '<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px"><div class="icard-tag">IDA promedio</div>' + _badgeEstado(estado) + '</div>' +
+      '<div style="font-size:13px;color:var(--ink-s)">Estado del sensor diario en los últimos ' + (s.ventana_dias || 30) + ' días (n=' + s.n + ').</div>' +
+      tendTxt + '</div>';
+  }
 
-  _set('sdmo-iao-val', _f(c.iao));
-  _set('sdmo-n-val',   data.n_jornadas_sdmo || 0);
-  _set('rp-iao', _f(c.iao));
-  _set('rp-ida', _f(c.iao));
-
-  var idcProm = js.length ? _avg(js.map(function(j){return j.idc;})) : null;
-  var ifoProm = js.length ? _avg(js.map(function(j){return j.ifo;})) : null;
-  var idaProm = js.length ? _avg(js.map(function(j){return j.ida;})) : null;
-  _set('sdmo-ida-val', _f(idaProm));
-  _set('sdmo-idc-val', _f(idcProm));
-  _set('sdmo-ifo-val', _f(ifoProm));
-  _set('rp-idc', _f(idcProm));
-  _set('rp-ifo', _f(ifoProm));
-
-  try{ if(c.iao!=null) setFill('rp-ida-f', c.iao, true); }catch(e){}
-
-  var nd = document.getElementById('sdmo-no-data');
-  if(nd) nd.style.display = js.length ? 'none' : 'block';
-  if(!js.length) return;
-
-  // Agrupar por jornada y calcular IAO acumulado
-  var byDate = {};
-  js.forEach(function(j){
-    var d = j.jornada || '?';
-    if(!byDate[d]) byDate[d] = {ida:[], idc:[], ifo:[]};
-    if(j.ida!=null) byDate[d].ida.push(j.ida);
-    if(j.idc!=null) byDate[d].idc.push(j.idc);
-    if(j.ifo!=null) byDate[d].ifo.push(j.ifo);
-  });
-  var dates = Object.keys(byDate).sort();
-  var iao_acc = null, lam = 0.80;
-  dates.forEach(function(d){
-    var ip = _avg(byDate[d].ida);
-    iao_acc = (iao_acc===null||ip===null) ? ip : lam*ip+(1-lam)*iao_acc;
-    byDate[d].iao_acum = iao_acc;
-    byDate[d].ida_prom = ip;
-    byDate[d].idc_prom = _avg(byDate[d].idc);
-    byDate[d].ifo_prom = _avg(byDate[d].ifo);
-    byDate[d].n = byDate[d].ida.length;
-  });
-
-  var jw = document.getElementById('sdmo-jornadas-wrap');
-  var tb = document.getElementById('sdmo-jornadas-tbody');
-  if(jw && tb){
-    jw.style.display = 'block';
-    tb.innerHTML = '';
-    dates.slice(-10).reverse().forEach(function(d, idx){
-      var bd = byDate[d];
-      var tr = document.createElement('tr');
-      tr.style.background = idx%2===0?'#f8f7f4':'#fff';
-      var iaoCol = _zonaColor(bd.iao_acum);
-      tr.innerHTML =
-        '<td style="padding:8px 14px;font-weight:600">'+d+'</td>'+
-        '<td style="padding:8px 14px;text-align:center">'+_f(bd.ida_prom)+'</td>'+
-        '<td style="padding:8px 14px;text-align:center;background:'+iaoCol+'">'+
-          '<strong>'+_f(bd.iao_acum)+'</strong></td>'+
-        '<td style="padding:8px 14px;text-align:center">'+_f(bd.idc_prom)+'</td>'+
-        '<td style="padding:8px 14px;text-align:center">'+_f(bd.ifo_prom)+'</td>'+
-        '<td style="padding:8px 14px;text-align:center">'+bd.n+'</td>';
-      tb.appendChild(tr);
-    });
+  var det = document.getElementById('sdmo-detalle');
+  if(det){
+    det.innerHTML =
+      'n = ' + (s.n || 0) + ' · IDA promedio = ' + (s.ida_prom != null ? s.ida_prom : '—') +
+      ' · ventana = ' + (s.ventana_dias || 30) + ' días' +
+      (s.tendencia ? (' · IDA anterior = ' + s.tendencia.ida_prom_anterior + ' · Δ = ' + s.tendencia.delta) : '');
   }
 }
 
-// ── Render panel Respondentes ──────────────────────────────────────────────
-function _renderResp(data){
-  var cuest  = data.cuestionarios  || [];
-  var jorn   = data.jornadas_sdmo  || [];
-  var nTotal = S.n || data.n_respondentes || 0;
+// ── p-dashboard: ICE/IEH/IAO + desglose por par + SD-MO ────────────────────
+function _renderDashboardNuevo(d){
+  var idxWrap = document.getElementById('dash-indices');
+  if(idxWrap){
+    var descICE = 'Cómo la organización diseña y declara sus condiciones.';
+    var descIEH = 'Cómo el colaborador vive y percibe esas condiciones.';
+    var iaoEstado = estadoDesdeIAO(d.iao);
+    var iaoBlock = d.iao_n_suficiente
+      ? '<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px"><div class="icard-tag">IAO</div>' + _badgeEstado(iaoEstado) + '</div>' +
+        '<div style="font-size:13px;color:var(--ink-s)">Modo predominante activado en la organización — Seguridad o Amenaza (n=' + d.iao_n + ').</div>'
+      : '<div class="icard-tag">IAO</div>' + _sinDatos(8);
+    idxWrap.innerHTML =
+      '<div class="icard" style="padding:20px"><div class="icard-tag">ICE</div>' +
+      '<div style="font-size:13px;color:var(--ink-s);margin-top:8px;line-height:1.5">' + descICE + '</div></div>' +
+      '<div class="icard" style="padding:20px"><div class="icard-tag">IEH</div>' +
+      '<div style="font-size:13px;color:var(--ink-s);margin-top:8px;line-height:1.5">' + descIEH + '</div></div>' +
+      '<div class="icard" style="padding:20px">' + iaoBlock + '</div>';
+  }
 
-  // Cobertura por área
-  var areas = {};
-  cuest.forEach(function(r){
-    var a = (r.area||'').trim() || 'Sin área';
-    if(!areas[a]) areas[a] = {cuest:0, sdmo:0, ids:{}};
-    areas[a].cuest++;
-    areas[a].ids[r.respondente_id] = true;
-  });
-  jorn.forEach(function(j){
-    var a = 'Sin área'; // SD-MO no tiene área en este schema
-    if(!areas[a]) areas[a] = {cuest:0, sdmo:0, ids:{}};
-    areas[a].sdmo++;
-  });
+  var paresWrap = document.getElementById('dash-pares');
+  if(paresWrap){
+    paresWrap.innerHTML = (d.pares || []).map(function(p){ return _renderParCard(p); }).join('');
+  }
 
-  // Actualizar contadores del panel
-  _set('resp-total-cuest',  cuest.length);
-  _set('resp-total-sdmo',   jorn.length);
-  _set('resp-total-areas',  Object.keys(areas).length);
-  _set('resp-total-config', nTotal);
-
-  // Alerta de cobertura baja
-  var alertEl = document.getElementById('resp-coverage-alert');
-  var areasBajas = Object.keys(areas).filter(function(a){ return areas[a].cuest < 3; });
-  if(alertEl){
-    if(areasBajas.length && Object.keys(areas).length > 1){
-      alertEl.style.display = 'flex';
-      var alertMsg = document.getElementById('resp-alert-msg');
-      if(alertMsg) alertMsg.textContent = 'Área(s) con menos de 3 respondentes: ' + areasBajas.join(', ') + '. Los promedios pueden no ser representativos.';
+  var sdmoWrap = document.getElementById('dash-sdmo');
+  if(sdmoWrap){
+    var s = d.sdmo || {};
+    if(!s.n_suficiente){
+      sdmoWrap.innerHTML = '<div class="icard" style="padding:20px">' + _sinDatos(8) + '</div>';
     } else {
-      alertEl.style.display = 'none';
+      var estado = estadoDesdeIAO(s.ida_prom);
+      sdmoWrap.innerHTML =
+        '<div class="icard" style="padding:20px">' +
+        '<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px"><div class="icard-tag">SD-MO</div>' + _badgeEstado(estado) + '</div>' +
+        '<div style="font-size:13px;color:var(--ink-s)">n=' + s.n + ' en los últimos ' + s.ventana_dias + ' días.' +
+        (s.tendencia ? (' Tendencia: ' + (s.tendencia.direccion === 'deterioro' ? 'en deterioro' : s.tendencia.direccion === 'mejora' ? 'en mejora' : 'estable') + '.') : '') +
+        '</div></div>';
     }
   }
-
-  // Tabla de respondentes detallada
-  var tbody = document.getElementById('resp-tbody');
-  if(!tbody) return;
-  tbody.innerHTML = '';
-  cuest.slice().sort(function(a,b){
-    return (a.area||'').localeCompare(b.area||'') || (a.timestamp||'').localeCompare(b.timestamp||'');
-  }).forEach(function(r, idx){
-    var ts = r.timestamp ? r.timestamp.slice(0,16).replace('T',' ') : '—';
-    var tr = document.createElement('tr');
-    tr.style.background = idx%2===0?'#f8f7f4':'#fff';
-    var iieR = (r.ice!=null&&r.iehs!=null) ? (0.30*r.ice+0.30*r.iehs) : null;
-    tr.innerHTML =
-      '<td style="padding:8px 12px;font-size:12px;color:#888">'+
-        r.respondente_id.slice(0,8)+'&hellip;</td>'+
-      '<td style="padding:8px 12px;font-weight:600">'+((r.area||'').trim()||'Sin área')+'</td>'+
-      '<td style="padding:8px 12px;font-size:12px;color:#666">'+_nivelLabel(r.nivel)+'</td>'+
-      '<td style="padding:8px 12px;font-size:12px">'+ts+'</td>'+
-      '<td style="padding:8px 12px;text-align:center">'+_f(r.ice)+'</td>'+
-      '<td style="padding:8px 12px;text-align:center">'+_f(r.iehs)+'</td>'+
-      '<td style="padding:8px 12px;text-align:center">'+
-        '<span style="background:'+_zonaColor(iieR)+';padding:2px 8px;border-radius:10px;'+
-        'font-size:11px;font-weight:700">'+_zona(iieR)+'</span></td>';
-    tbody.appendChild(tr);
-  });
-
-  var rw = document.getElementById('resp-wrap');
-  if(rw) rw.style.display = cuest.length ? 'block' : 'none';
 }
 
-// ── Imprimir listado de respondentes ──────────────────────────────────────
-function imprimirRespondentes(){
-  if(!_efiData) return;
-  var cuest = _efiData.cuestionarios || [];
-  var org   = _efiData.org_nombre || S.orgNombre || '—';
-  var fecha = new Date().toLocaleDateString('es-CO');
-  var rows  = cuest.slice().sort(function(a,b){
-    return (a.area||'').localeCompare(b.area||'');
-  }).map(function(r, i){
-    var ts = r.timestamp ? r.timestamp.slice(0,10) : '—';
-    return '<tr style="border-bottom:1px solid #eee">'+
-      '<td style="padding:6px 10px">'+(i+1)+'</td>'+
-      '<td style="padding:6px 10px;color:#888;font-size:11px">'+r.respondente_id.slice(0,8)+'…</td>'+
-      '<td style="padding:6px 10px;font-weight:600">'+((r.area||'').trim()||'Sin área')+'</td>'+
-      '<td style="padding:6px 10px">'+_nivelLabel(r.nivel)+'</td>'+
-      '<td style="padding:6px 10px">'+ts+'</td>'+
-      '<td style="padding:6px 10px;text-align:center">'+_f(r.ice)+'</td>'+
-      '<td style="padding:6px 10px;text-align:center">'+_f(r.iehs)+'</td>'+
-      '</tr>';
-  }).join('');
-
-  var w = window.open('','_blank','width=900,height=700');
-  w.document.write(
-    '<!DOCTYPE html><html><head><meta charset="UTF-8">'+
-    '<title>Respondentes — '+org+'</title>'+
-    '<style>body{font-family:Arial,sans-serif;padding:32px;color:#1a1a18}'+
-    'h1{font-size:18px;margin-bottom:4px}'+
-    '.meta{font-size:13px;color:#666;margin-bottom:24px}'+
-    'table{width:100%;border-collapse:collapse;font-size:13px}'+
-    'th{background:#0D2340;color:#fff;padding:8px 10px;text-align:left}'+
-    '@media print{button{display:none}}</style></head>'+
-    '<body>'+
-    '<h1>EFICIENCIA — Listado de respondentes</h1>'+
-    '<div class="meta">Organización: <strong>'+org+'</strong> &nbsp;·&nbsp; '+
-      'Fecha de impresión: '+fecha+' &nbsp;·&nbsp; Total: '+cuest.length+' respondentes</div>'+
-    '<button onclick="window.print()" style="margin-bottom:16px;padding:8px 20px;'+
-      'background:#C9A227;border:none;border-radius:6px;font-weight:700;cursor:pointer">'+
-      '🖨 Imprimir</button>'+
-    '<table><thead><tr>'+
-      '<th>#</th><th>ID</th><th>Área</th><th>Nivel</th><th>Fecha</th><th>ICE</th><th>IEHS</th>'+
-    '</tr></thead><tbody>'+rows+'</tbody></table>'+
-    '</body></html>'
-  );
-  w.document.close();
-  setTimeout(function(){ w.focus(); }, 300);
-}
-
-// ── Botón sidebar alternativo ──────────────────────────────────────────────
-function verRespondentes(){
-  show('p-respondentes');
-}
-
-function cargarDesdePanelCuest(){
-  var input = document.getElementById('cuest-org-input');
-  var orgId = input ? input.value.trim().toLowerCase() : '';
-  if(!orgId){ 
-    var s = document.getElementById('cuest-load-status');
-    if(s) s.style.color='#A32D2D', s.textContent='Ingresa el ID de la organización';
-    return; 
+function _renderParCard(p){
+  var ficha = CATALOGO_INTERVENCION[p.par];
+  if(!p.n_suficiente){
+    return '<div class="icard" style="padding:20px">' +
+      '<div class="icard-tag">Par ' + p.par + ' — ' + (ficha ? ficha.nombre : '') + '</div>' +
+      _sinDatos(8) +
+      '<div style="font-size:11px;color:var(--ink-s);margin-top:6px">n=' + p.n + '</div></div>';
   }
-  // Copiar al modal y disparar la carga principal
-  var modalInput = document.getElementById('efi-api-org-input');
-  if(modalInput) modalInput.value = orgId;
-  
-  var statusEl = document.getElementById('cuest-load-status');
-  if(statusEl){ statusEl.style.color='#2563A8'; statusEl.textContent='Cargando...'; }
-  var btn = document.getElementById('cuest-load-btn');
-  if(btn) btn.disabled = true;
-  
-  var base = EFI_API_URL;
-  var url  = base + '/api/organizacion/' + encodeURIComponent(orgId);
-  
-  fetch(url)
-    .then(function(r){
-      if(r.status===404) throw new Error('Organización "' + orgId + '" no encontrada. Verifica el ID.');
-      if(!r.ok) throw new Error('Error servidor: HTTP ' + r.status);
-      return r.json();
-    })
-    .then(function(data){
-      _efiData = data;
-      var c = data.consolidado || {};
-      if(c.ice == null && c.iehs == null && c.iao == null) throw new Error('La organización existe pero aún no tiene datos.');
-      
-      if(c.ice  != null) S.ice  = c.ice;
-      if(c.iehs != null) S.iehs = c.iehs;
-      if(c.iao  != null) S.iao  = c.iao;
-      if(!S.ice  && S.iehs) S.ice  = S.iehs;
-      if(!S.iehs && S.ice)  S.iehs = S.ice;
-      if(!S.iao)             S.iao  = (S.ice + S.iehs) / 2;
-      
-      var orgEl = document.getElementById('org-n');
-      if(orgEl && data.org_nombre) orgEl.value = data.org_nombre;
-      S.orgNombre = data.org_nombre || orgId;
-      var nEl = document.getElementById('org-emp');
-      if(nEl && data.n_respondentes > 0 && (parseInt(nEl.value)||0) < data.n_respondentes){
-        nEl.value = data.n_respondentes; S.n = data.n_respondentes;
-      }
-      
-      _preCargarAreas(data);
-      try{ readConfig(); }catch(e){}
-      try{ _cascadeAll(); }catch(e){}
-      try{ _renderCuest(data); }catch(e){ console.warn('renderCuest:',e); }
-      try{ _renderSDMO(data);  }catch(e){ console.warn('renderSDMO:',e); }
-      try{ _renderResp(data);  }catch(e){ console.warn('renderResp:',e); }
-      
-      if(statusEl){ 
-        statusEl.style.color='#1A5C3A'; 
-        statusEl.textContent='✓ Cargado: ' + (data.org_nombre||orgId) + 
-          ' · ICE=' + _f(c.ice) + ' · IEHS=' + _f(c.iehs) + 
-          ' · ' + (data.n_respondentes||0) + ' respondentes'; 
-      }
-      try{ showToast('<strong>Datos cargados</strong> — ' + (data.org_nombre||orgId) + ' · IIE=' + _f(c.iie), 'good'); }catch(e){}
-    })
-    .catch(function(err){
-      if(statusEl){ statusEl.style.color='#A32D2D'; statusEl.textContent='✗ ' + err.message; }
-    })
-    .finally(function(){ if(btn) btn.disabled=false; });
+  var estado  = estadoDesdeAmenaza(p.amenaza_par);
+  var signo   = p.brecha_final >= 0 ? 'positiva' : 'negativa';
+  var rama    = ficha ? ficha[signo] : null;
+  var accion  = rama ? rama[estado] : '';
+  var lectura = rama ? rama.lectura : '';
+  var corresp = rama ? rama.corresponsabilidad : '';
+
+  return '<div class="icard" style="padding:20px">' +
+    '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px;flex-wrap:wrap">' +
+      '<div class="icard-tag">Par ' + p.par + ' — ' + (ficha ? ficha.nombre : '') + '</div>' +
+      _badgeEstado(estado) +
+    '</div>' +
+    '<div style="font-size:13px;color:var(--ink-s);margin-bottom:10px;line-height:1.5">' + lectura + '</div>' +
+    '<div style="font-size:13px;line-height:1.5;margin-bottom:8px"><strong>Acción recomendada</strong> (' + (ficha ? ficha.responsable : '') + '): ' + accion + '</div>' +
+    '<div style="font-size:12px;color:var(--ink-s);line-height:1.5"><strong>Corresponsabilidad del colaborador:</strong> ' + corresp + '</div>' +
+    '<details style="margin-top:10px"><summary style="cursor:pointer;font-size:11px;color:var(--ink-s);font-weight:700;text-transform:uppercase;letter-spacing:.04em">Ver detalle técnico</summary>' +
+    '<div style="margin-top:8px;font-size:11px;font-family:\'DM Mono\',monospace;color:var(--ink-s);line-height:1.8">' +
+      'n = ' + p.n + ' · concepto_a_prom = ' + p.concepto_a_prom + ' · concepto_b_prom = ' + p.concepto_b_prom + '<br>' +
+      'bipolar_prom = ' + p.bipolar_prom + ' · brecha_calculada = ' + p.brecha_calculada + ' · brecha_final = ' + p.brecha_final + '<br>' +
+      'amenaza_par = ' + p.amenaza_par +
+    '</div></details>' +
+  '</div>';
 }
 </script>
-
-
-<!-- ═══ RESPONDENTES ═══ -->
-<div id="p-respondentes" class="panel">
-  <div class="panel-inner">
-    <div class="ph">
-      <div class="ph-tag">Panel de control</div>
-      <div class="ph-title">Respondentes y cobertura</div>
-      <div class="ph-desc">Listado de quiénes han respondido el cuestionario, discriminado por área. Permite verificar cobertura antes de interpretar resultados.</div>
-    </div>
-
-    <!-- Métricas de cobertura -->
-    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:14px;margin-bottom:24px">
-      <div class="icard" style="padding:20px">
-        <div class="icard-tag">Cuestionarios</div>
-        <div class="icard-name" id="resp-total-cuest" style="font-size:2rem;font-weight:800;color:var(--dorado)">—</div>
-        <div class="icard-desc">Respuestas recibidas</div>
-      </div>
-      <div class="icard" style="padding:20px">
-        <div class="icard-tag">Configurado</div>
-        <div class="icard-name" id="resp-total-config" style="font-size:2rem;font-weight:800;color:var(--dorado)">—</div>
-        <div class="icard-desc">N total organización</div>
-      </div>
-      <div class="icard" style="padding:20px">
-        <div class="icard-tag">Jornadas SD-MO</div>
-        <div class="icard-name" id="resp-total-sdmo" style="font-size:2rem;font-weight:800;color:var(--dorado)">—</div>
-        <div class="icard-desc">Registros acumulados</div>
-      </div>
-      <div class="icard" style="padding:20px">
-        <div class="icard-tag">Áreas</div>
-        <div class="icard-name" id="resp-total-areas" style="font-size:2rem;font-weight:800;color:var(--dorado)">—</div>
-        <div class="icard-desc">Con respondentes</div>
-      </div>
-    </div>
-
-    <!-- Alerta cobertura baja -->
-    <div id="resp-coverage-alert" class="alert bad" style="display:none;margin-bottom:20px">
-      <span class="ai">⚠</span>
-      <div id="resp-alert-msg" style="font-size:13px"></div>
-    </div>
-
-    <!-- Sin datos -->
-    <div id="resp-no-data" class="alert" style="background:var(--azul-bg);border:1px solid rgba(37,99,168,.20);border-radius:var(--r);padding:18px 20px;margin-bottom:20px">
-      <span class="ai">↡</span>
-      <div><strong>Sin datos cargados</strong><br>
-      <span style="font-size:13px">Usa <strong>↓ Cargar desde API</strong> para ver el listado de respondentes.</span></div>
-    </div>
-
-    <!-- Tabla y botón imprimir -->
-    <div id="resp-wrap" style="display:none">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:10px">
-        <div class="card-title">Listado de respondentes</div>
-        <button class="btn btn-outline btn-sm" onclick="imprimirRespondentes()">🖨 Imprimir listado</button>
-      </div>
-      <div style="overflow-x:auto">
-        <table style="width:100%;border-collapse:collapse;font-size:13px">
-          <thead>
-            <tr style="background:var(--azul);color:#fff">
-              <th style="padding:9px 12px;text-align:left">ID</th>
-              <th style="padding:9px 12px;text-align:left">Área</th>
-              <th style="padding:9px 12px;text-align:left">Nivel</th>
-              <th style="padding:9px 12px;text-align:left">Fecha</th>
-              <th style="padding:9px 12px;text-align:center">ICE</th>
-              <th style="padding:9px 12px;text-align:center">IEHS</th>
-              <th style="padding:9px 12px;text-align:center">Zona</th>
-            </tr>
-          </thead>
-          <tbody id="resp-tbody"></tbody>
-        </table>
-      </div>
-    </div>
-  </div>
-</div>
 
 </body>
 </html>
