@@ -503,11 +503,94 @@ hr.rl{border:none;border-top:1px solid var(--rule);margin:20px 0}
   </div>
 </div>
 
-<div id="org-gate" style="display:none;position:fixed;inset:0;z-index:10000;background:var(--azul);align-items:center;justify-content:center">
-  <div style="background:#fff;border-radius:16px;padding:40px 36px;width:100%;max-width:420px;box-shadow:0 24px 64px rgba(0,0,0,.35)">
+<div id="org-gate" style="display:none;position:fixed;inset:0;z-index:10000;background:var(--azul);align-items:center;justify-content:center;overflow:auto;padding:24px 0">
+  <div id="org-select-box" style="background:#fff;border-radius:16px;padding:40px 36px;width:100%;max-width:420px;box-shadow:0 24px 64px rgba(0,0,0,.35)">
     <div style="font-size:12px;color:var(--ink-s);margin-bottom:16px">Selecciona la organización</div>
     <select id="org-select" style="width:100%;padding:10px 14px;border:1.5px solid #ddd;border-radius:8px;font-size:14px;margin-bottom:16px;box-sizing:border-box"></select>
-    <button onclick="continuarConOrganizacion()" style="width:100%;padding:12px;background:#C9A227;color:#0D2340;font-weight:700;font-size:14px;border:none;border-radius:8px;cursor:pointer">Continuar</button>
+    <button id="org-continuar-btn" onclick="continuarConOrganizacion()" style="width:100%;padding:12px;background:#C9A227;color:#0D2340;font-weight:700;font-size:14px;border:none;border-radius:8px;cursor:pointer;margin-bottom:10px">Continuar</button>
+    <button onclick="mostrarFormNuevaOrg()" style="width:100%;padding:12px;background:none;color:var(--azul);font-weight:700;font-size:13px;border:1.5px solid var(--azul);border-radius:8px;cursor:pointer">+ Nueva organización</button>
+  </div>
+
+  <!-- ══ Alta de organización — el consultor da de alta a un cliente nuevo.
+       Ficha técnica (usada ya en el Tablero) + insumos del CFF (se guardan
+       ahora, se usan cuando se construya esa parte, marco sección 8) +
+       contacto principal (sin acceso al sistema, tabla separada para que
+       la transición a rol='custodio' sea limpia el día que lo tenga). ══ -->
+  <div id="org-new-box" style="display:none;background:#fff;border-radius:16px;padding:36px 32px;width:100%;max-width:480px;box-shadow:0 24px 64px rgba(0,0,0,.35)">
+    <div style="font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#2563A8;margin-bottom:8px">Nueva organización</div>
+    <h2 style="font-size:1.15rem;font-weight:700;color:#0D2340;margin-bottom:18px">Datos del cliente nuevo</h2>
+
+    <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#999;margin:0 0 8px">Ficha técnica</div>
+    <div style="margin-bottom:12px">
+      <label style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#555;display:block;margin-bottom:6px">Nombre *</label>
+      <input type="text" id="norg-nombre" style="width:100%;padding:9px 12px;border:1.5px solid #ddd;border-radius:8px;font-size:14px;box-sizing:border-box">
+    </div>
+    <div style="margin-bottom:12px">
+      <label style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#555;display:block;margin-bottom:6px">Número de empleados *</label>
+      <input type="number" id="norg-empleados" min="1" style="width:100%;padding:9px 12px;border:1.5px solid #ddd;border-radius:8px;font-size:14px;box-sizing:border-box">
+    </div>
+    <div style="margin-bottom:12px">
+      <label style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#555;display:block;margin-bottom:6px">Sector *</label>
+      <select id="norg-sector" style="width:100%;padding:9px 12px;border:1.5px solid #ddd;border-radius:8px;font-size:14px;box-sizing:border-box">
+        <option value="">Seleccionar sector...</option>
+        <option value="servicios_prof">Servicios profesionales</option>
+        <option value="manufactura">Manufactura</option>
+        <option value="finanzas_tech">Finanzas / Tech</option>
+        <option value="retail_logistica">Retail / Logística</option>
+        <option value="salud_educacion">Salud / Educación</option>
+      </select>
+    </div>
+    <div style="margin-bottom:12px">
+      <label style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#555;display:block;margin-bottom:6px">Áreas / departamentos * (una por línea)</label>
+      <textarea id="norg-areas" rows="4" placeholder="Operaciones&#10;Recursos Humanos&#10;Ventas" style="width:100%;padding:9px 12px;border:1.5px solid #ddd;border-radius:8px;font-size:13px;box-sizing:border-box;font-family:inherit;resize:vertical"></textarea>
+    </div>
+
+    <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#999;margin:18px 0 8px">Insumos del CFF (opcional — se puede completar después)</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
+      <div>
+        <label style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#555;display:block;margin-bottom:6px">Salario promedio (COP)</label>
+        <input type="number" id="norg-salario" step="1000000" min="0" style="width:100%;padding:9px 12px;border:1.5px solid #ddd;border-radius:8px;font-size:13px;box-sizing:border-box">
+      </div>
+      <div>
+        <label style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#555;display:block;margin-bottom:6px">Rotación base (%)</label>
+        <input type="number" id="norg-rotacion" step="0.5" min="0" max="100" style="width:100%;padding:9px 12px;border:1.5px solid #ddd;border-radius:8px;font-size:13px;box-sizing:border-box">
+      </div>
+    </div>
+    <div style="margin-bottom:12px">
+      <label style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#555;display:block;margin-bottom:6px">Días de ausencia base (días/año)</label>
+      <input type="number" id="norg-ausencia" step="0.5" min="0" style="width:100%;padding:9px 12px;border:1.5px solid #ddd;border-radius:8px;font-size:13px;box-sizing:border-box">
+    </div>
+
+    <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#999;margin:18px 0 8px">Directivo responsable (opcional — no inicia sesión)</div>
+    <div style="font-size:11px;color:var(--ink-s);margin-bottom:10px">La persona real detrás del rol "Directivo" del catálogo de intervención — uno por organización.</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
+      <input type="text" id="norg-directivo-nombre" placeholder="Nombre" style="padding:9px 12px;border:1.5px solid #ddd;border-radius:8px;font-size:13px;box-sizing:border-box">
+      <input type="text" id="norg-directivo-cargo" placeholder="Cargo" style="padding:9px 12px;border:1.5px solid #ddd;border-radius:8px;font-size:13px;box-sizing:border-box">
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:18px">
+      <input type="email" id="norg-directivo-email" placeholder="Email" style="padding:9px 12px;border:1.5px solid #ddd;border-radius:8px;font-size:13px;box-sizing:border-box">
+      <input type="text" id="norg-directivo-telefono" placeholder="Teléfono" style="padding:9px 12px;border:1.5px solid #ddd;border-radius:8px;font-size:13px;box-sizing:border-box">
+    </div>
+
+    <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#999;margin:18px 0 8px">Coordinador (opcional — no inicia sesión)</div>
+    <div style="font-size:11px;color:var(--ink-s);margin-bottom:10px">Enlace operativo del día a día — logística, distribución de invitaciones. Uno por organización.</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
+      <input type="text" id="norg-coordinador-nombre" placeholder="Nombre" style="padding:9px 12px;border:1.5px solid #ddd;border-radius:8px;font-size:13px;box-sizing:border-box">
+      <input type="text" id="norg-coordinador-cargo" placeholder="Cargo" style="padding:9px 12px;border:1.5px solid #ddd;border-radius:8px;font-size:13px;box-sizing:border-box">
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:18px">
+      <input type="email" id="norg-coordinador-email" placeholder="Email" style="padding:9px 12px;border:1.5px solid #ddd;border-radius:8px;font-size:13px;box-sizing:border-box">
+      <input type="text" id="norg-coordinador-telefono" placeholder="Teléfono" style="padding:9px 12px;border:1.5px solid #ddd;border-radius:8px;font-size:13px;box-sizing:border-box">
+    </div>
+
+    <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#999;margin:18px 0 8px">Comité de supervisión (opcional — plural)</div>
+    <div style="font-size:11px;color:var(--ink-s);margin-bottom:10px">El tamaño queda a tu criterio para esta organización — 3 casillas de partida, no un mínimo forzado. Agrega o quita según haga falta.</div>
+    <div id="norg-comite-list" style="margin-bottom:8px"></div>
+    <button type="button" onclick="agregarMiembroComite()" style="width:100%;padding:9px;background:none;color:var(--azul);font-weight:600;font-size:12px;border:1px dashed #ccc;border-radius:8px;cursor:pointer;margin-bottom:18px">+ Agregar miembro del comité</button>
+
+    <button id="norg-btn" onclick="crearOrganizacion()" style="width:100%;padding:12px;background:#C9A227;color:#0D2340;font-weight:700;font-size:14px;border:none;border-radius:8px;cursor:pointer;margin-bottom:8px">Crear organización</button>
+    <button onclick="ocultarFormNuevaOrg()" style="width:100%;padding:10px;background:none;color:#888;font-weight:600;font-size:13px;border:none;cursor:pointer">Cancelar</button>
+    <div id="norg-status" style="font-size:12px;margin-top:10px;min-height:16px;color:#A32D2D"></div>
   </div>
 </div>
 
@@ -542,10 +625,6 @@ function resolverOrganizaciones(){
       return;
     }
     var orgs = res.data || [];
-    if(orgs.length === 0){
-      document.getElementById('auth-status').textContent = 'Este consultor no tiene organizaciones vinculadas todavía.';
-      return;
-    }
     if(orgs.length === 1){
       entrarConOrganizacion(orgs[0].id, orgs[0].nombre);
       return;
@@ -556,6 +635,11 @@ function resolverOrganizaciones(){
     }).join('');
     document.getElementById('auth-gate').style.display = 'none';
     document.getElementById('org-gate').style.display = 'flex';
+    if(orgs.length === 0){
+      // Sin organizaciones vinculadas todavía — no tiene sentido mostrar
+      // un selector vacío, se salta directo al alta de la primera.
+      mostrarFormNuevaOrg();
+    }
   });
 }
 
@@ -563,6 +647,108 @@ function continuarConOrganizacion(){
   var sel = document.getElementById('org-select');
   var opt = sel.options[sel.selectedIndex];
   entrarConOrganizacion(opt.value, opt.textContent);
+}
+
+// ── Alta de organización nueva ──────────────────────────────────────────
+function mostrarFormNuevaOrg(){
+  document.getElementById('org-select-box').style.display = 'none';
+  document.getElementById('org-new-box').style.display = 'block';
+}
+function ocultarFormNuevaOrg(){
+  document.getElementById('org-new-box').style.display = 'none';
+  document.getElementById('org-select-box').style.display = 'block';
+}
+
+// Comité de supervisión — plural por naturaleza (marco: el tamaño queda a
+// criterio del consultor para cada organización, sin fórmula automática
+// por n_empleados). 3 casillas de partida, no un mínimo forzado.
+function agregarMiembroComite(){
+  var list = document.getElementById('norg-comite-list');
+  var row = document.createElement('div');
+  row.className = 'norg-comite-row';
+  row.style.cssText = 'border:1px solid #eee;border-radius:8px;padding:10px;margin-bottom:8px;position:relative';
+  row.innerHTML =
+    '<button type="button" onclick="this.parentElement.remove()" style="position:absolute;top:6px;right:8px;background:none;border:none;color:#A32D2D;font-size:15px;cursor:pointer;line-height:1">×</button>' +
+    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">' +
+      '<input type="text" placeholder="Nombre" class="norg-comite-nombre" style="padding:8px 10px;border:1.5px solid #ddd;border-radius:6px;font-size:12px;box-sizing:border-box">' +
+      '<input type="text" placeholder="Cargo" class="norg-comite-cargo" style="padding:8px 10px;border:1.5px solid #ddd;border-radius:6px;font-size:12px;box-sizing:border-box">' +
+    '</div>' +
+    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">' +
+      '<input type="email" placeholder="Email" class="norg-comite-email" style="padding:8px 10px;border:1.5px solid #ddd;border-radius:6px;font-size:12px;box-sizing:border-box">' +
+      '<input type="text" placeholder="Teléfono" class="norg-comite-telefono" style="padding:8px 10px;border:1.5px solid #ddd;border-radius:6px;font-size:12px;box-sizing:border-box">' +
+    '</div>';
+  list.appendChild(row);
+}
+// 3 casillas de partida al cargar la página (no un mínimo forzado — el
+// consultor puede quitarlas o agregar más con el botón).
+for (var _i = 0; _i < 3; _i++) { agregarMiembroComite(); }
+
+function _leerContacto(rol, prefijo){
+  var nombre = document.getElementById(prefijo + '-nombre').value.trim();
+  if(!nombre) return null;
+  return {
+    rol: rol,
+    nombre: nombre,
+    cargo: document.getElementById(prefijo + '-cargo').value.trim() || null,
+    email: document.getElementById(prefijo + '-email').value.trim() || null,
+    telefono: document.getElementById(prefijo + '-telefono').value.trim() || null
+  };
+}
+
+function crearOrganizacion(){
+  var nombre     = document.getElementById('norg-nombre').value.trim();
+  var empleados  = parseInt(document.getElementById('norg-empleados').value, 10);
+  var sector     = document.getElementById('norg-sector').value;
+  var areasRaw   = document.getElementById('norg-areas').value;
+  var areas      = areasRaw.split('\n').map(function(a){ return a.trim(); }).filter(function(a){ return a; });
+  var salario    = document.getElementById('norg-salario').value;
+  var rotacion   = document.getElementById('norg-rotacion').value;
+  var ausencia   = document.getElementById('norg-ausencia').value;
+
+  var status = document.getElementById('norg-status');
+  var btn    = document.getElementById('norg-btn');
+  status.textContent = '';
+
+  if(!nombre){ status.textContent = 'El nombre es obligatorio.'; return; }
+  if(!empleados || empleados < 1){ status.textContent = 'El número de empleados es obligatorio.'; return; }
+  if(!sector){ status.textContent = 'Selecciona un sector.'; return; }
+  if(!areas.length){ status.textContent = 'Agrega al menos un área.'; return; }
+
+  // Arma el array de contactos: directivo + coordinador (0 o 1 cada uno,
+  // se omiten si quedaron sin nombre) + cada fila del comité con nombre.
+  var contactos = [];
+  var directivo = _leerContacto('directivo_responsable', 'norg-directivo');
+  if(directivo) contactos.push(directivo);
+  var coordinador = _leerContacto('coordinador', 'norg-coordinador');
+  if(coordinador) contactos.push(coordinador);
+  document.querySelectorAll('#norg-comite-list .norg-comite-row').forEach(function(row){
+    var nombreMiembro = row.querySelector('.norg-comite-nombre').value.trim();
+    if(!nombreMiembro) return;
+    contactos.push({
+      rol: 'comite_supervision',
+      nombre: nombreMiembro,
+      cargo: row.querySelector('.norg-comite-cargo').value.trim() || null,
+      email: row.querySelector('.norg-comite-email').value.trim() || null,
+      telefono: row.querySelector('.norg-comite-telefono').value.trim() || null
+    });
+  });
+
+  btn.disabled = true; btn.textContent = 'Creando…';
+
+  supa.rpc('crear_organizacion', {
+    p_nombre: nombre,
+    p_n_empleados: empleados,
+    p_sector: sector,
+    p_areas: areas,
+    p_salario_promedio: salario ? parseFloat(salario) : null,
+    p_tasa_rotacion_base: rotacion ? parseFloat(rotacion) : null,
+    p_dias_ausencia_base: ausencia ? parseFloat(ausencia) : null,
+    p_contactos: contactos.length ? contactos : null
+  }).then(function(res){
+    btn.disabled = false; btn.textContent = 'Crear organización';
+    if(res.error){ status.textContent = res.error.message; return; }
+    entrarConOrganizacion(res.data, nombre);
+  });
 }
 
 function entrarConOrganizacion(orgId, orgNombre){
@@ -1377,6 +1563,11 @@ supa.auth.getSession().then(function(res){
       <div class="ph-title">Tablero Ejecutivo</div>
       <div class="ph-desc">ICE, IEH e IAO como tres lecturas separadas — nunca combinadas en un solo número (esa fue la razón explícita de eliminar el IIE, marco sección 4).</div>
     </div>
+
+    <!-- Ficha técnica — organización, empleados, áreas, encuestas + tasa
+         de participación. Metadatos de cobertura, no lecturas diagnósticas
+         — por eso no llevan estado Seguridad/Alerta/Amenaza. -->
+    <div id="dash-ficha" style="display:flex;flex-wrap:wrap;gap:24px;padding:14px 18px;background:rgba(13,27,42,0.04);border:1px solid rgba(13,27,42,0.08);border-radius:10px;margin-bottom:20px;font-size:13px"></div>
 
     <div id="dash-status" style="font-size:13px;color:var(--ink-s);margin-bottom:16px"></div>
 
@@ -5673,8 +5864,32 @@ function _renderSDMONuevo(d){
   }
 }
 
-// ── p-dashboard: ICE/IEH/IAO + desglose por par + SD-MO ────────────────────
+// ── p-dashboard: ficha técnica + ICE/IEH/IAO + desglose por par + SD-MO ────
 function _renderDashboardNuevo(d){
+  // "Total de encuestas" usa n_cuestionarios (headcount de personas, una
+  // fila por invitación+periodo) y no el n del SD-MO (que cuenta jornadas,
+  // varias por persona) — es el denominador correcto para la tasa de
+  // participación contra n_empleados.
+  var fichaWrap = document.getElementById('dash-ficha');
+  if(fichaWrap){
+    var nCuest = d.n_cuestionarios != null ? d.n_cuestionarios : 0;
+    var itemHtml = function(label, valor){
+      return '<div><div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--ink-s)">' + label + '</div>' +
+        '<div style="font-weight:700">' + valor + '</div></div>';
+    };
+    var partHtml = '';
+    if(d.n_empleados){
+      var pct = Math.round((nCuest / d.n_empleados) * 100);
+      partHtml = itemHtml('Participación', nCuest + ' de ' + d.n_empleados + ' — ' + pct + '%');
+    }
+    fichaWrap.innerHTML =
+      itemHtml('Organización', S_ORG.nombre || '—') +
+      itemHtml('Empleados', d.n_empleados != null ? d.n_empleados : '—') +
+      itemHtml('Áreas', d.n_areas != null ? d.n_areas : '—') +
+      itemHtml('Total de encuestas', nCuest) +
+      partHtml;
+  }
+
   var idxWrap = document.getElementById('dash-indices');
   if(idxWrap){
     var descICE = 'Cómo la organización diseña y declara sus condiciones.';

@@ -164,7 +164,11 @@ body{font-family:'DM Sans',sans-serif;background:var(--paper);color:var(--ink);f
     <div style="font-family:'Montserrat',sans-serif;font-size:11px;font-weight:700;color:var(--azul);margin-bottom:12px;text-transform:uppercase;letter-spacing:.06em">Datos de la jornada</div>
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px">
       <div class="fg"><label class="fl">Fecha</label><input type="date" class="fi" id="resp-fecha"></div>
-      <div class="fg"><label class="fl">Área</label><input type="text" class="fi" id="resp-area" placeholder="Ej. Operaciones"></div>
+      <div class="fg"><label class="fl">Área</label>
+        <select class="fi" id="resp-area">
+          <option value="">Cargando áreas...</option>
+        </select>
+      </div>
     </div>
   </div>
 </div>
@@ -365,8 +369,32 @@ var supa = supabase.createClient(SUPA_URL, SUPA_KEY);
   window.CODIGO_INVITACION = codigoUrl || localStorage.getItem('efi_codigo') || null;
   if (!window.CODIGO_INVITACION) {
     document.getElementById('sin-codigo-overlay').classList.add('show');
+  } else {
+    cargarAreas();
   }
 })();
+
+// ── Lista de áreas de la organización — mismo criterio que cuestionario.html:
+// resuelta desde el código de invitación, nunca se expone organizacion_id
+// al cliente anónimo. Reemplaza el texto libre viejo.
+function cargarAreas() {
+  var sel = document.getElementById('resp-area');
+  supa.rpc('areas_por_codigo', { p_codigo: CODIGO_INVITACION }).then(function(res) {
+    if (res.error) {
+      sel.innerHTML = '<option value="">No se pudo cargar la lista de áreas</option>';
+      return;
+    }
+    var areas = res.data || [];
+    if (!areas.length) {
+      sel.innerHTML = '<option value="">Sin áreas definidas</option>';
+      return;
+    }
+    sel.innerHTML = '<option value="">Sin especificar</option>' +
+      areas.map(function(a) {
+        return '<option value="' + a.nombre.replace(/"/g, '&quot;') + '">' + a.nombre + '</option>';
+      }).join('');
+  });
+}
 </script>
 </body>
 </html>
