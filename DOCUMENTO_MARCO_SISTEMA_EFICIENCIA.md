@@ -3,7 +3,7 @@
 **Estado:** Versión consolidada en construcción conjunta (agosto 2026). Reemplaza
 todo documento anterior (v3 y revisiones posteriores) en las secciones donde haya
 conflicto — el criterio de vigencia es "lo más reciente decidido en esta
-conversación", no el archivo más reciente en disco. Ver sección 9 (Historial y
+conversación", no el archivo más reciente en disco. Ver sección 10 (Historial y
 vacíos) para lo que queda pendiente.
 
 ---
@@ -42,7 +42,7 @@ propaga hacia todos los demás.
 
 Este es un principio ético, no un argumento de riesgo o de negocio — su lugar es
 la comunicación del modelo, no las fórmulas ni el catálogo de intervención
-(sección 5 en adelante de este documento, y `CATALOGO_INTERVENCION_EFICIENCIA.md`,
+(sección 6 en adelante de este documento, y `CATALOGO_INTERVENCION_EFICIENCIA.md`,
 quedan sin este contenido a propósito).
 
 El cuestionario mide directamente solo la relación entre Colaborador, Directivo y
@@ -138,7 +138,7 @@ como riesgo. Una organización con una estructura mediocre pero perfectamente
 coherente entre lo que declara y lo que vive puede generar más modo Seguridad
 que una organización con una estructura excelente pero incongruente entre
 discurso y práctica. Esto es también lo que le da sentido operativo al IAO
-(pendiente de fórmula, sección 3): no debe medir "qué tan bien va la
+(pendiente de fórmula, sección 4): no debe medir "qué tan bien va la
 organización" en abstracto — debe medir **qué modo está predominantemente
 activado en el sistema colectivo**, porque ese modo es la variable que
 determina el comportamiento, el desempeño, y en última instancia, el
@@ -183,7 +183,65 @@ con "Integridad" en vez de "Intención") sigue vigente.
 
 ---
 
-## 2. Renombramiento de índices
+## 2. Léxico canónico
+
+Terminología propia de EFICIENCIA, derivada de la filosofía del modelo
+(sección 1), no de convenciones genéricas de la industria (engagement,
+clima laboral, wellness, gap analysis, accountability). Cada término
+listado aquí es el nombre oficial — cualquier documento, código, o
+comunicación pública que use un sinónimo distinto para el mismo concepto
+debe corregirse para usar este léxico, no coexistir con él.
+
+| Concepto | Término canónico | Se evita | Raíz filosófica |
+|---|---|---|---|
+| La dualidad central del sistema nervioso organizacional | **Modo Seguridad / Modo Amenaza** | "engagement", "clima laboral", "wellness" | Fundamento neuropsicológico (sección 1) |
+| Escala de severidad, 3 bandas | **Seguridad · Alerta · Amenaza** | "verde/amarillo/rojo", "bajo/medio/alto riesgo", "Regulado/Transicional/Defensivo" (nombre de trabajo descartado) | Extensión directa de la dualidad central — mismo vocabulario, tres intensidades |
+| Los 5 dominios de medición | **Los 5 Pares** (Estructura/Fortaleza, Intención/Coherencia, Impacto/Equilibrio, Nexo/Confianza, Integración/Actitud) | "dimensiones", "categorías", "KPIs" | El acróstico EFICIENCIA (sección 4, Capa 3) |
+| La distancia entre lo declarado y lo vivido | **Brecha** | "gap analysis", "perception gap" | Sección 6 |
+| El estado de activación colectiva | **IAO** (Índice de Activación Organizacional) | "score de riesgo", "índice de clima" | Sección 4 |
+| El motor de traducción a costo real | **CFF** (Costo Financiero de la Fricción) | "CFO" (descartado — colisiona con el cargo corporativo), "impacto económico" genérico | Sección 8 |
+| El principio de no buscar culpables | **Corresponsabilidad estructural** | "accountability", "root cause analysis" | Secciones 9-10 |
+| El vínculo que sostiene el ciclo | **Círculo Virtuoso**, con **Confianza** y **Vínculo** como pasos | "trust", "psychological safety" | Capa 2 (dinámica natural), heredado de A.M.A.R. |
+| Principio ético de fondo | **Amor Social Organizacional** (*philia* aristotélica) | "cultura organizacional positiva", "employee wellbeing" | Sección 1, Fundamento filosófico |
+
+### Seguridad · Alerta · Amenaza — la escala de severidad completa
+
+Nombre confirmado para las 3 bandas de severidad (reemplaza el nombre de
+trabajo "Regulado/Transicional/Defensivo", usado provisionalmente durante
+la reconstrucción):
+
+- **Seguridad** (banda verde) — elegido sobre "Confianza" porque cubre un
+  rango más amplio: incluye la confianza pero no se limita a ella, y es
+  el término que el propio Fundamento neuropsicológico ya usa ("Modo
+  Seguridad") — no es una palabra nueva, es la que el modelo ya tenía.
+- **Alerta** (banda ámbar) — vigilancia temprana, sin llegar a crisis.
+- **Amenaza** (banda roja) — coincide exacto con "Modo Amenaza" del
+  fundamento neuropsicológico. Nota de diseño: esta misma palabra ya se
+  usa como nombre de variable interna (`amenaza_par`, sección 6) — no es
+  una colisión, es refuerzo: la etiqueta visible y el valor calculado por
+  dentro nombran lo mismo en dos niveles de detalle.
+
+Aplica a: el desglose por par (vía `amenaza_par`) y el IAO (heredado
+directamente, por construirse desde `amenaza_par`) — ver sección 6.4 para
+los umbrales numéricos exactos.
+
+**ICE e IEH no usan esta escala — decisión explícita, no un vacío.** Son
+promedios descriptivos, no métricas de detección de amenaza concentrada
+(esa protección vive en el IAO vía `segundo_mayor` y el piso de amenaza,
+no en ICE/IEH por separado). Se presentan con una descripción fija del
+concepto, no con un semáforo — fabricar un umbral de severidad para ellos
+sería exactamente el tipo de calibración no respaldada que este documento
+evita en todo lo demás.
+
+**Alcance de esta actualización:** el sitio de marketing
+(`eficiencia-site`) todavía usa "Regulado/Transicional/Defensivo" en el
+diagrama Brecha→Estado del hero — pendiente de actualizar al mismo
+léxico, para que nunca convivan dos vocabularios distintos para la misma
+escala dentro del mismo producto.
+
+---
+
+## 3. Renombramiento de índices
 
 **IEHS → IEH.** Cambio de nombre de variable/etiqueta únicamente — no afecta
 ninguna fórmula existente, solo el texto visible y los nombres de variable en
@@ -192,7 +250,7 @@ código. Cascada pendiente: cualquier comentario o texto de interfaz que diga
 
 ---
 
-## 3. Índices — estado heredado vs. pendiente de confirmar
+## 4. Índices — estado heredado vs. pendiente de confirmar
 
 Estos índices sobreviven conceptualmente del marco v3. Sus **fórmulas de nivel
 superior** (cómo se combinan ICE, IEH e IAO entre sí) no se han revisado todavía
@@ -229,8 +287,8 @@ en esta reconstrucción — quedan como estaban en v3, marcadas explícitamente 
     menos 2 de los 5 pares muestren señal alta antes de disparar la alerta de
     amenaza concentrada da robustez sin alargar el cuestionario.
   - Parámetros libres (`w_neg`, `umbral_piso`, `γ`): los tres se calibran con
-    el piloto, mismo criterio que α (sección 5.2) y los umbrales de severidad
-    (sección 5.4) — ninguno es una decisión sin datos.
+    el piloto, mismo criterio que α (sección 6.2) y los umbrales de severidad
+    (sección 6.4) — ninguno es una decisión sin datos.
 
   **Política de expansión de ítems, dirigida por evidencia:** si el Alfa de
   Cronbach del piloto sale bajo en un concepto específico, agregar un tercer
@@ -245,16 +303,16 @@ en esta reconstrucción — quedan como estaban en v3, marcadas explícitamente 
   (que `segundo_mayor` y el piso de amenaza ya protegen específicamente contra
   esa dilución) devolviendo al ejecutivo una falsa sensación de normalidad. El
   tablero muestra ICE, IEH e IAO como tres lecturas separadas, ninguna puede
-  esconder a la otra. Ver sección 6 para el rol reasignado a CFO como
+  esconder a la otra. Ver sección 7 para el rol reasignado a CFF como
   consumidor directo de ICE/IEH/IAO, sin pasar por un índice intermedio.
 - **SD-MO / IDA** — sensor diario (3x/semana, 4 preguntas). Auditoría completa
-  de arquitectura en sección 8 — 5 vacíos encontrados y resueltos con la
+  de arquitectura en sección 9 — 5 vacíos encontrados y resueltos con la
   misma disciplina metodológica del resto del documento. Texto de las 4
   preguntas — RESUELTO, ver `SD_MO_4_PREGUNTAS_EFICIENCIA.md`.
 
 ---
 
-## 4. Estructura del cuestionario — 25 preguntas
+## 5. Estructura del cuestionario — 25 preguntas
 
 - **5 preguntas por par × 5 pares = 25 preguntas totales.**
 - Dentro de cada par: **2 preguntas para el concepto ICE + 2 preguntas para el
@@ -274,9 +332,9 @@ en esta reconstrucción — quedan como estaban en v3, marcadas explícitamente 
 
 ---
 
-## 5. Cálculo de la Brecha — fórmula y lógica diagnóstica
+## 6. Cálculo de la Brecha — fórmula y lógica diagnóstica
 
-### 5.1 Fórmula, por cada uno de los 5 pares (no una Brecha global)
+### 6.1 Fórmula, por cada uno de los 5 pares (no una Brecha global)
 
 ```
 Concepto_A (lado ICE) = promedio de sus 2 ítems
@@ -288,7 +346,7 @@ Brecha_calculada = Concepto_A − Concepto_B
 Brecha_final     = α × Brecha_calculada + (1 − α) × Bipolar
 ```
 
-### 5.2 Determinación de α — empírica, no fija, y por par (no global)
+### 6.2 Determinación de α — empírica, no fija, y por par (no global)
 
 α no se fija de antemano. Se determina con datos del piloto, por cada uno de los
 5 pares por separado (es esperable que distintos pares tengan distinta α, o que
@@ -305,7 +363,7 @@ alguno no se combine en absoluto):
 4. **Mínimo de datos para confiar en la correlación:** ~50-100 respuestas por
    par. Con menos, α = 0.5 como valor provisional, explícitamente no definitivo.
 
-### 5.3 El signo de la Brecha es diagnóstico, no solo magnitud
+### 6.3 El signo de la Brecha es diagnóstico, no solo magnitud
 
 - **Brecha positiva** (Concepto_A/ICE > Concepto_B/IEH): la estructura
   declara/ofrece más de lo que el individuo percibe recibir → problema de
@@ -318,7 +376,7 @@ alguno no se combine en absoluto):
 Esta dirección (no solo la magnitud) es el insumo que debe alimentar el
 catálogo de intervención (`CATALOGO_INTERVENCION_EFICIENCIA.md`).
 
-### 5.4 Umbrales de severidad (verde/ámbar/rojo) — PENDIENTE, modelo objetivo definido
+### 6.4 Umbrales de severidad (verde/ámbar/rojo) — PENDIENTE, modelo objetivo definido
 
 La severidad depende de la **magnitud** `|Brecha_final|` (rango [0,1]), no del
 signo — el signo decide qué ficha de intervención aplica (positiva/negativa,
@@ -347,7 +405,7 @@ Por cada par, calculado por separado (no un umbral global):
   ROJO   → |Brecha_final| > Mediana + 2×MAD
 ```
 Mínimo de datos para calcular con confianza: ~50-100 respuestas por par (mismo
-mínimo que la determinación de α, sección 5.2). Antes de eso, usar un valor
+mínimo que la determinación de α, sección 6.2). Antes de eso, usar un valor
 provisional razonable (ej. 0.15/0.35 en escala [0,1], equivalente a tamaño de
 efecto pequeño/mediano por analogía con Cohen's d) — explícitamente no
 definitivo.
@@ -368,7 +426,7 @@ haya suficiente historial de rotación/ausentismo por organización.
 
 ---
 
-## 6. Trazabilidad del modelo completo (para el caso sintético de auditoría)
+## 7. Trazabilidad del modelo completo (para el caso sintético de auditoría)
 
 Cadena completa, de principio a fin:
 
@@ -380,30 +438,36 @@ Respuesta cruda del empleado (25 ítems: 2+2+1 × 5 pares)
         → Brecha_final por par (combinación con Bipolar, según α)
           → agregación de los 5 conceptos ICE → índice ICE
           → agregación de los 5 conceptos IEH → índice IEH
-            → IAO (fórmula final, sección 3 — Seguridad/Amenaza, con piso de
+            → IAO (fórmula final, sección 4 — Seguridad/Amenaza, con piso de
               amenaza absoluta y segundo_mayor de los 5 pares)
               ├─→ Tablero ejecutivo: ICE, IEH, IAO como tres lecturas
-              │    separadas (IIE eliminado — ver sección 3) + alertas de
-              │    Dispersión_departamental y causa sistémica/local (sección 9)
+              │    separadas (IIE eliminado — ver sección 4) + alertas de
+              │    Dispersión_departamental y causa sistémica/local (sección 10)
               │    + catálogo de intervención
-              └─→ CFO (antes "DE-EFICIENCIA", renombrado — sección 10): suma
+              └─→ CFF (antes "DE-EFICIENCIA", renombrado — sección 12): suma
                    de 4 componentes con benchmark (desenganche, rotación,
-                   ausentismo, retrabajo — sección 7). Supervisión
-                   innecesaria e innovación perdida (sección 7.1) se
+                   ausentismo, retrabajo — sección 8). Supervisión
+                   innecesaria e innovación perdida (sección 8.1) se
                    muestran aparte como observación cualitativa, nunca
                    suman al total. Consume las mismas fuentes que el
                    tablero, en paralelo, no en serie a través de un índice
                    intermedio (razón: un índice comprimido pierde el
                    término de interacción necesario para predecir costo
-                   real). Fórmula provisional anclada en benchmark: sección 7.
+                   real). Fórmula provisional anclada en benchmark: sección 8.
 ```
 
 ---
 
-## 7. CFO — fórmula provisional anclada en benchmark
+## 8. CFF (Costo Financiero de la Fricción) — fórmula provisional anclada en benchmark
+
+**Nombre confirmado (reemplaza a "CFO"):** el nombre anterior colisionaba con el
+cargo corporativo Chief Financial Officer — presentarle "el CFO" al CFO real de
+una empresa cliente no es diferenciación, es una coincidencia de siglas
+involuntaria. CFF no colisiona con nada, y "Costo" es más directo que
+"Traducción" — nombra lo que el número es, no el proceso que lo produce.
 
 Fórmula de lanzamiento, para usar mientras no exista historial propio de
-EFICIENCIA suficiente para calibrar por regresión (Fase 2, sección 6). No es
+EFICIENCIA suficiente para calibrar por regresión (Fase 2, sección 7). No es
 una predicción específica del IAO — conecta benchmarks reales de costo
 organizacional con el IAO mediante un supuesto explícito de escalamiento
 lineal, marcado como provisional. **Benchmarks anclados en Colombia/región
@@ -449,7 +513,7 @@ en Colombia. Mismo tratamiento que el desenganche: no se inventa un número.
 **Fórmula:**
 
 ```
-CFO = Costo_desenganche + Costo_rotación + Costo_ausentismo + Costo_retrabajo
+CFF = Costo_desenganche + Costo_rotación + Costo_ausentismo + Costo_retrabajo
 
 Costo_desenganche = N × Salario_promedio × 0.26 × (IAO_org/100)
 
@@ -467,7 +531,7 @@ Costo_retrabajo = CostoOperativoTotal_cliente × TasaRetrabajoBase[0.05–0.15]
 
 Validación: (Costo_ausentismo + Costo_rotación) ≈ orden de magnitud de
 4.7% × Nómina_total (ANDI 2024) — si diverge sustancialmente, revisar
-supuestos antes de reportar el CFO al cliente.
+supuestos antes de reportar el CFF al cliente.
 ```
 
 - `N`, `Salario_promedio`, `TasaRotaciónBase_cliente`, `CostoOperativoTotal_cliente`:
@@ -490,44 +554,44 @@ supuestos antes de reportar el CFO al cliente.
 
 **Limitación reconocida, no oculta:** el escalamiento lineal por
 `IAO_org/100` probablemente subestima el costo en IAO alto y lo sobrestima
-en IAO bajo (relación esperada tipo umbral/sigmoide, no lineal — sección 3,
+en IAO bajo (relación esperada tipo umbral/sigmoide, no lineal — sección 4,
 análisis de precisión del IIE). El componente de desenganche, además, es el
 único de los 4 principales sin validar contra la realidad regional — si en
 algún momento aparece un estudio de Gallup, ACRIP, o consultoras locales con
 cifra específica de Colombia/Latam para este componente, debe reemplazar el
 26% global de inmediato, sin esperar a la Fase 2 completa.
 
-### 7.1 Componentes adicionales sin benchmark — observación cualitativa, no suma al CFO
+### 8.1 Componentes adicionales sin benchmark — observación cualitativa, no suma al CFF
 
-Derivados del mapeo entre los 4 ejes rediseñados del SD-MO (sección 8) y los
+Derivados del mapeo entre los 4 ejes rediseñados del SD-MO (sección 9) y los
 componentes de costo. Estos dos NO tienen benchmark, regional ni global — a
 diferencia de los 4 anteriores. Se incluyen porque el modelo necesita
 resolver cómo medirlos, no porque exista evidencia externa que los respalde.
 
 **Decisión de presentación, no negociable:** estos dos componentes **nunca
-se suman al CFO total** que se presenta al cliente. Mezclar un número
+se suman al CFF total** que se presenta al cliente. Mezclar un número
 respaldado por benchmark (rotación, ausentismo) con un supuesto sin validar
-contaminaría la credibilidad del CFO completo — si el cliente audita el
+contaminaría la credibilidad del CFF completo — si el cliente audita el
 total y encuentra que una fracción viene de una conjetura, pone en duda
 también la parte bien fundamentada. Se muestran en el panel como
 **observación cualitativa separada**, no como cifra sumada:
 
 > *"El sistema detecta señales de posible costo adicional no cuantificado en
 > [Supervisión innecesaria / Innovación perdida], asociado a puntajes bajos
-> en el eje [Confianza / Creatividad] del SD-MO. No se incluye en el CFO
+> en el eje [Confianza / Creatividad] del SD-MO. No se incluye en el CFF
 > total por falta de benchmark validado — metodología disponible más
 > abajo para uso interno o futura calibración."*
 
 Las fórmulas siguen documentadas (no se descartan) — quedan disponibles para
 uso interno del consultor, o para el momento en que exista benchmark real
-que las valide y puedan graduarse a componente cuantificado del CFO.
+que las valide y puedan graduarse a componente cuantificado del CFF.
 
 **Jerarquía de evidencia del sistema completo, de más a menos sólida:**
-1. Rotación, ausentismo, retrabajo — benchmark regional específico (ACRIP, ANDI) → suman al CFO
-2. Desenganche — benchmark global (Gallup), sin validar en la región → suma al CFO
+1. Rotación, ausentismo, retrabajo — benchmark regional específico (ACRIP, ANDI) → suman al CFF
+2. Desenganche — benchmark global (Gallup), sin validar en la región → suma al CFF
 3. Supervisión innecesaria, innovación perdida — sin benchmark alguno, proxy razonado → observación cualitativa, no suma
 
-**Supervisión innecesaria** (eje Confianza↔Temor del SD-MO — sección 8):
+**Supervisión innecesaria** (eje Confianza↔Temor del SD-MO — sección 9):
 
 ```
 Costo_supervisión = N_directivos × Salario_directivo_promedio
@@ -540,7 +604,7 @@ preguntando directamente a los directivos qué porcentaje de su tiempo semanal
 dedican a revisar/aprobar trabajo que un colaborador de confianza podría
 hacer sin supervisión. Dato del cliente, no supuesto del sistema.
 
-**Innovación perdida** (eje Creatividad↔Estrés del SD-MO — sección 8):
+**Innovación perdida** (eje Creatividad↔Estrés del SD-MO — sección 9):
 
 ```
 Costo_innovación_perdida = InversiónI+D_cliente × TasaIneficacia_amenaza[0.20–0.40, SIN VALIDAR]
@@ -553,7 +617,7 @@ de organizaciones cliente probablemente no tienen una línea de inversión en
 innovación identificable, haciendo este proxy inaplicable en la práctica
 para buena parte de la base de clientes. `TasaIneficacia_amenaza` no viene
 de ningún estudio — es un rango razonado, no un benchmark, y es el parámetro
-menos defendible de todo el CFO.
+menos defendible de todo el CFF.
 
 **Por qué se incluyen de todas formas:** medir mal con transparencia total
 sobre las limitaciones es preferible a no medir — permite que la
@@ -562,7 +626,7 @@ aproximados, en vez de omitirlos porque no son perfectos. La condición no
 negociable es que el cliente entienda que estos dos números son
 cualitativamente distintos en confiabilidad a los otros cuatro.
 
-### 7.2 Proyección financiera y tiempo de recuperación (IFT) — reconstruido
+### 8.2 Proyección financiera y tiempo de recuperación (IFT) — reconstruido
 
 **Contexto del hallazgo:** ya existía un instrumento de proyección
 financiera (`DE-EFICIENCIA — Proyección de Impacto Financiero`, en el sitio,
@@ -570,24 +634,24 @@ llamado IFT) con dos bugs de una auditoría anterior nunca cerrada — la
 variable `CR` (Costo de Reemplazo) se usaba en la fórmula sin estar nunca
 definida como entrada, y la variable `A` (ausentismo real del cliente) se
 pedía como input pero nunca se usaba. Más grave: **toda la fórmula original
-dependía de `ΔIIE`** — con el IIE eliminado (sección 3), ese instrumento no
+dependía de `ΔIIE`** — con el IIE eliminado (sección 4), ese instrumento no
 puede ejecutarse en absoluto tal como estaba. El sitio ya publica
 públicamente "<24 meses estimados de recuperación", basado en ese modelo
 roto — pendiente de re-validar con la fórmula reconstruida.
 
 **Reconstrucción:** en vez de coeficientes β separados por tipo de costo
 (que es donde vivían los bugs de `CR` y `A`), el IFT reconstruido reutiliza
-el CFO ya construido (sección 7) — proyecta cómo cambia el IAO en el tiempo,
-y evalúa el CFO en cada punto. Los bugs de `CR` y `A` desaparecen por
-construcción, no por parche: el CFO ya usa `TasaRotaciónBase_cliente` y
+el CFF ya construido (sección 8) — proyecta cómo cambia el IAO en el tiempo,
+y evalúa el CFF en cada punto. Los bugs de `CR` y `A` desaparecen por
+construcción, no por parche: el CFF ya usa `TasaRotaciónBase_cliente` y
 `TasaAusentismoBase` con datos reales del cliente, no variables indefinidas.
 
 ```
 IAO(t) = IAO_target + (IAO_0 − IAO_target) × e^(−λt)     [t en meses]
 
-CFO(t) = fórmula del CFO (sección 7), evaluada con IAO_org = IAO(t)
+CFF(t) = fórmula del CFF (sección 8), evaluada con IAO_org = IAO(t)
 
-Valor_recuperado_acumulado(T) = Σ_{t=0}^{T} [CFO(0) − CFO(t)]
+Valor_recuperado_acumulado(T) = Σ_{t=0}^{T} [CFF(0) − CFF(t)]
 
 T_rec = mín{T : Valor_recuperado_acumulado(T) ≥ Costo_intervención_cliente}
 ```
@@ -630,7 +694,7 @@ se alcanza 75% de mejora del IAO — sustancial, no completa. Si la promesa
 del sitio se refiere a *recuperación financiera de la inversión* (no a
 mejora completa del IAO), sigue siendo plausible, porque el valor
 recuperado se acumula desde el mes 1, sin necesitar 100% de mejora — pero
-confirmarlo con certeza requiere el costo real de intervención y el CFO
+confirmarlo con certeza requiere el costo real de intervención y el CFF
 real del cliente, que no existen todavía. `λ` sigue siendo, en el fondo,
 provisional — esta calibración es más defendible que un número inventado,
 no una validación definitiva; el piloto puede y debe ajustarla.
@@ -640,9 +704,9 @@ recuperación" contra esta fórmula recalibrada con datos reales del piloto,
 o ajustar la comunicación del sitio mientras tanto para no prometer un
 número que el modelo anterior no podía sostener.
 
-### 7.3 Proyección extendida a 36 meses y factores de extensión del plazo
+### 8.3 Proyección extendida a 36 meses y factores de extensión del plazo
 
-Con el mismo λ (vida media de 12 meses, sección 7.2):
+Con el mismo λ (vida media de 12 meses, sección 8.2):
 
 ```
 IAO(12 meses) → 50% de la brecha cerrada
@@ -657,20 +721,20 @@ existente del modelo, no genéricos de manual:**
    literatura de cambio organizacional lo nombra explícitamente. Una
    organización en amenaza crónica sostenida por años no se mueve al mismo
    ritmo que una con tensión reciente.
-2. **Causa sistémica no resuelta a tiempo** (sección 9.4) — si la
+2. **Causa sistémica no resuelta a tiempo** (sección 10.4) — si la
    intervención se dirige al nodo que primero mostró la alerta en vez de a
    la causa real a nivel organización, se pierden ciclos completos sin
    avance real, aunque el tablero muestre actividad.
 3. **Rotación estructural alta del sector** — en industrias con rotación de
-   30%-70% (retail, según los benchmarks colombianos ya usados en el CFO,
-   sección 7), la fuerza laboral se renueva más rápido de lo que la cultura
+   30%-70% (retail, según los benchmarks colombianos ya usados en el CFF,
+   sección 8), la fuerza laboral se renueva más rápido de lo que la cultura
    puede consolidarse — siempre hay gente nueva que no vivió el proceso.
 4. **Corresponsabilidad no genuina del Directivo/Empresario**
    (`CATALOGO_INTERVENCION_EFICIENCIA.md`, "Responsable primario") — el
    catálogo asume acción real, no simbólica; si el responsable primario no
    se compromete de verdad, no hay mecanismo que fuerce el avance.
 5. **Rotación del liderazgo que impulsa el cambio** — conecta directo con
-   la fragilidad ya identificada en el Par 4 (Nexo/Confianza, sección 5):
+   la fragilidad ya identificada en el Par 4 (Nexo/Confianza, sección 6):
    si la persona que lidera la intervención se va, el proceso pierde
    continuidad y probablemente reinicia parte del reloj.
 
@@ -681,11 +745,11 @@ media efectiva: `vida_media_efectiva = 12 × F_ext` meses. Es un juicio
 experto documentado explícitamente en el diagnóstico, no una caja negra —
 y es, en sí mismo, uno de los futuros candidatos a calibrarse con
 regresión una vez exista suficiente historial de casos reales (mismo
-horizonte que la Fase 2 del CFO).
+horizonte que la Fase 2 del CFF).
 
 ---
 
-## 8. SD-MO/IDA — auditoría de arquitectura
+## 9. SD-MO/IDA — auditoría de arquitectura
 
 Auditoría holística de la arquitectura del sensor diario (3x/semana, 4
 preguntas, escala 1-5). Texto de las 4 preguntas: RESUELTO, ver
@@ -696,13 +760,13 @@ estructura resuelve un vacío encontrado después de la primera versión: un
 SD-MO solo-amenaza no puede distinguir modo Seguridad genuino de
 desconexión silenciosa sin amenaza activa.
 
-**Correspondencia con componentes de costo del CFO** (sección 7): los 4 ejes
-mapean casi 1 a 1 contra los 4-6 componentes del CFO — ver tabla completa en
+**Correspondencia con componentes de costo del CFF** (sección 8): los 4 ejes
+mapean casi 1 a 1 contra los 4-6 componentes del CFF — ver tabla completa en
 `SD_MO_4_PREGUNTAS_EFICIENCIA.md`. Si se sostiene con datos del piloto, el
 SD-MO se convierte en indicador líder específico por componente de costo,
 no solo alerta genérica de amenaza.
 
-### 8.1 Fórmula de agregación de las 4 preguntas — nunca definida, ahora resuelta
+### 9.1 Fórmula de agregación de las 4 preguntas — nunca definida, ahora resuelta
 
 Vacío crítico: nunca se especificó cómo las 4 preguntas se combinan en un
 IDA único. Con solo 4 ítems, un promedio simple es más vulnerable que en
@@ -715,15 +779,15 @@ IDA_i = 100 × [δ×promedio(4 preguntas normalizadas) + (1−δ)×segundo_mayor
 
 `δ` calibrable con piloto, mismo criterio que α, γ, w_neg, s_rot/s_aus/s_ret.
 
-### 8.2 Umbral rojo (IDA≥65 por 3 días, o ≥75 en un día) — heredado sin calibrar, ahora sujeto a la misma disciplina
+### 9.2 Umbral rojo (IDA≥65 por 3 días, o ≥75 en un día) — heredado sin calibrar, ahora sujeto a la misma disciplina
 
 Este umbral viene intacto de v3, fijado antes de que existiera el framework
 Seguridad/Amenaza y antes de establecer que ningún umbral se fija a priori
-(sección 5.4: mediana + MAD del piloto). Mantenerlo tal cual sería
+(sección 6.4: mediana + MAD del piloto). Mantenerlo tal cual sería
 inconsistente con el rigor aplicado al resto del sistema.
 
 **Corrección:** el umbral rojo del IDA entra al mismo proceso de calibración
-empírica que los umbrales de severidad de la Brecha (sección 5.4) — mediana +
+empírica que los umbrales de severidad de la Brecha (sección 6.4) — mediana +
 MAD de la distribución real del piloto, no un número fijo heredado.
 Provisional (65/75) hasta tener datos suficientes.
 
@@ -745,7 +809,7 @@ validación sigue exigiendo el piloto, igual que α, γ, w_neg y los demás
 parámetros del sistema. La diferencia con antes: 65/75 pasan de ser una
 herencia sin explicación a una convención provisional con semántica clara.
 
-### 8.3 Agregación individuo → departamento/organización — nunca definida
+### 9.3 Agregación individuo → departamento/organización — nunca definida
 
 Mismo problema que el IAO antes de `segundo_mayor`: un promedio simple de
 IDA_i entre varias personas puede diluir una crisis concentrada en pocas —
@@ -754,10 +818,10 @@ detectar señales rápidas y localizadas. Sin una agregación que preserve la
 concentración, el SD-MO pierde su ventaja frente al cuestionario completo.
 
 **Corrección:** aplicar el mismo esquema de agregación que el IAO
-organizacional (sección 3) — mezcla de promedio y `segundo_mayor` entre
+organizacional (sección 4) — mezcla de promedio y `segundo_mayor` entre
 personas del mismo nodo, no promedio simple.
 
-### 8.4 No-respuesta como señal, no como dato faltante — vacío de diseño
+### 9.4 No-respuesta como señal, no como dato faltante — vacío de diseño
 
 Con cadencia de 3x/semana, dejar de responder puede ser en sí mismo una
 conducta de modo Amenaza (retraimiento, evitación) predicha por el
@@ -770,26 +834,26 @@ adicional de riesgo (ej. sumar al `Amenaza_par` correspondiente), o
 mantenerse como dato faltante sin inferencia. Tratarlo como señal es
 metodológicamente defendible pero tiene implicación ética: presionar
 indirectamente a alguien a responder por miedo a que su silencio se
-interprete como alarma iría en contra del principio de la sección 9.6
+interprete como alarma iría en contra del principio de la sección 10.6
 (comunicación explícita de que no se busca identificar a nadie).
 
-### 8.5 Conflicto real entre la Función 1 (disparador anticipado) y la confidencialidad de la sección 9
+### 9.5 Conflicto real entre la Función 1 (disparador anticipado) y la confidencialidad de la sección 10
 
 El hallazgo más serio de esta auditoría: si el SD-MO dispara una
 reevaluación anticipada dirigida a un nodo específico por cruzar zona roja,
 **el solo hecho de recibir esa convocatoria extra informa a ese equipo que
 algo se detectó ahí** — rompe el anonimato funcional aunque los datos
 individuales sigan protegidos, incluso si nunca se revela ningún dato
-crudo. Interactúa directo con el mínimo N≥8-10 (sección 9.1, ver más abajo).
+crudo. Interactúa directo con el mínimo N≥8-10 (sección 10.1, ver más abajo).
 
 **Corrección:** si el nodo que dispara la alerta tiene N<8-10, el disparador
 de reevaluación anticipada escala automáticamente al nivel jerárquico
-superior (igual que ya escala el reporte, sección 9.1) — nunca se dirige un
+superior (igual que ya escala el reporte, sección 10.1) — nunca se dirige un
 disparador visible a un grupo por debajo del mínimo de confidencialidad.
 
 ---
 
-## 9. Confidencialidad y atribución de causa — no buscar culpables
+## 10. Confidencialidad y atribución de causa — no buscar culpables
 
 **Principio rector, derivado directamente del Fundamento neuropsicológico
 (sección 1):** un sistema que busca identificar o culpar personas activa modo
@@ -800,7 +864,7 @@ de curar, y además corrompe la validez del propio dato (el miedo a ser
 identificado genera respuestas falsas-seguras, distorsionando la medición en
 el punto más crítico del sistema).
 
-### 9.1 Niveles de agregación
+### 10.1 Niveles de agregación
 
 ```
 Individual (nunca se reporta) → Departamento/nodo (mínimo N≥8-10 para
@@ -813,7 +877,7 @@ El mínimo aplica frente a **cualquier** rol con acceso (líder directo, RRHH,
 comité) — protege contra inferencia por contexto organizacional en general,
 no contra un rol específico.
 
-### 9.2 Custodio único, no comité con acceso directo
+### 10.2 Custodio único, no comité con acceso directo
 
 Un comité puede **designar** a quién tiene acceso confidencial, pero el
 acceso mismo lo tiene una sola persona nombrada (ej. RRHH), no el comité como
@@ -821,7 +885,7 @@ grupo — cada persona adicional con acceso aumenta la superficie de filtración
 Queda registrado quién accede y cuándo (log de acceso), no solo como norma no
 verificable.
 
-### 9.3 El informe es siempre sistémico, nunca individual — en ningún nivel
+### 10.3 El informe es siempre sistémico, nunca individual — en ningún nivel
 
 El informe del consultor reporta deterioro del sistema, no comportamiento
 individual. Esto no es solo una regla de acceso — es una restricción sobre
@@ -833,7 +897,7 @@ agregación N≥8-10 sigue como piso de seguridad complementario — un nodo
 pequeño sigue siendo identificable incluso con lenguaje sistémico bien
 formulado.
 
-### 9.4 El modelo busca causa, no efecto — distinción sistémica vs. local
+### 10.4 El modelo busca causa, no efecto — distinción sistémica vs. local
 
 Un nodo (departamento) con Amenaza alta en un par puede ser la **causa**
 (algo propio de su estructura/liderazgo) o el **efecto** (síntoma de una
@@ -856,16 +920,16 @@ liderazgo local — nunca personas individuales, consistente con 7.1-7.3).
 Esto le da función diagnóstica real a la `Dispersión_departamental` (sección
 5): no solo detecta *que* hay concentración, distingue *de dónde viene*.
 
-### 9.5 Código de respondiente — persistente, pero el mapa vive fuera de EFICIENCIA
+### 10.5 Código de respondiente — persistente, pero el mapa vive fuera de EFICIENCIA
 
 Cada respondiente tiene un código persistente (no uno nuevo por respuesta —
-necesario para la Función de Tendencia del SD-MO, sección 6). El mapa
+necesario para la Función de Tendencia del SD-MO, sección 7). El mapa
 código↔persona **nunca vive dentro de la base de datos de EFICIENCIA** — se
 genera y gestiona en el momento de la invitación, y solo el cliente (quien
 distribuye las invitaciones) lo conoce. Ni el consultor, ni el Workbook,
 pueden revertir el anonimato.
 
-### 9.6 Comunicación explícita del principio al respondiente
+### 10.6 Comunicación explícita del principio al respondiente
 
 El cuestionario incluye, en su introducción, una nota explícita: el proceso
 busca errores del sistema, no señala personas; las respuestas nunca se
@@ -875,7 +939,65 @@ riesgo) directamente, antes de que conteste.
 
 ---
 
-## 10. Historial y vacíos — qué queda pendiente
+## 11. Mecanismo de calibración — motor bayesiano heredado de PIIO, generalizado
+
+**Hallazgo (código actual, módulo PIIO):** ya existe un mecanismo de
+shrinkage bayesiano normal-normal conjugado, funcionando y persistiendo
+datos reales acumulados en el tiempo:
+
+```
+μ_post = (n·x̄ + k₀·μ₀) / (n + k₀)
+w = min(1, n/12)
+```
+
+`μ₀` (prior) es el valor provisional documentado en este marco, `x̄` es el
+promedio de los datos reales acumulados, `n` es el número de meses de
+datos, `k₀=3` es la "equivalencia" del prior en observaciones, y `w` es el
+peso de "lo real" — crece con el tiempo hasta cubrir totalmente el prior a
+los 12 meses. Es, literalmente, el mecanismo de Fase 2 que este documento
+daba por asumido como "esperar al piloto" sin haberlo construido nunca.
+
+**Decisión: generalizar el mecanismo a todos los parámetros pendientes de
+calibración de este documento**, no solo a los 4 KPIs operativos a los que
+PIIO lo aplicaba originalmente (rotación, ausentismo, productividad,
+accidentalidad):
+
+- α, γ (sección 6.2)
+- w_neg, umbral_piso (sección 4, fórmula del IAO)
+- Umbrales de severidad verde/ámbar/rojo (sección 6.4)
+- δ (sección 9.1), umbral rojo del IDA (sección 9.2)
+- λ, F_ext (sección 8.2, 7.3)
+- s_rot, s_aus, s_ret, s_sup (sección 8, 7.1)
+- TasaIneficacia_amenaza (sección 8.1)
+
+Cada parámetro arranca con su valor provisional documentado en este marco
+como prior (`μ₀`), y se actualiza automáticamente conforme se acumulan
+meses de datos reales — con el mismo peso creciente `w=min(1,n/12)`.
+
+**Lo que NO se hereda de PIIO — se retira, no se adapta:** la traducción
+específica KPI→costo (`piioKpiToCost()`, la variable CTD). Mantener dos
+motores financieros paralelos con fórmulas distintas (PIIO y CFF)
+repetiría el mismo error ya corregido al eliminar la duplicación
+`gIIE`/`hIIO` entre el sitio y el Workbook (ver decisión original sobre
+consistencia entre índices duplicados). El CFF (sección 8) es el único
+motor financiero del sistema desde hoy.
+
+**Piezas del código PIIO que requieren decisión explícita al reconstruir,
+no un simple cambio de nombre:**
+- `iie_ref` → `iao_ref`: rename trivial, sin lógica oculta detrás.
+- Bloque VBE dentro de `renderPIIOFinanciero()`: acoplado a IIE con fórmula
+  real (`iie1 = min(1,(S.iie||0.55)+0.1...)`, mismo patrón que el módulo
+  DEF) — necesita reescritura real, no solo cambio de variable.
+- `S.dep` y `c_sistemico` (la porción de deterioro no explicada
+  directamente por los 4 KPIs de PIIO): necesita decidirse qué lo
+  reemplaza en la arquitectura nueva. Candidato natural: el CFF mismo —
+  pero no es un cambio automático, requiere diseño explícito para no
+  duplicar conteo (mismo riesgo ya resuelto una vez en el cálculo del IAO
+  y al eliminar el IIE).
+
+---
+
+## 12. Historial y vacíos — qué queda pendiente
 
 **No vigente / descartado explícitamente por Luis:**
 - Estructura de dimensiones IEHS/ICE de v3 y de la revisión posterior
@@ -887,48 +1009,58 @@ riesgo) directamente, antes de que conteste.
 - Catálogo de intervención anterior ("lo que tengo ya no sirve" — confirmado por
   Luis).
 - **IIE — eliminado del sistema** (decisión explícita: "no veo la necesidad de
-  mantenerlo" — ver sección 3 para el razonamiento completo).
-- **Nombre "DE-EFICIENCIA" — descartado**, renombrado a **CFO** (decisión
+  mantenerlo" — ver sección 4 para el razonamiento completo).
+- **Nombre "DE-EFICIENCIA" — descartado**, renombrado a **CFF** (decisión
   explícita de Luis). El módulo de traducción económica es el mismo (7
   componentes de fricción cuantificables, heredados de v3 Parte VI), solo
-  cambia el nombre y, según el análisis de la sección 6, su rol pasa de
+  cambia el nombre y, según el análisis de la sección 7, su rol pasa de
   "paso final tras el IIE" a "consumidor directo de ICE/IAO en paralelo al
   tablero".
 
 **Pendiente de definir en esta reconstrucción:**
-- Fórmula del IAO — RESUELTO (ver sección 3: Seguridad/Amenaza, piso de
+- Fórmula del IAO — RESUELTO (ver sección 4: Seguridad/Amenaza, piso de
   amenaza absoluta, segundo_mayor de los 5 pares). Parámetros `w_neg`,
-  `umbral_piso`, `γ` pendientes de calibración con datos del piloto.
+  `umbral_piso`, `γ` pendientes de calibración con datos del piloto —
+  **mecanismo de calibración ya identificado, ver sección 11** (motor
+  bayesiano heredado de PIIO, no hay que construirlo desde cero).
 - IIE — RESUELTO por eliminación, ya no aplica revisar sus pesos.
-- **CFO — fórmula provisional, anclada en benchmark (RESUELTO para lanzamiento,
+- **CFF — fórmula provisional, anclada en benchmark (RESUELTO para lanzamiento,
   ver detalle abajo).** Fase 2 (modelo de regresión calibrado contra costo real
-  propio de EFICIENCIA) sigue pendiente — requiere el mismo horizonte que la
-  Fase 2 de los umbrales de severidad (6-12 meses de historial).
+  propio de EFICIENCIA) sigue pendiente — mecanismo de calibración
+  identificado (sección 11), requiere el mismo horizonte que la Fase 2 de
+  los umbrales de severidad (6-12 meses de historial).
+- **PIIO — motor bayesiano de benchmarks, encontrado en el código actual,
+  RESUELTO cómo se integra** (sección 11): se generaliza como mecanismo de
+  calibración para todos los parámetros pendientes del marco; se retira su
+  traducción KPI→costo específica (absorbida por el CFF). Pendiente de
+  implementación: `iie_ref`→`iao_ref` (trivial), reescritura del bloque VBE
+  de `renderPIIOFinanciero()`, y decisión sobre qué reemplaza a
+  `S.dep`/`c_sistemico`.
 - **IFT (proyección financiera/tiempo de recuperación) — RESUELTO,
-  reconstruido sobre IAO/CFO** (sección 7.2). Estaba roto de raíz (dependía
+  reconstruido sobre IAO/CFF** (sección 8.2). Estaba roto de raíz (dependía
   de ΔIIE, ya eliminado) y tenía 2 bugs propios sin cerrar de una auditoría
   anterior (`CR` indefinida, `A` sin usar) — ambos desaparecieron al
-  reconstruir sobre el CFO en vez de coeficientes β propios. λ calibrado
+  reconstruir sobre el CFF en vez de coeficientes β propios. λ calibrado
   con modelo de vida media de 12 meses, anclado en literatura de cambio
-  organizacional (sección 7.2) — proyección extendida a 36 meses con
-  factores de extensión del plazo (`F_ext`) documentados en sección 7.3.
+  organizacional (sección 8.2) — proyección extendida a 36 meses con
+  factores de extensión del plazo (`F_ext`) documentados en sección 8.3.
   Pendiente: calibrar `λ` y `F_ext` con datos reales, y **re-validar o
   corregir el "<24 meses" ya publicado en el sitio**, que se basaba en el
   modelo roto.
 - Si el SD-MO/IDA hereda algo de la arquitectura nueva o permanece igual —
   RESUELTO: hereda 3 funciones nuevas respecto a v3 (disparador de
   reevaluación anticipada, validación cruzada con el IAO, señal de
-  tendencia para el CFO), y su estructura propia fue rediseñada por completo
+  tendencia para el CFF), y su estructura propia fue rediseñada por completo
   a 4 preguntas bipolares — ver `SD_MO_4_PREGUNTAS_EFICIENCIA.md` y sección
   8 (auditoría de arquitectura, 5 vacíos encontrados y resueltos).
 - Catálogo de intervención: matriz por par × dirección de Brecha × severidad,
   construido desde cero — RESUELTO, ver `CATALOGO_INTERVENCION_EFICIENCIA.md`.
   Pendiente menor: incorporar el nivel departamental/nodo y la distinción
-  causa sistémica/local (sección 9.4) a las fichas existentes — RESUELTO, ver
+  causa sistémica/local (sección 10.4) a las fichas existentes — RESUELTO, ver
   la sección "Nivel de aplicación" en ese mismo archivo.
 - Confirmación par por par de que los dos conceptos son verdaderos polos
   opuestos, antes de redactar los ítems bipolares reales — RESUELTO (ver
-  sección 4).
+  sección 5).
 - Redacción de los 25 ítems reales del cuestionario — RESUELTO, ver
   `CUESTIONARIO_25_PREGUNTAS_EFICIENCIA.md`.
 

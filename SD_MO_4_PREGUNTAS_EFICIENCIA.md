@@ -1,6 +1,6 @@
 # SD-MO — Las 4 preguntas del sensor diario (IDA)
 
-Complementa a `DOCUMENTO_MARCO_SISTEMA_EFICIENCIA.md`, sección 8 (auditoría de
+Complementa a `DOCUMENTO_MARCO_SISTEMA_EFICIENCIA.md`, sección 9 (auditoría de
 arquitectura del SD-MO/IDA). Versión final: **4 ejes bipolares**, reemplaza
 las dos versiones unidireccionales anteriores (ver Historial de versiones al
 final).
@@ -18,7 +18,7 @@ quinta pregunta.
 El cuestionario de 25 preguntas mide percepción reflexiva sobre la relación
 con la organización (ICE/IEH/Brecha, por par). El SD-MO mide **estado
 sentido del día**, algo que se responde en segundos, sin análisis — por eso
-no se desagrega por par (sección 8.3 del marco: nunca debe hacerlo, perdería
+no se desagrega por par (sección 9.3 del marco: nunca debe hacerlo, perdería
 la velocidad que es su única ventaja).
 
 ## Escala y convención de signo
@@ -59,17 +59,17 @@ separados. Si en algún momento se determina que son fenómenos genuinamente
 distintos, esto sube a 5 preguntas — pendiente de confirmar si la fusión se
 sostiene bien en el piloto.
 
-## Correspondencia con los componentes de costo del CFO (sección 7)
+## Correspondencia con los componentes de costo del CFF (sección 8)
 
 Hallazgo no buscado a propósito, encontrado al cruzar los 4 ejes contra los
-componentes del CFO — casi 1 a 1:
+componentes del CFF — casi 1 a 1:
 
-| Eje SD-MO | Componente CFO |
+| Eje SD-MO | Componente CFF |
 |---|---|
-| Confianza ↔ Temor | Rotación (+ Supervisión innecesaria, sección 7.1) |
+| Confianza ↔ Temor | Rotación (+ Supervisión innecesaria, sección 8.1) |
 | Colaboración ↔ Retención | Retrabajo |
 | Compromiso ↔ Presencia vacía/Desmotivación | Desenganche |
-| Creatividad ↔ Estrés laboral | Ausentismo (+ Innovación perdida, sección 7.1) |
+| Creatividad ↔ Estrés laboral | Ausentismo (+ Innovación perdida, sección 8.1) |
 
 Si esta correspondencia se sostiene con datos reales del piloto, el SD-MO
 deja de ser solo un pulso genérico de amenaza — se convierte en indicador
@@ -77,12 +77,12 @@ líder específico por componente de costo (ej. "tu costo de ausentismo está
 subiendo porque el eje Creatividad/Estrés lleva tres semanas cayendo").
 
 **Nota:** Confianza↔Temor y Creatividad↔Estrés alimentan dos componentes de
-costo cada uno, no uno — ver sección 7.1 del marco (Supervisión innecesaria
-e Innovación perdida), los dos componentes sin benchmark del CFO.
+costo cada uno, no uno — ver sección 8.1 del marco (Supervisión innecesaria
+e Innovación perdida), los dos componentes sin benchmark del CFF.
 
 ## Cálculo del IDA diario
 
-Ver `DOCUMENTO_MARCO_SISTEMA_EFICIENCIA.md`, sección 8.1:
+Ver `DOCUMENTO_MARCO_SISTEMA_EFICIENCIA.md`, sección 9.1:
 
 ```
 IDA_i = 100 × [δ×promedio(4 preguntas normalizadas) + (1−δ)×segundo_mayor(4 preguntas normalizadas)]
