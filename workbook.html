@@ -656,7 +656,53 @@ function mostrarFormNuevaOrg(){
 }
 function ocultarFormNuevaOrg(){
   document.getElementById('org-new-box').style.display = 'none';
-  document.getElementById('org-select-box').style.display = 'block';
+  limpiarFormNuevaOrg(); // "Cancelar" no debe dejar el formulario a medio llenar para la próxima vez
+  if(S_ORG.id){
+    // Se abrió desde el enlace del sidebar con una organización ya activa
+    // — "Cancelar" vuelve ahí, no a un selector de login que no aplica.
+    document.getElementById('org-gate').style.display = 'none';
+    document.getElementById('sidebar').style.display = '';
+    document.getElementById('main').style.display = '';
+  } else {
+    document.getElementById('org-select-box').style.display = 'block';
+  }
+}
+
+// Resetea el formulario de alta a estado en blanco — se llama al cancelar
+// Y después de un envío exitoso (crearOrganizacion), para que abrir
+// "+ Nueva organización" otra vez nunca arrastre datos de un intento
+// anterior (cancelado o ya creado).
+function limpiarFormNuevaOrg(){
+  document.getElementById('norg-nombre').value = '';
+  document.getElementById('norg-empleados').value = '';
+  document.getElementById('norg-sector').value = '';
+  document.getElementById('norg-areas').value = '';
+  document.getElementById('norg-salario').value = '';
+  document.getElementById('norg-rotacion').value = '';
+  document.getElementById('norg-ausencia').value = '';
+  document.getElementById('norg-directivo-nombre').value = '';
+  document.getElementById('norg-directivo-cargo').value = '';
+  document.getElementById('norg-directivo-email').value = '';
+  document.getElementById('norg-directivo-telefono').value = '';
+  document.getElementById('norg-coordinador-nombre').value = '';
+  document.getElementById('norg-coordinador-cargo').value = '';
+  document.getElementById('norg-coordinador-email').value = '';
+  document.getElementById('norg-coordinador-telefono').value = '';
+  document.getElementById('norg-comite-list').innerHTML = '';
+  for (var _j = 0; _j < 3; _j++) { agregarMiembroComite(); }
+  document.getElementById('norg-status').textContent = '';
+  var btn = document.getElementById('norg-btn');
+  btn.disabled = false; btn.textContent = 'Crear organización';
+}
+// Enlace permanente del sidebar — siempre disponible, sin importar
+// cuántas organizaciones tenga vinculadas el consultor (antes solo
+// aparecía dentro del selector de login, invisible con exactamente 1
+// organización porque ese selector nunca se mostraba).
+function volverACrearOrg(){
+  document.getElementById('sidebar').style.display = 'none';
+  document.getElementById('main').style.display = 'none';
+  document.getElementById('org-gate').style.display = 'flex';
+  mostrarFormNuevaOrg();
 }
 
 // Comité de supervisión — plural por naturaleza (marco: el tamaño queda a
@@ -748,6 +794,7 @@ function crearOrganizacion(){
     btn.disabled = false; btn.textContent = 'Crear organización';
     if(res.error){ status.textContent = res.error.message; return; }
     entrarConOrganizacion(res.data, nombre);
+    limpiarFormNuevaOrg(); // deja el formulario en blanco para la próxima alta, no arrastra esta organización
   });
 }
 
@@ -757,6 +804,8 @@ function entrarConOrganizacion(orgId, orgNombre){
   document.getElementById('org-gate').style.display = 'none';
   document.getElementById('sidebar').style.display = '';
   document.getElementById('main').style.display = '';
+  var nombreEl = document.getElementById('sb-org-nombre');
+  if(nombreEl) nombreEl.textContent = orgNombre;
   cargarDiagnostico();
 }
 
@@ -800,6 +849,14 @@ supa.auth.getSession().then(function(res){
     <div class="nav-grp">Resultado</div>
     <div class="nav-item" onclick="show('p-dashboard')"><span class="nav-icon">📊</span> Tablero Ejecutivo</div>
   </nav>
+  <!-- Organización activa + acceso permanente a "Nueva organización" — no
+       depende de cuántas organizaciones tenga el consultor vinculadas
+       (antes solo aparecía dentro del selector de login, invisible para
+       quien tiene exactamente 1 organización y nunca ve ese selector). -->
+  <div style="padding:12px 18px;border-top:1px solid rgba(255,255,255,.08)">
+    <div id="sb-org-nombre" style="font-size:11px;font-weight:700;color:#fff;margin-bottom:6px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></div>
+    <a href="#" onclick="volverACrearOrg();return false" style="font-size:11px;color:var(--dorado);text-decoration:none">+ Nueva organización</a>
+  </div>
   <div class="sb-foot"><span class="sdot" id="sdot"></span><span id="stext">Sin datos</span><br><span style="font-size:9px;opacity:.45;margin-top:4px;display:block">v4.8 · 8 correcciones aplicadas</span></div>
 </aside>
 
