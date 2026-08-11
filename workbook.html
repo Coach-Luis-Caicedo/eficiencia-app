@@ -135,8 +135,8 @@ body.cover-active .main{background:var(--azul)}
 .acr-dim{font-family:'Montserrat',sans-serif;font-weight:700;font-size:13px;color:var(--azul);margin-bottom:3px}
 .acr-desc{font-size:12.5px;color:var(--ink-m);line-height:1.5}
 .acr-tag{display:inline-block;font-size:9px;font-weight:700;padding:2px 8px;border-radius:10px;margin-top:4px}
-.acr-tag-iehs{background:var(--azul-bg);color:var(--azul-l)}
-.acr-tag-ice{background:var(--dorado-lt);color:var(--amber)}
+.acr-tag-ice{background:var(--azul-bg);color:var(--azul-l)}
+.acr-tag-ieh{background:var(--dorado-lt);color:var(--amber)}
 
 /* ══ INTERIOR PANELS ══ */
 .panel-inner{padding:32px 36px 56px;max-width:980px}
@@ -279,11 +279,6 @@ select.fi option{background:#fff;color:var(--ink);font-family:'DM Sans',sans-ser
 }
 .block-hdr-title{font-family:'Montserrat',sans-serif;font-weight:700;font-size:12px}
 .block-hdr-tag{font-size:10px;color:var(--dorado);font-weight:700;letter-spacing:.06em}
-
-/* Source tags */
-.src-tag{font-size:9px;padding:1px 7px;border-radius:10px;font-weight:700;margin-left:4px}
-.src-iehs{background:var(--azul-bg);color:var(--azul-l)}
-.src-ice{background:var(--dorado-lt);color:var(--amber)}
 
 /* Regular q-item */
 .q-item{
@@ -909,20 +904,20 @@ supa.auth.getSession().then(function(res){
     <div class="ph">
       <div class="ph-tag">Página 2 · Fundamento conceptual</div>
       <div class="ph-title">El Acróstico EFICIENCIA</div>
-      <div class="ph-desc">Cada letra nombra una dimensión del modelo. Los bloques impares miden la experiencia de las personas (IEHS); los pares miden la coherencia del sistema (ICE).</div>
+      <div class="ph-desc">Las diez letras deletrean EFICIENCIA. Cada par mide dos ángulos del mismo fenómeno: el lado ICE (cómo está diseñada/declarada la organización) y el lado IEH (cómo lo percibe y vive el individuo).</div>
     </div>
     <table class="acr-table">
       <tbody>
-        <tr><td>E</td><td><div class="acr-dim">Experiencia</div><div class="acr-desc">La persona percibe que su trabajo tiene valor y que el intercambio con la organización es justo. Principio de justicia del intercambio.</div><span class="acr-tag acr-tag-iehs">IEHS · D1</span></td></tr>
-        <tr><td>F</td><td><div class="acr-dim">Fortaleza</div><div class="acr-desc">El sistema tiene reglas claras, roles definidos y mecanismos para responder ante imprevistos. Refleja el valor de cada persona en el sistema.</div><span class="acr-tag acr-tag-ice">ICE · D1</span></td></tr>
-        <tr><td>I</td><td><div class="acr-dim">Integridad</div><div class="acr-desc">Lo que se comunica corresponde con lo que se hace. Los compromisos se cumplen y los líderes actúan con coherencia. Principio de justicia del intercambio.</div><span class="acr-tag acr-tag-iehs">IEHS · D2</span></td></tr>
-        <tr><td>C</td><td><div class="acr-dim">Coherencia</div><div class="acr-desc">Las decisiones, normas y prácticas del sistema son consistentes entre sí. No hay contradicción entre lo que se afirma y lo que se produce.</div><span class="acr-tag acr-tag-ice">ICE · D2</span></td></tr>
-        <tr><td>I</td><td><div class="acr-dim">Intención</div><div class="acr-desc">Las personas perciben que las decisiones organizacionales tienen un propósito claro y orientado al bien colectivo. Principio de justicia del intercambio.</div><span class="acr-tag acr-tag-iehs">IEHS · D3</span></td></tr>
-        <tr><td>E</td><td><div class="acr-dim">Empatía</div><div class="acr-desc">El sistema reconoce y considera la realidad humana de las personas. Hay apertura ante las dificultades y trato considerado. Principio de amor social organizacional.</div><span class="acr-tag acr-tag-ice">ICE · D3</span></td></tr>
-        <tr><td>N</td><td><div class="acr-dim">Necesidad</div><div class="acr-desc">El trabajo responde a una necesidad real. Las personas perciben que su aporte es necesario y que la organización reconoce la necesidad humana. Principio de necesidad.</div><span class="acr-tag acr-tag-iehs">IEHS · D4</span></td></tr>
-        <tr><td>C</td><td><div class="acr-dim">Cooperación</div><div class="acr-desc">Las personas y áreas se apoyan mutuamente de forma real y visible. La colaboración no es declarativa sino práctica. Principio de amor social organizacional.</div><span class="acr-tag acr-tag-ice">ICE · D4</span></td></tr>
-        <tr><td>I</td><td><div class="acr-dim">Impacto</div><div class="acr-desc">Las personas perciben que lo que hacen produce resultados concretos y visibles. El trabajo tiene consecuencias reales para otros. Principio de justicia del intercambio.</div><span class="acr-tag acr-tag-iehs">IEHS · D5</span></td></tr>
-        <tr><td>A</td><td><div class="acr-dim">Amor Social</div><div class="acr-desc">Las relaciones cotidianas son respetuosas, cálidas y genuinas. El vínculo humano es soporte activo del sistema organizacional. Principio de amor social organizacional.</div><span class="acr-tag acr-tag-ice">ICE · D5</span></td></tr>
+        <tr><td>E</td><td><div class="acr-dim">Estructura</div><div class="acr-desc">Cómo se configura el sistema de la organización.</div><span class="acr-tag acr-tag-ice">ICE · Par 1</span></td></tr>
+        <tr><td>F</td><td><div class="acr-dim">Fortaleza</div><div class="acr-desc">Percepción de seguridad del individuo ante esa estructura.</div><span class="acr-tag acr-tag-ieh">IEH · Par 1</span></td></tr>
+        <tr><td>I</td><td><div class="acr-dim">Intención</div><div class="acr-desc">Visión declarada a la que apunta la organización.</div><span class="acr-tag acr-tag-ice">ICE · Par 2</span></td></tr>
+        <tr><td>C</td><td><div class="acr-dim">Coherencia</div><div class="acr-desc">El individuo observa la conducta y cultura real de la organización y la reconoce como coherente o incoherente frente a esa visión declarada.</div><span class="acr-tag acr-tag-ieh">IEH · Par 2</span></td></tr>
+        <tr><td>I</td><td><div class="acr-dim">Impacto</div><div class="acr-desc">Cómo la actividad de la organización afecta la vida del individuo.</div><span class="acr-tag acr-tag-ice">ICE · Par 3</span></td></tr>
+        <tr><td>E</td><td><div class="acr-dim">Equilibrio</div><div class="acr-desc">Percepción de justicia ante ese impacto en la vida del individuo.</div><span class="acr-tag acr-tag-ieh">IEH · Par 3</span></td></tr>
+        <tr><td>N</td><td><div class="acr-dim">Nexo</div><div class="acr-desc">Vínculo entre la organización y el individuo.</div><span class="acr-tag acr-tag-ice">ICE · Par 4</span></td></tr>
+        <tr><td>C</td><td><div class="acr-dim">Confianza</div><div class="acr-desc">Percepción de credibilidad en la organización.</div><span class="acr-tag acr-tag-ieh">IEH · Par 4</span></td></tr>
+        <tr><td>I</td><td><div class="acr-dim">Integración</div><div class="acr-desc">Inteligencia con la que la organización maneja sus relaciones.</div><span class="acr-tag acr-tag-ice">ICE · Par 5</span></td></tr>
+        <tr><td>A</td><td><div class="acr-dim">Actitud</div><div class="acr-desc">Conducta del individuo como respuesta a percibir esa inteligencia.</div><span class="acr-tag acr-tag-ieh">IEH · Par 5</span></td></tr>
       </tbody>
     </table>
     <div class="btn-row">
