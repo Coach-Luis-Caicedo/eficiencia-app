@@ -11,10 +11,20 @@
   --dorado:#C9A227; --dorado-lt:#FEF8E3;
   --paper:#F7F4EF; --paper-w:#EDE8DF; --rule:#D6CEBE;
   --ink:#0D1B2A; --ink-m:#3D5A73; --ink-s:#7A97AD;
-  --green:#2563A8; --green-lt:#EFF6FF;
+  --green:#1A5C3A; --green-lt:#EAF5EF;
   --red:#B03A2E; --red-lt:#FDEDEC;
   --amber:#9A6000; --amber-lt:#FFF3CD;
   --r:10px; --sh:0 2px 14px rgba(13,27,42,.08); --tr:.2s cubic-bezier(.4,0,.2,1);
+
+  /* ── Tema oscuro (marco visual, sección 0) — tokens nuevos y
+     dedicados. No pisan --paper/--ink/--azul-bg: esos siguen
+     sirviendo a los paneles legacy (Config/PIIO/Motor/Longitudinal/
+     Predictor/Áreas) que quedan fuera de alcance de este rediseño. ── */
+  --dk-bg:#0a1420; --dk-card:#141f30; --dk-elevated:#1c2740; --dk-sidebar:#0d1b2e;
+  --ice:#5a95e0; --ieh:#d99a3d;
+  --sev-seguridad:#4a9d6e; --sev-alerta:#d99a3d; --sev-amenaza:#e0715c;
+  --dk-text:#fff; --dk-text-2:#8a94a6; --dk-text-3:#5a6478;
+  --f-mono:'DM Mono',monospace;
 }
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 html{scroll-behavior:smooth}
@@ -22,7 +32,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--paper);color:var(--ink);f
 
 /* ── SIDEBAR ── */
 .sidebar{
-  width:250px;min-width:250px;background:var(--azul);
+  width:250px;min-width:250px;background:var(--dk-sidebar);
   position:sticky;top:0;height:100vh;overflow-y:auto;
   display:flex;flex-direction:column;
   scrollbar-width:thin;scrollbar-color:var(--azul-m) transparent;
@@ -35,9 +45,9 @@ body{font-family:'DM Sans',sans-serif;background:var(--paper);color:var(--ink);f
 .brand .sub{font-size:8px;letter-spacing:.18em;text-transform:uppercase;color:rgba(255,255,255,.3);margin-top:2px}
 .sb-nav{padding:8px 0;flex:1}
 .nav-grp{padding:14px 18px 3px;font-size:8px;letter-spacing:.18em;text-transform:uppercase;color:rgba(255,255,255,.25);font-weight:700}
-.nav-item{display:flex;align-items:center;gap:9px;padding:9px 18px;cursor:pointer;border-left:3px solid transparent;font-size:12px;color:rgba(255,255,255,.58);font-weight:500;transition:all var(--tr)}
+.nav-item{display:flex;align-items:center;gap:9px;padding:9px 18px;cursor:pointer;border-left:3px solid transparent;font-size:12px;color:var(--dk-text-2);font-weight:500;transition:all var(--tr)}
 .nav-item:hover{background:rgba(255,255,255,.07);color:#fff}
-.nav-item.active{background:rgba(255,255,255,.11);border-left-color:var(--dorado);color:#fff;font-weight:700}
+.nav-item.active{background:var(--dk-elevated);border-left-color:var(--dorado);color:var(--dorado);font-weight:700}
 .nav-icon{font-size:13px;width:16px;text-align:center}
 .sb-foot{padding:12px 18px;border-top:1px solid rgba(255,255,255,.08);font-size:10px;color:rgba(255,255,255,.28)}
 .sdot{display:inline-block;width:6px;height:6px;border-radius:50%;background:rgba(255,255,255,.2);margin-right:5px;vertical-align:middle}
@@ -71,6 +81,27 @@ body{font-family:'DM Sans',sans-serif;background:var(--paper);color:var(--ink);f
 /* When cover active: remove all white gaps */
 body:has(#p-cover.active){background:var(--azul)}
 body:has(#p-cover.active) .prog-top{display:none}
+
+/* ── Paneles en tema oscuro (marco, sección 0) — mecanismo compartido,
+   misma técnica que #p-cover arriba (body:has). Cualquier panel con
+   class="panel dark-panel" hereda fondo de página oscuro y tipografía
+   clara sin repurposar --paper/--ink globalmente (ver decisión técnica
+   del rediseño). Paneles fuera de alcance no llevan esta clase y no se
+   ven afectados. ── */
+body:has(.panel.dark-panel.active){background:var(--dk-bg)}
+body:has(.panel.dark-panel.active) .main{background:var(--dk-bg)}
+body:has(.panel.dark-panel.active) .prog-top{background:var(--dk-elevated)}
+.dark-panel .ph{border-bottom-color:#26344a}
+.dark-panel .ph-title{color:var(--dk-text)}
+.dark-panel .ph-desc{color:var(--dk-text-2)}
+.dark-panel .ph-tag{color:var(--ieh)}
+.dark-panel .icard{background:var(--dk-card)}
+.dark-panel .card{background:var(--dk-card);border-color:#26344a}
+.dark-panel .card-title{color:var(--dk-text-2)}
+.dark-panel .fl{color:var(--dk-text-2)}
+.dark-panel .fi{background:var(--dk-bg);border-color:#26344a;color:var(--dk-text)}
+.dark-panel select.fi option{background:var(--dk-bg);color:var(--dk-text)}
+.dark-panel .info{background:var(--dk-elevated);color:var(--dk-text-2);border-color:#3a4a63}
 body:has(#p-cover.active) .main{background:var(--azul)}
 /* Fallback para navegadores sin soporte de :has() (Safari <15.4, Firefox <121) — ver JS */
 body.cover-active{background:var(--azul)}
@@ -137,6 +168,13 @@ body.cover-active .main{background:var(--azul)}
 .acr-tag{display:inline-block;font-size:9px;font-weight:700;padding:2px 8px;border-radius:10px;margin-top:4px}
 .acr-tag-ice{background:var(--azul-bg);color:var(--azul-l)}
 .acr-tag-ieh{background:var(--dorado-lt);color:var(--amber)}
+.dark-panel .acr-table tr td:first-child{background:var(--dk-elevated)}
+.dark-panel .acr-table tr td:last-child{background:var(--dk-card);border-color:#26344a}
+.dark-panel .acr-dim{color:var(--dk-text)}
+.dark-panel .acr-desc{color:var(--dk-text-2)}
+.dark-panel .acr-tag{background:none;padding:0;border-radius:0}
+.dark-panel .acr-tag-ice{color:var(--ice)}
+.dark-panel .acr-tag-ieh{color:var(--ieh)}
 
 /* ══ INTERIOR PANELS ══ */
 .panel-inner{padding:32px 36px 56px;max-width:980px}
@@ -203,7 +241,7 @@ table.dt td{color:var(--ink)}
   background:linear-gradient(135deg,var(--azul) 0%,var(--azul-m) 100%);
   border-radius:var(--r);padding:18px 20px;margin-bottom:14px;
 }
-.icard-tag{font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--dorado);font-weight:700;margin-bottom:5px}
+.icard-tag{font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--ieh);font-weight:700;margin-bottom:5px}
 .icard-name{font-family:'Montserrat',sans-serif;font-weight:700;font-size:15px;color:#fff;margin-bottom:7px}
 .icard-desc{font-size:12.5px;color:rgba(255,255,255,.68);line-height:1.6}
 .icard-meta{display:flex;gap:14px;margin-top:10px;flex-wrap:wrap}
@@ -481,29 +519,29 @@ hr.rl{border:none;border-top:1px solid var(--rule);margin:20px 0}
      Bloquea sidebar + main hasta que haya sesión y una organización
      resuelta (marco, sección 10 — RLS exige auth.uid() vinculado en
      consultor_organizacion). ══ -->
-<div id="auth-gate" style="position:fixed;inset:0;z-index:10000;background:var(--azul);display:flex;align-items:center;justify-content:center">
-  <div style="background:#fff;border-radius:16px;padding:40px 36px;width:100%;max-width:400px;box-shadow:0 24px 64px rgba(0,0,0,.35)">
+<div id="auth-gate" style="position:fixed;inset:0;z-index:10000;background:var(--dk-bg);display:flex;align-items:center;justify-content:center">
+  <div style="background:var(--dk-card);border-radius:16px;padding:40px 36px;width:100%;max-width:400px;box-shadow:0 24px 64px rgba(0,0,0,.35)">
     <div style="font-family:'Montserrat',sans-serif;font-size:20px;font-weight:800;margin-bottom:4px"><span class="efi">EFI</span><span class="ciencia">CIENCIA</span></div>
-    <div style="font-size:12px;color:var(--ink-s);margin-bottom:24px">Workbook — acceso de consultor</div>
+    <div style="font-size:12px;color:var(--dk-text-2);margin-bottom:24px">Workbook — acceso de consultor</div>
     <div style="margin-bottom:14px">
-      <label style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#555;display:block;margin-bottom:6px">Email</label>
-      <input type="email" id="auth-email" autocomplete="username" style="width:100%;padding:10px 14px;border:1.5px solid #ddd;border-radius:8px;font-size:14px;box-sizing:border-box" onkeydown="if(event.key==='Enter')document.getElementById('auth-pass').focus()">
+      <label style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--dk-text-2);display:block;margin-bottom:6px">Email</label>
+      <input type="email" id="auth-email" autocomplete="username" style="width:100%;padding:10px 14px;border:1.5px solid #26344a;border-radius:8px;font-size:14px;box-sizing:border-box;background:var(--dk-bg);color:var(--dk-text)" onkeydown="if(event.key==='Enter')document.getElementById('auth-pass').focus()">
     </div>
     <div style="margin-bottom:18px">
-      <label style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#555;display:block;margin-bottom:6px">Contraseña</label>
-      <input type="password" id="auth-pass" autocomplete="current-password" style="width:100%;padding:10px 14px;border:1.5px solid #ddd;border-radius:8px;font-size:14px;box-sizing:border-box" onkeydown="if(event.key==='Enter')iniciarSesion()">
+      <label style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--dk-text-2);display:block;margin-bottom:6px">Contraseña</label>
+      <input type="password" id="auth-pass" autocomplete="current-password" style="width:100%;padding:10px 14px;border:1.5px solid #26344a;border-radius:8px;font-size:14px;box-sizing:border-box;background:var(--dk-bg);color:var(--dk-text)" onkeydown="if(event.key==='Enter')iniciarSesion()">
     </div>
     <button id="auth-btn" onclick="iniciarSesion()" style="width:100%;padding:12px;background:#C9A227;color:#0D2340;font-weight:700;font-size:14px;border:none;border-radius:8px;cursor:pointer">Entrar</button>
-    <div id="auth-status" style="font-size:12px;margin-top:12px;min-height:16px;color:#A32D2D"></div>
+    <div id="auth-status" style="font-size:12px;margin-top:12px;min-height:16px;color:var(--sev-amenaza)"></div>
   </div>
 </div>
 
-<div id="org-gate" style="display:none;position:fixed;inset:0;z-index:10000;background:var(--azul);align-items:center;justify-content:center;overflow:auto;padding:24px 0">
-  <div id="org-select-box" style="background:#fff;border-radius:16px;padding:40px 36px;width:100%;max-width:420px;box-shadow:0 24px 64px rgba(0,0,0,.35)">
-    <div style="font-size:12px;color:var(--ink-s);margin-bottom:16px">Selecciona la organización</div>
-    <select id="org-select" style="width:100%;padding:10px 14px;border:1.5px solid #ddd;border-radius:8px;font-size:14px;margin-bottom:16px;box-sizing:border-box"></select>
+<div id="org-gate" style="display:none;position:fixed;inset:0;z-index:10000;background:var(--dk-bg);align-items:center;justify-content:center;overflow:auto;padding:24px 0">
+  <div id="org-select-box" style="background:var(--dk-card);border-radius:16px;padding:40px 36px;width:100%;max-width:420px;box-shadow:0 24px 64px rgba(0,0,0,.35)">
+    <div style="font-size:12px;color:var(--dk-text-2);margin-bottom:16px">Selecciona la organización</div>
+    <select id="org-select" style="width:100%;padding:10px 14px;border:1.5px solid #26344a;border-radius:8px;font-size:14px;margin-bottom:16px;box-sizing:border-box;background:var(--dk-bg);color:var(--dk-text)"></select>
     <button id="org-continuar-btn" onclick="continuarConOrganizacion()" style="width:100%;padding:12px;background:#C9A227;color:#0D2340;font-weight:700;font-size:14px;border:none;border-radius:8px;cursor:pointer;margin-bottom:10px">Continuar</button>
-    <button onclick="mostrarFormNuevaOrg()" style="width:100%;padding:12px;background:none;color:var(--azul);font-weight:700;font-size:13px;border:1.5px solid var(--azul);border-radius:8px;cursor:pointer">+ Nueva organización</button>
+    <button onclick="mostrarFormNuevaOrg()" style="width:100%;padding:12px;background:none;color:var(--ieh);font-weight:700;font-size:13px;border:1.5px solid var(--ieh);border-radius:8px;cursor:pointer">+ Nueva organización</button>
   </div>
 
   <!-- ══ Alta de organización — el consultor da de alta a un cliente nuevo.
@@ -511,22 +549,22 @@ hr.rl{border:none;border-top:1px solid var(--rule);margin:20px 0}
        ahora, se usan cuando se construya esa parte, marco sección 8) +
        contacto principal (sin acceso al sistema, tabla separada para que
        la transición a rol='custodio' sea limpia el día que lo tenga). ══ -->
-  <div id="org-new-box" style="display:none;background:#fff;border-radius:16px;padding:36px 32px;width:100%;max-width:480px;box-shadow:0 24px 64px rgba(0,0,0,.35)">
-    <div style="font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#2563A8;margin-bottom:8px">Nueva organización</div>
-    <h2 style="font-size:1.15rem;font-weight:700;color:#0D2340;margin-bottom:18px">Datos del cliente nuevo</h2>
+  <div id="org-new-box" style="display:none;background:var(--dk-card);border-radius:16px;padding:36px 32px;width:100%;max-width:480px;box-shadow:0 24px 64px rgba(0,0,0,.35)">
+    <div style="font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--ieh);margin-bottom:8px">Nueva organización</div>
+    <h2 style="font-size:1.15rem;font-weight:700;color:var(--dk-text);margin-bottom:18px">Datos del cliente nuevo</h2>
 
-    <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#999;margin:0 0 8px">Ficha técnica</div>
+    <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--dk-text-2);margin:0 0 8px">Ficha técnica</div>
     <div style="margin-bottom:12px">
-      <label style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#555;display:block;margin-bottom:6px">Nombre *</label>
-      <input type="text" id="norg-nombre" style="width:100%;padding:9px 12px;border:1.5px solid #ddd;border-radius:8px;font-size:14px;box-sizing:border-box">
+      <label style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--dk-text-2);display:block;margin-bottom:6px">Nombre *</label>
+      <input type="text" id="norg-nombre" style="width:100%;padding:9px 12px;border:1.5px solid #26344a;border-radius:8px;font-size:14px;box-sizing:border-box;background:var(--dk-bg);color:var(--dk-text)">
     </div>
     <div style="margin-bottom:12px">
-      <label style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#555;display:block;margin-bottom:6px">Número de empleados *</label>
-      <input type="number" id="norg-empleados" min="1" style="width:100%;padding:9px 12px;border:1.5px solid #ddd;border-radius:8px;font-size:14px;box-sizing:border-box">
+      <label style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--dk-text-2);display:block;margin-bottom:6px">Número de empleados *</label>
+      <input type="number" id="norg-empleados" min="1" style="width:100%;padding:9px 12px;border:1.5px solid #26344a;border-radius:8px;font-size:14px;box-sizing:border-box;background:var(--dk-bg);color:var(--dk-text)">
     </div>
     <div style="margin-bottom:12px">
-      <label style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#555;display:block;margin-bottom:6px">Sector *</label>
-      <select id="norg-sector" style="width:100%;padding:9px 12px;border:1.5px solid #ddd;border-radius:8px;font-size:14px;box-sizing:border-box">
+      <label style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--dk-text-2);display:block;margin-bottom:6px">Sector *</label>
+      <select id="norg-sector" style="width:100%;padding:9px 12px;border:1.5px solid #26344a;border-radius:8px;font-size:14px;box-sizing:border-box;background:var(--dk-bg);color:var(--dk-text)">
         <option value="">Seleccionar sector...</option>
         <option value="servicios_prof">Servicios profesionales</option>
         <option value="manufactura">Manufactura</option>
@@ -536,56 +574,56 @@ hr.rl{border:none;border-top:1px solid var(--rule);margin:20px 0}
       </select>
     </div>
     <div style="margin-bottom:12px">
-      <label style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#555;display:block;margin-bottom:6px">Áreas / departamentos * (una por línea)</label>
-      <textarea id="norg-areas" rows="4" placeholder="Operaciones&#10;Recursos Humanos&#10;Ventas" style="width:100%;padding:9px 12px;border:1.5px solid #ddd;border-radius:8px;font-size:13px;box-sizing:border-box;font-family:inherit;resize:vertical"></textarea>
+      <label style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--dk-text-2);display:block;margin-bottom:6px">Áreas / departamentos * (una por línea)</label>
+      <textarea id="norg-areas" rows="4" placeholder="Operaciones&#10;Recursos Humanos&#10;Ventas" style="width:100%;padding:9px 12px;border:1.5px solid #26344a;border-radius:8px;font-size:13px;box-sizing:border-box;background:var(--dk-bg);color:var(--dk-text);font-family:inherit;resize:vertical"></textarea>
     </div>
 
-    <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#999;margin:18px 0 8px">Insumos del CFF (opcional — se puede completar después)</div>
+    <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--dk-text-2);margin:18px 0 8px">Insumos del CFF (opcional — se puede completar después)</div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
       <div>
-        <label style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#555;display:block;margin-bottom:6px">Salario promedio (COP)</label>
-        <input type="number" id="norg-salario" step="1000000" min="0" style="width:100%;padding:9px 12px;border:1.5px solid #ddd;border-radius:8px;font-size:13px;box-sizing:border-box">
+        <label style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--dk-text-2);display:block;margin-bottom:6px">Salario promedio (COP)</label>
+        <input type="number" id="norg-salario" step="1000000" min="0" style="width:100%;padding:9px 12px;border:1.5px solid #26344a;border-radius:8px;font-size:13px;box-sizing:border-box;background:var(--dk-bg);color:var(--dk-text)">
       </div>
       <div>
-        <label style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#555;display:block;margin-bottom:6px">Rotación base (%)</label>
-        <input type="number" id="norg-rotacion" step="0.5" min="0" max="100" style="width:100%;padding:9px 12px;border:1.5px solid #ddd;border-radius:8px;font-size:13px;box-sizing:border-box">
+        <label style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--dk-text-2);display:block;margin-bottom:6px">Rotación base (%)</label>
+        <input type="number" id="norg-rotacion" step="0.5" min="0" max="100" style="width:100%;padding:9px 12px;border:1.5px solid #26344a;border-radius:8px;font-size:13px;box-sizing:border-box;background:var(--dk-bg);color:var(--dk-text)">
       </div>
     </div>
     <div style="margin-bottom:12px">
-      <label style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#555;display:block;margin-bottom:6px">Días de ausencia base (días/año)</label>
-      <input type="number" id="norg-ausencia" step="0.5" min="0" style="width:100%;padding:9px 12px;border:1.5px solid #ddd;border-radius:8px;font-size:13px;box-sizing:border-box">
+      <label style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--dk-text-2);display:block;margin-bottom:6px">Días de ausencia base (días/año)</label>
+      <input type="number" id="norg-ausencia" step="0.5" min="0" style="width:100%;padding:9px 12px;border:1.5px solid #26344a;border-radius:8px;font-size:13px;box-sizing:border-box;background:var(--dk-bg);color:var(--dk-text)">
     </div>
 
-    <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#999;margin:18px 0 8px">Directivo responsable (opcional — no inicia sesión)</div>
-    <div style="font-size:11px;color:var(--ink-s);margin-bottom:10px">La persona real detrás del rol "Directivo" del catálogo de intervención — uno por organización.</div>
+    <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--dk-text-2);margin:18px 0 8px">Directivo responsable (opcional — no inicia sesión)</div>
+    <div style="font-size:11px;color:var(--dk-text-2);margin-bottom:10px">La persona real detrás del rol "Directivo" del catálogo de intervención — uno por organización.</div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
-      <input type="text" id="norg-directivo-nombre" placeholder="Nombre" style="padding:9px 12px;border:1.5px solid #ddd;border-radius:8px;font-size:13px;box-sizing:border-box">
-      <input type="text" id="norg-directivo-cargo" placeholder="Cargo" style="padding:9px 12px;border:1.5px solid #ddd;border-radius:8px;font-size:13px;box-sizing:border-box">
+      <input type="text" id="norg-directivo-nombre" placeholder="Nombre" style="padding:9px 12px;border:1.5px solid #26344a;border-radius:8px;font-size:13px;box-sizing:border-box;background:var(--dk-bg);color:var(--dk-text)">
+      <input type="text" id="norg-directivo-cargo" placeholder="Cargo" style="padding:9px 12px;border:1.5px solid #26344a;border-radius:8px;font-size:13px;box-sizing:border-box;background:var(--dk-bg);color:var(--dk-text)">
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:18px">
-      <input type="email" id="norg-directivo-email" placeholder="Email" style="padding:9px 12px;border:1.5px solid #ddd;border-radius:8px;font-size:13px;box-sizing:border-box">
-      <input type="text" id="norg-directivo-telefono" placeholder="Teléfono" style="padding:9px 12px;border:1.5px solid #ddd;border-radius:8px;font-size:13px;box-sizing:border-box">
+      <input type="email" id="norg-directivo-email" placeholder="Email" style="padding:9px 12px;border:1.5px solid #26344a;border-radius:8px;font-size:13px;box-sizing:border-box;background:var(--dk-bg);color:var(--dk-text)">
+      <input type="text" id="norg-directivo-telefono" placeholder="Teléfono" style="padding:9px 12px;border:1.5px solid #26344a;border-radius:8px;font-size:13px;box-sizing:border-box;background:var(--dk-bg);color:var(--dk-text)">
     </div>
 
-    <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#999;margin:18px 0 8px">Coordinador (opcional — no inicia sesión)</div>
-    <div style="font-size:11px;color:var(--ink-s);margin-bottom:10px">Enlace operativo del día a día — logística, distribución de invitaciones. Uno por organización.</div>
+    <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--dk-text-2);margin:18px 0 8px">Coordinador (opcional — no inicia sesión)</div>
+    <div style="font-size:11px;color:var(--dk-text-2);margin-bottom:10px">Enlace operativo del día a día — logística, distribución de invitaciones. Uno por organización.</div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
-      <input type="text" id="norg-coordinador-nombre" placeholder="Nombre" style="padding:9px 12px;border:1.5px solid #ddd;border-radius:8px;font-size:13px;box-sizing:border-box">
-      <input type="text" id="norg-coordinador-cargo" placeholder="Cargo" style="padding:9px 12px;border:1.5px solid #ddd;border-radius:8px;font-size:13px;box-sizing:border-box">
+      <input type="text" id="norg-coordinador-nombre" placeholder="Nombre" style="padding:9px 12px;border:1.5px solid #26344a;border-radius:8px;font-size:13px;box-sizing:border-box;background:var(--dk-bg);color:var(--dk-text)">
+      <input type="text" id="norg-coordinador-cargo" placeholder="Cargo" style="padding:9px 12px;border:1.5px solid #26344a;border-radius:8px;font-size:13px;box-sizing:border-box;background:var(--dk-bg);color:var(--dk-text)">
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:18px">
-      <input type="email" id="norg-coordinador-email" placeholder="Email" style="padding:9px 12px;border:1.5px solid #ddd;border-radius:8px;font-size:13px;box-sizing:border-box">
-      <input type="text" id="norg-coordinador-telefono" placeholder="Teléfono" style="padding:9px 12px;border:1.5px solid #ddd;border-radius:8px;font-size:13px;box-sizing:border-box">
+      <input type="email" id="norg-coordinador-email" placeholder="Email" style="padding:9px 12px;border:1.5px solid #26344a;border-radius:8px;font-size:13px;box-sizing:border-box;background:var(--dk-bg);color:var(--dk-text)">
+      <input type="text" id="norg-coordinador-telefono" placeholder="Teléfono" style="padding:9px 12px;border:1.5px solid #26344a;border-radius:8px;font-size:13px;box-sizing:border-box;background:var(--dk-bg);color:var(--dk-text)">
     </div>
 
-    <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#999;margin:18px 0 8px">Comité de supervisión (opcional — plural)</div>
-    <div style="font-size:11px;color:var(--ink-s);margin-bottom:10px">El tamaño queda a tu criterio para esta organización — 3 casillas de partida, no un mínimo forzado. Agrega o quita según haga falta.</div>
+    <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--dk-text-2);margin:18px 0 8px">Comité de supervisión (opcional — plural)</div>
+    <div style="font-size:11px;color:var(--dk-text-2);margin-bottom:10px">El tamaño queda a tu criterio para esta organización — 3 casillas de partida, no un mínimo forzado. Agrega o quita según haga falta.</div>
     <div id="norg-comite-list" style="margin-bottom:8px"></div>
-    <button type="button" onclick="agregarMiembroComite()" style="width:100%;padding:9px;background:none;color:var(--azul);font-weight:600;font-size:12px;border:1px dashed #ccc;border-radius:8px;cursor:pointer;margin-bottom:18px">+ Agregar miembro del comité</button>
+    <button type="button" onclick="agregarMiembroComite()" style="width:100%;padding:9px;background:none;color:var(--dk-text-2);font-weight:600;font-size:12px;border:1px dashed #3a4a63;border-radius:8px;cursor:pointer;margin-bottom:18px">+ Agregar miembro del comité</button>
 
     <button id="norg-btn" onclick="crearOrganizacion()" style="width:100%;padding:12px;background:#C9A227;color:#0D2340;font-weight:700;font-size:14px;border:none;border-radius:8px;cursor:pointer;margin-bottom:8px">Crear organización</button>
-    <button onclick="ocultarFormNuevaOrg()" style="width:100%;padding:10px;background:none;color:#888;font-weight:600;font-size:13px;border:none;cursor:pointer">Cancelar</button>
-    <div id="norg-status" style="font-size:12px;margin-top:10px;min-height:16px;color:#A32D2D"></div>
+    <button onclick="ocultarFormNuevaOrg()" style="width:100%;padding:10px;background:none;color:var(--dk-text-2);font-weight:600;font-size:13px;border:none;cursor:pointer">Cancelar</button>
+    <div id="norg-status" style="font-size:12px;margin-top:10px;min-height:16px;color:var(--sev-amenaza)"></div>
   </div>
 </div>
 
@@ -711,12 +749,12 @@ function agregarMiembroComite(){
   row.innerHTML =
     '<button type="button" onclick="this.parentElement.remove()" style="position:absolute;top:6px;right:8px;background:none;border:none;color:#A32D2D;font-size:15px;cursor:pointer;line-height:1">×</button>' +
     '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">' +
-      '<input type="text" placeholder="Nombre" class="norg-comite-nombre" style="padding:8px 10px;border:1.5px solid #ddd;border-radius:6px;font-size:12px;box-sizing:border-box">' +
-      '<input type="text" placeholder="Cargo" class="norg-comite-cargo" style="padding:8px 10px;border:1.5px solid #ddd;border-radius:6px;font-size:12px;box-sizing:border-box">' +
+      '<input type="text" placeholder="Nombre" class="norg-comite-nombre" style="padding:8px 10px;border:1.5px solid #26344a;border-radius:6px;font-size:12px;box-sizing:border-box;background:var(--dk-bg);color:var(--dk-text)">' +
+      '<input type="text" placeholder="Cargo" class="norg-comite-cargo" style="padding:8px 10px;border:1.5px solid #26344a;border-radius:6px;font-size:12px;box-sizing:border-box;background:var(--dk-bg);color:var(--dk-text)">' +
     '</div>' +
     '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">' +
-      '<input type="email" placeholder="Email" class="norg-comite-email" style="padding:8px 10px;border:1.5px solid #ddd;border-radius:6px;font-size:12px;box-sizing:border-box">' +
-      '<input type="text" placeholder="Teléfono" class="norg-comite-telefono" style="padding:8px 10px;border:1.5px solid #ddd;border-radius:6px;font-size:12px;box-sizing:border-box">' +
+      '<input type="email" placeholder="Email" class="norg-comite-email" style="padding:8px 10px;border:1.5px solid #26344a;border-radius:6px;font-size:12px;box-sizing:border-box;background:var(--dk-bg);color:var(--dk-text)">' +
+      '<input type="text" placeholder="Teléfono" class="norg-comite-telefono" style="padding:8px 10px;border:1.5px solid #26344a;border-radius:6px;font-size:12px;box-sizing:border-box;background:var(--dk-bg);color:var(--dk-text)">' +
     '</div>';
   list.appendChild(row);
 }
@@ -842,7 +880,11 @@ supa.auth.getSession().then(function(res){
     <div class="nav-item" onclick="show('p-predictor')"><span class="nav-icon">🔮</span> Predictor IFT</div>
     -->
     <div class="nav-grp">Resultado</div>
-    <div class="nav-item" onclick="show('p-dashboard')"><span class="nav-icon">📊</span> Tablero Ejecutivo</div>
+    <div class="nav-item" onclick="show('p-dash-resumen')"><span class="nav-icon">📊</span> Resumen</div>
+    <div class="nav-item" onclick="show('p-dash-desglose')"><span class="nav-icon">🔍</span> Desglose</div>
+    <div class="nav-item" onclick="show('p-dash-area')"><span class="nav-icon">🏢</span> Por Área</div>
+    <div class="nav-item" onclick="show('p-dash-recom')"><span class="nav-icon">✅</span> Recomendaciones</div>
+    <div class="nav-item" onclick="show('p-fpv')"><span class="nav-icon">🤝</span> Sensor FPV</div>
   </nav>
   <!-- Organización activa + acceso permanente a "Nueva organización" — no
        depende de cuántas organizaciones tenga el consultor vinculadas
@@ -873,24 +915,34 @@ supa.auth.getSession().then(function(res){
     </div>
     <div class="cover-instruments">
       <div class="ci-card">
-        <div class="ci-tag">IEHS</div>
-        <div class="ci-name">Índice de Experiencia Humano Sistémica</div>
-        <div class="ci-desc">Mide la experiencia percibida por las personas. 25 ítems. Semestral.</div>
-      </div>
-      <div class="ci-card">
-        <div class="ci-tag">ICE</div>
+        <div class="ci-tag" style="color:var(--ice)">ICE</div>
         <div class="ci-name">Índice de Coherencia Estructural</div>
-        <div class="ci-desc">Mide la coherencia de las condiciones del sistema. 25 ítems. Semestral.</div>
+        <div class="ci-desc">Mide la coherencia de las condiciones del sistema. 25 ítems, 5 pares.</div>
       </div>
       <div class="ci-card">
-        <div class="ci-tag">SDMO · IDA</div>
-        <div class="ci-name">Sensor Diario de Monitoreo</div>
-        <div class="ci-desc">8 preguntas rápidas. Base del IAO. 3 veces por semana.</div>
+        <div class="ci-tag">IEH</div>
+        <div class="ci-name">Índice de Experiencia Humana</div>
+        <div class="ci-desc">Mide la experiencia percibida por las personas. 25 ítems, 5 pares.</div>
       </div>
       <div class="ci-card">
-        <div class="ci-tag">PIIO</div>
-        <div class="ci-name">Panel de Indicadores Operativos</div>
-        <div class="ci-desc">KPIs normalizados que alimentan el Factor de Transmisión económico.</div>
+        <div class="ci-tag">IAO</div>
+        <div class="ci-name">Índice de Activación Organizacional</div>
+        <div class="ci-desc">Hacia dónde se orienta la energía colectiva. Se deriva del SD-MO.</div>
+      </div>
+      <div class="ci-card">
+        <div class="ci-tag">CFF</div>
+        <div class="ci-name">Costo Financiero de la Fricción</div>
+        <div class="ci-desc">Traduce el deterioro estructural a impacto económico concreto.</div>
+      </div>
+      <div class="ci-card">
+        <div class="ci-tag">SDMO</div>
+        <div class="ci-name">Sensor Diario de Modo Operativo</div>
+        <div class="ci-desc">4 preguntas bipolares. Base del IAO. 3 veces por semana.</div>
+      </div>
+      <div class="ci-card">
+        <div class="ci-tag">FPV</div>
+        <div class="ci-name">Fiabilidad, Proporcionalidad, Vínculo</div>
+        <div class="ci-desc">Pulso de inversionista y consumidor — no se combina con el núcleo estadístico.</div>
       </div>
     </div>
     <button class="cover-cta" onclick="show('p-acrostico')">Ver acróstico →</button>
@@ -899,7 +951,7 @@ supa.auth.getSession().then(function(res){
 </div>
 
 <!-- ═══ ACRÓSTICO ═══ -->
-<div id="p-acrostico" class="panel">
+<div id="p-acrostico" class="panel dark-panel">
   <div class="panel-inner">
     <div class="ph">
       <div class="ph-tag">Página 2 · Fundamento conceptual</div>
@@ -1069,7 +1121,7 @@ supa.auth.getSession().then(function(res){
 </div>
 
 <!-- ═══ CUESTIONARIO ═══ -->
-<div id="p-cuestionario" class="panel">
+<div id="p-cuestionario" class="panel dark-panel">
   <div class="panel-inner">
     <div class="ph">
       <div class="ph-tag">Cuestionario EFICIENCIA</div>
@@ -1077,7 +1129,7 @@ supa.auth.getSession().then(function(res){
       <div class="ph-desc">Cargado directo desde el diagnóstico de la organización — sin reimplementar fórmulas aquí, solo se muestra lo que ya llegó calculado.</div>
     </div>
 
-    <div id="cuest-status" style="font-size:13px;color:var(--ink-s);margin-bottom:16px"></div>
+    <div id="cuest-status" style="font-size:13px;color:var(--dk-text-2);margin-bottom:16px"></div>
 
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;margin-bottom:8px" id="cuest-cards">
       <!-- ICE / IEH — sin semáforo, descripción fija en vez de número (marco,
@@ -1087,18 +1139,25 @@ supa.auth.getSession().then(function(res){
     </div>
 
     <details style="margin-top:20px">
-      <summary style="cursor:pointer;font-size:12px;color:var(--ink-s);font-weight:700;text-transform:uppercase;letter-spacing:.06em">Ver detalle técnico</summary>
-      <div id="cuest-detalle" style="margin-top:12px;font-size:12px;font-family:'DM Mono',monospace;color:var(--ink-s);line-height:1.8"></div>
+      <summary style="cursor:pointer;font-size:12px;color:var(--dk-text-2);font-weight:700;text-transform:uppercase;letter-spacing:.06em">Ver detalle técnico</summary>
+      <div id="cuest-detalle" style="margin-top:12px;font-size:12px;font-family:'DM Mono',monospace;color:var(--dk-text-2);line-height:1.8"></div>
     </details>
 
     <div class="btn-row" style="margin-top:24px">
-      <button class="btn btn-primary" onclick="show('p-dashboard')">Ver desglose completo y acciones →</button>
+      <button class="btn btn-primary" onclick="show('p-dash-resumen')">Ver desglose completo y acciones →</button>
     </div>
   </div>
 </div>
 
 <!-- ═══ SDMO ═══ -->
-<div id="p-sdmo" class="panel">
+<!-- Pendiente aparte (no bloquea este panel): gráfico de tendencia SD-MO
+     de últimas 4 semanas — requiere migración nueva que agregue
+     respuestas_sdmo por semana con mínimo N≥8 por semana (hoy la tabla
+     cruda no tiene ningún acceso directo desde el cliente, a propósito —
+     003_grants_tablas_authenticated.sql:47-49). Se diseña en su propia
+     sesión, no a mitad de este rediseño visual. El resumen de estado
+     actual de abajo no depende de ese dato y sí queda en tema oscuro. -->
+<div id="p-sdmo" class="panel dark-panel">
   <div class="panel-inner">
     <div class="ph">
       <div class="ph-tag">SD-MO — Sensor Diario</div>
@@ -1106,18 +1165,18 @@ supa.auth.getSession().then(function(res){
       <div class="ph-desc">Estado del sensor diario de la organización — cargado directo desde el diagnóstico, sin recalcular nada aquí.</div>
     </div>
 
-    <div id="sdmo-status" style="font-size:13px;color:var(--ink-s);margin-bottom:16px"></div>
+    <div id="sdmo-status" style="font-size:13px;color:var(--dk-text-2);margin-bottom:16px"></div>
 
     <div id="sdmo-card"></div>
 
     <details style="margin-top:20px">
-      <summary style="cursor:pointer;font-size:12px;color:var(--ink-s);font-weight:700;text-transform:uppercase;letter-spacing:.06em">Ver detalle técnico</summary>
-      <div id="sdmo-detalle" style="margin-top:12px;font-size:12px;font-family:'DM Mono',monospace;color:var(--ink-s);line-height:1.8"></div>
+      <summary style="cursor:pointer;font-size:12px;color:var(--dk-text-2);font-weight:700;text-transform:uppercase;letter-spacing:.06em">Ver detalle técnico</summary>
+      <div id="sdmo-detalle" style="margin-top:12px;font-size:12px;font-family:'DM Mono',monospace;color:var(--dk-text-2);line-height:1.8"></div>
     </details>
 
     <div class="btn-row" style="margin-top:24px">
       <button class="btn btn-ghost" onclick="show('p-cuestionario')">← ICE / IEH</button>
-      <button class="btn btn-primary" onclick="show('p-dashboard')">Ver desglose completo y acciones →</button>
+      <button class="btn btn-primary" onclick="show('p-dash-resumen')">Ver desglose completo y acciones →</button>
     </div>
   </div>
 </div>
@@ -1607,38 +1666,139 @@ supa.auth.getSession().then(function(res){
   </div>
 </div>
 
-<!-- ═══ DASHBOARD ═══ -->
-<div id="p-dashboard" class="panel">
+<!-- ═══ RESULTADO — 4 páginas (Paso 7). Reemplazan al viejo "Tablero
+     Ejecutivo" (#p-dashboard, _renderDashboardNuevo, _renderParCard) —
+     retirado en 7.8 tras verificar que todo su contenido útil quedó
+     migrado (ficha técnica → #dr-ficha 7.2; ICE/IEH/IAO → números
+     consolidados 7.2, reemplazo de diseño ya aprobado, no pérdida;
+     desglose por par → #dg-pares 7.5 + #dg-recom 7.7, incluido el
+     detalle técnico que originalmente solo tenía _renderParCard; SD-MO
+     resumido → sigue viva sin cambios en #p-sdmo). ═══ -->
+<div id="p-dash-resumen" class="panel dark-panel">
   <div class="panel-inner">
     <div class="ph">
-      <div class="ph-tag">Diagnóstico EFICIENCIA</div>
-      <div class="ph-title">Tablero Ejecutivo</div>
-      <div class="ph-desc">ICE, IEH e IAO como tres lecturas separadas — nunca combinadas en un solo número (esa fue la razón explícita de eliminar el IIE, marco sección 4).</div>
+      <div class="ph-tag">Resultado · Página 1</div>
+      <div class="ph-title">Resumen</div>
+      <div class="ph-desc">Ficha técnica, los 5 números consolidados, dona de estados y la rueda de los 5 pares.</div>
     </div>
 
-    <!-- Ficha técnica — organización, empleados, áreas, encuestas + tasa
-         de participación. Metadatos de cobertura, no lecturas diagnósticas
-         — por eso no llevan estado Seguridad/Alerta/Amenaza. -->
-    <div id="dash-ficha" style="display:flex;flex-wrap:wrap;gap:24px;padding:14px 18px;background:rgba(13,27,42,0.04);border:1px solid rgba(13,27,42,0.08);border-radius:10px;margin-bottom:20px;font-size:13px"></div>
+    <div id="dr-status" style="font-size:13px;color:var(--dk-text-2);margin-bottom:16px"></div>
 
-    <div id="dash-status" style="font-size:13px;color:var(--ink-s);margin-bottom:16px"></div>
+    <div id="dr-ficha" style="display:flex;flex-wrap:wrap;gap:24px;padding:14px 18px;background:var(--dk-card);border:1px solid #26344a;border-radius:10px;margin-bottom:20px;font-size:13px"></div>
 
-    <!-- ICE / IEH / IAO — tres tarjetas, nunca un blend -->
-    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;margin-bottom:28px" id="dash-indices"></div>
+    <div id="dr-numeros" style="margin-bottom:28px"></div>
 
-    <!-- Desglose por par — nombre, estado (Seguridad/Alerta/Amenaza), lectura
-         simple, acción del catálogo. Detalle numérico colapsado por tarjeta. -->
-    <div class="card-title" style="margin-bottom:12px">Desglose por par</div>
-    <div id="dash-pares" style="display:grid;gap:14px;margin-bottom:28px"></div>
+    <div id="dr-dona" style="margin-bottom:28px"></div>
 
-    <!-- SD-MO resumido -->
-    <div class="card-title" style="margin-bottom:12px">SD-MO — Sensor Diario</div>
-    <div id="dash-sdmo" style="margin-bottom:14px"></div>
-
-    <div class="btn-row">
-      <button class="btn btn-ghost btn-sm" onclick="cargarDiagnostico()" title="Volver a consultar el diagnóstico">🔄 Recargar diagnóstico</button>
-      <button class="btn btn-gold" onclick="window.print()">🖨 Imprimir</button>
+    <div id="dr-ruedas" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:20px;margin-bottom:12px">
+      <div id="dr-rueda-ideal"></div>
+      <div id="dr-rueda-real"></div>
     </div>
+
+    <!-- Aviso de cierre — fotografía de un solo período, sin afirmar
+         "esfuerzo" ni "avance en el tiempo" (no hay con qué respaldar una
+         comparación temporal todavía, marco sección 9). -->
+    <div style="display:flex;gap:12px;align-items:flex-start;background:#2a2013;border:1px solid #6b5220;border-radius:var(--r);padding:16px 18px">
+      <span style="font-size:17px;flex-shrink:0;line-height:1.3">⚠</span>
+      <div style="color:var(--sev-alerta);font-weight:700;font-size:13.5px;line-height:1.6">La energía perdida en estos puntos no se pierde sola — se traduce en costo real (CFF).</div>
+    </div>
+  </div>
+</div>
+
+<div id="p-dash-desglose" class="panel dark-panel">
+  <div class="panel-inner">
+    <div class="ph">
+      <div class="ph-tag">Resultado · Página 2</div>
+      <div class="ph-title">Desglose</div>
+      <div class="ph-desc">Las 10 letras del acróstico y los 5 pares con su brecha — sin recomendación embebida (esa vive en la Página 4).</div>
+    </div>
+
+    <div class="card-title" style="margin-bottom:12px">Las 10 letras</div>
+    <div id="dg-letras" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;margin-bottom:28px"></div>
+
+    <div class="card-title" style="margin-bottom:12px">Los 5 pares — brecha</div>
+    <div id="dg-pares" style="display:grid;gap:14px"></div>
+  </div>
+</div>
+
+<div id="p-dash-area" class="panel dark-panel">
+  <div class="panel-inner">
+    <div class="ph">
+      <div class="ph-tag">Resultado · Página 3</div>
+      <div class="ph-title">Por Área</div>
+      <div class="ph-desc">Desglose departamental, mismo mínimo de confidencialidad (N≥8) que el resto del sistema — el filtro por área no reconstruye una lectura casi individual, el servidor lo gatea igual que en el resto del Workbook.</div>
+    </div>
+
+    <div class="fg" style="max-width:320px;margin-bottom:8px">
+      <label class="fl">Área / departamento</label>
+      <select class="fi" id="area-select" onchange="cargarPorArea()"><option value="">Toda la organización</option></select>
+    </div>
+    <div id="area-status" style="font-size:13px;color:var(--dk-text-2);margin-bottom:20px"></div>
+
+    <div class="card-title" style="margin-bottom:12px">Números consolidados</div>
+    <div id="area-n" style="font-family:var(--f-mono);font-size:11.5px;color:var(--dk-text-2);margin-bottom:10px"></div>
+    <div id="area-numeros" style="margin-bottom:28px"></div>
+
+    <div class="card-title" style="margin-bottom:12px">Los 5 pares — brecha</div>
+    <div id="area-pares" style="display:grid;gap:14px"></div>
+  </div>
+</div>
+
+<div id="p-dash-recom" class="panel dark-panel">
+  <div class="panel-inner">
+    <div class="ph">
+      <div class="ph-tag">Resultado · Página 4</div>
+      <div class="ph-title">Recomendaciones</div>
+      <div class="ph-desc">Ordenadas por severidad — responsable, acción y corresponsabilidad por par. Seguridad agrupado al final, atenuado.</div>
+    </div>
+
+    <div id="dg-recom" style="display:grid;gap:14px"></div>
+  </div>
+</div>
+
+<!-- ═══ SENSOR FPV ═══ -->
+<div id="p-fpv" class="panel dark-panel">
+  <div class="panel-inner">
+    <div class="ph">
+      <div class="ph-tag">Resultado · Sensor FPV</div>
+      <div class="ph-title">Sensor FPV — Inversionista y Consumidor</div>
+      <div class="ph-desc">Pulso liviano de estos dos actores del ecosistema (marco, sección 10) — deliberadamente separado del núcleo estadístico (Brecha, IAO, CFF): no se combina con ningún otro índice.</div>
+    </div>
+
+    <div id="fpv-status" style="font-size:13px;color:var(--dk-text-2);margin-bottom:16px"></div>
+
+    <div id="fpv-iao" style="margin-bottom:14px"></div>
+    <div class="alert info" id="fpv-incoherencia" style="display:none;margin-bottom:14px"></div>
+
+    <div class="card-title" style="margin-bottom:12px">Resultados</div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px;margin-bottom:28px">
+      <div id="fpv-inversionista"></div>
+      <div id="fpv-consumidor"></div>
+    </div>
+
+    <div class="btn-row" style="margin-bottom:28px">
+      <button class="btn btn-ghost btn-sm" onclick="cargarFPV()" title="Volver a consultar el Sensor FPV">🔄 Recargar</button>
+    </div>
+
+    <div class="card-title" style="margin-bottom:12px">Generar invitaciones</div>
+    <div class="card">
+      <div class="card-title">Inversionista</div>
+      <div class="fgrid" style="align-items:end">
+        <div class="fg"><label class="fl">Cantidad (1-500)</label><input type="number" class="fi" id="fpv-inv-cantidad" min="1" max="500" value="1"></div>
+      </div>
+      <div class="btn-row"><button class="btn btn-primary btn-sm" onclick="generarInvFPV()">Generar</button></div>
+      <div id="fpv-inv-status" style="font-size:12px;color:var(--dk-text-2);margin-top:6px"></div>
+      <div id="fpv-inv-list" style="margin-top:10px;display:flex;flex-direction:column;gap:6px"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Consumidor</div>
+      <div style="font-size:12.5px;color:var(--dk-text-2);margin-bottom:10px">Un solo link para toda la organización — pedirlo de nuevo devuelve el mismo enlace.</div>
+      <div class="btn-row"><button class="btn btn-primary btn-sm" onclick="obtenerLinkConsumidor()">Obtener link de consumidor</button></div>
+      <div id="fpv-con-status" style="font-size:12px;color:var(--dk-text-2);margin-top:6px"></div>
+      <div id="fpv-con-link" style="margin-top:10px"></div>
+    </div>
+
   </div>
 </div>
 
@@ -2148,6 +2308,8 @@ function show(id){
   document.getElementById('top-prog').style.width=Math.max(0,idx/(steps.length-1)*100)+'%';
 
   if(id==='p-areas') renderAreas();
+  if(id==='p-fpv') cargarFPV();
+  if(id==='p-dash-area'){ _initPorArea(); cargarPorArea(); }
   if(id==='p-cuestionario'){
     var orgN=document.getElementById('org-n');
     var cInput=document.getElementById('cuest-org-input');
@@ -5812,23 +5974,34 @@ function estadoDesdeIAO(iao){
   return estadoDesdeAmenaza(iao / 100);
 }
 var ESTADO_LABEL = { seguridad: 'Seguridad', alerta: 'Alerta', amenaza: 'Amenaza' };
-var ESTADO_COLOR = { seguridad: '#1A5C3A',   alerta: '#9A6000', amenaza: '#A32D2D' };
-var ESTADO_BG    = { seguridad: '#EAF5EF',   alerta: '#FEF3D9', amenaza: '#FCEBEB' };
+// Semáforo de severidad (marco, sección 0) — punto + palabra, no pill
+// con fondo sólido (patrón ya usado en los mockups del Tablero/SDMO/
+// rueda). Sin ESTADO_BG: el texto toma el color de severidad directo.
+var ESTADO_COLOR = { seguridad: '#4a9d6e', alerta: '#d99a3d', amenaza: '#e0715c' };
+
+// Color por rol de instrumento (marco, sección 0): ICE = declarado
+// (celeste), todo lo demás = IEH/acento general (dorado — el mismo
+// dorado ya sirve doble rol de marca, sección 0). No es una paleta
+// nueva por sigla: es binario, ICE vs. todo lo demás.
+function _tagColor(sigla){
+  return sigla === 'ICE' ? 'var(--ice)' : 'var(--ieh)';
+}
 
 function _badgeEstado(estado){
   if(!estado) return '';
-  return '<span style="background:' + ESTADO_BG[estado] + ';color:' + ESTADO_COLOR[estado] +
-    ';padding:3px 10px;border-radius:10px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em">' +
+  return '<span style="display:flex;align-items:center;gap:6px;color:' + ESTADO_COLOR[estado] +
+    ';font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em">' +
+    '<span style="width:7px;height:7px;border-radius:50%;background:' + ESTADO_COLOR[estado] + '"></span>' +
     ESTADO_LABEL[estado] + '</span>';
 }
 function _sinDatos(minimo){
-  return '<div style="font-size:13px;color:var(--ink-s);font-style:italic">Datos insuficientes para reportar (mínimo ' + (minimo || 8) + ' respuestas)</div>';
+  return '<div style="font-size:13px;color:var(--dk-text-2);font-style:italic">Datos insuficientes para reportar (mínimo ' + (minimo || 8) + ' respuestas)</div>';
 }
 
 // ── Carga del diagnóstico — una sola llamada, resultados ya calculados ───
 function cargarDiagnostico(){
   if(!S_ORG.id) return;
-  var st  = document.getElementById('dash-status');
+  var st  = document.getElementById('dr-status');
   var stc = document.getElementById('cuest-status');
   var sts = document.getElementById('sdmo-status');
   [st, stc, sts].forEach(function(el){ if(el) el.textContent = 'Cargando diagnóstico…'; });
@@ -5861,7 +6034,12 @@ function renderDiagnostico(){
   if(!d) return;
   _renderCuestionarioNuevo(d);
   _renderSDMONuevo(d);
-  _renderDashboardNuevo(d);
+  _renderResumenNuevo(d);
+  _renderDonaEstados(d);
+  _renderRuedaIdeal();
+  _renderRuedaReal(d);
+  _renderDesglose(d);
+  _renderRecomendaciones(d);
 }
 
 // ── p-cuestionario: ICE / IEH, sin semáforo, descripción fija en vez de número ──
@@ -5870,11 +6048,37 @@ function _renderCuestionarioNuevo(d){
   if(!wrap) return;
   var descICE = 'Cómo la organización diseña y declara sus condiciones — estructura, intención, impacto, nexo, integración.';
   var descIEH = 'Cómo el colaborador vive y percibe esas mismas condiciones.';
+  // Brecha de un solo eje — posición relativa de ICE/IEH en [0,1], no su
+  // valor exacto (eso sigue solo en "Ver detalle técnico") y sin colorear
+  // el tramo por severidad: ICE/IEH son promedios descriptivos, nunca
+  // métricas de amenaza (ver estadoDesdeAmenaza más abajo) — el tramo va
+  // en neutro, el track comunica posición relativa, no magnitud leída
+  // como cifra.
+  var brecha = '';
+  if(d.ice != null && d.ieh != null){
+    var iceLeft = Math.max(0, Math.min(100, d.ice * 100));
+    var iehLeft = Math.max(0, Math.min(100, d.ieh * 100));
+    var lo = Math.min(iceLeft, iehLeft), hi = Math.max(iceLeft, iehLeft);
+    brecha =
+      '<div style="grid-column:1/-1;margin-top:6px">' +
+        '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">' +
+          '<span style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--dk-text-2);text-transform:uppercase;letter-spacing:.06em"><span style="width:8px;height:8px;border-radius:50%;background:var(--ice);display:inline-block"></span>ICE</span>' +
+          '<span style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--dk-text-2);text-transform:uppercase;letter-spacing:.06em">IEH<span style="width:8px;height:8px;border-radius:50%;background:var(--ieh);display:inline-block"></span></span>' +
+        '</div>' +
+        '<div style="position:relative;height:6px;border-radius:3px;background:var(--dk-elevated)">' +
+          '<div style="position:absolute;top:0;left:' + lo + '%;width:' + (hi - lo) + '%;height:100%;background:var(--dk-text-3);border-radius:3px"></div>' +
+          '<div style="position:absolute;top:50%;left:' + iceLeft + '%;width:11px;height:11px;border-radius:50%;background:var(--ice);border:2px solid var(--dk-bg);transform:translate(-50%,-50%)"></div>' +
+          '<div style="position:absolute;top:50%;left:' + iehLeft + '%;width:11px;height:11px;border-radius:50%;background:var(--ieh);border:2px solid var(--dk-bg);transform:translate(-50%,-50%)"></div>' +
+        '</div>' +
+      '</div>';
+  }
+
   wrap.innerHTML =
-    '<div class="icard" style="padding:20px"><div class="icard-tag">ICE</div>' +
-    '<div style="font-size:13px;color:var(--ink-s);margin-top:8px;line-height:1.5">' + descICE + '</div></div>' +
+    '<div class="icard" style="padding:20px"><div class="icard-tag" style="color:' + _tagColor('ICE') + '">ICE</div>' +
+    '<div style="font-size:13px;color:var(--dk-text-2);margin-top:8px;line-height:1.5">' + descICE + '</div></div>' +
     '<div class="icard" style="padding:20px"><div class="icard-tag">IEH</div>' +
-    '<div style="font-size:13px;color:var(--ink-s);margin-top:8px;line-height:1.5">' + descIEH + '</div></div>';
+    '<div style="font-size:13px;color:var(--dk-text-2);margin-top:8px;line-height:1.5">' + descIEH + '</div></div>' +
+    brecha;
 
   var det = document.getElementById('cuest-detalle');
   if(det){
@@ -5892,18 +6096,18 @@ function _renderSDMONuevo(d){
   var s = d.sdmo || {};
   if(!s.n_suficiente){
     card.innerHTML = '<div class="icard" style="padding:20px">' + _sinDatos(8) +
-      '<div style="font-size:11px;color:var(--ink-s);margin-top:6px">n=' + (s.n || 0) + ' en los últimos ' + (s.ventana_dias || 30) + ' días</div></div>';
+      '<div style="font-size:11px;color:var(--dk-text-2);margin-top:6px">n=' + (s.n || 0) + ' en los últimos ' + (s.ventana_dias || 30) + ' días</div></div>';
   } else {
     var estado = estadoDesdeIAO(s.ida_prom);
     var tendTxt = '';
     if(s.tendencia){
       var dirLabel = s.tendencia.direccion === 'deterioro' ? 'en deterioro' : s.tendencia.direccion === 'mejora' ? 'en mejora' : 'estable';
-      tendTxt = '<div style="font-size:12px;color:var(--ink-s);margin-top:6px">Tendencia: ' + dirLabel + ' frente a la ventana anterior.</div>';
+      tendTxt = '<div style="font-size:12px;color:var(--dk-text-2);margin-top:6px">Tendencia: ' + dirLabel + ' frente a la ventana anterior.</div>';
     }
     card.innerHTML =
       '<div class="icard" style="padding:20px">' +
       '<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px"><div class="icard-tag">IDA promedio</div>' + _badgeEstado(estado) + '</div>' +
-      '<div style="font-size:13px;color:var(--ink-s)">Estado del sensor diario en los últimos ' + (s.ventana_dias || 30) + ' días (n=' + s.n + ').</div>' +
+      '<div style="font-size:13px;color:var(--dk-text-2)">Estado del sensor diario en los últimos ' + (s.ventana_dias || 30) + ' días (n=' + s.n + ').</div>' +
       tendTxt + '</div>';
   }
 
@@ -5916,18 +6120,234 @@ function _renderSDMONuevo(d){
   }
 }
 
+// ── p-fpv: Sensor FPV — Inversionista y Consumidor ──────────────────────
+function cargarFPV(){
+  if(!S_ORG.id) return;
+  var st = document.getElementById('fpv-status');
+  if(st) st.textContent = 'Cargando Sensor FPV…';
+  supa.rpc('resumen_fpv_organizacion', { p_organizacion_id: S_ORG.id }).then(function(res){
+    if(res.error){
+      if(st) st.textContent = 'Error al cargar: ' + res.error.message;
+      return;
+    }
+    if(st) st.textContent = '';
+    _renderFPVNuevo(res.data);
+  }).catch(function(err){
+    if(st) st.textContent = 'Error de conexión: ' + (err && err.message || err);
+  });
+}
+
+// Traduce la banda del FPV (alto/bajo/neutral, escala 1-5) a las claves de
+// estado ya establecidas (seguridad/alerta/amenaza) para reutilizar
+// _badgeEstado sin inventar una paleta nueva — alto=saludable(verde),
+// bajo=señal de alerta(rojo), neutral=ámbar, mismo semáforo de siempre.
+function _estadoDesdeBandaFPV(banda){
+  if(banda === 'alto') return 'seguridad';
+  if(banda === 'bajo') return 'amenaza';
+  if(banda === 'neutral') return 'alerta';
+  return null;
+}
+
+// Radar triangular de 3 ejes — Fiabilidad/Proporcionalidad/Vínculo, escala
+// 1-5 (marco, sección 8). Dibujo manual en canvas, misma técnica que
+// drawPIIOChart/drawLongChart (sin librería — no hay Chart.js cargado);
+// no se reutiliza su código porque esas funciones viven en paneles
+// legacy fuera de alcance, solo la técnica de dibujo a mano.
+function _dibujarRadarFPV(canvasId, fiabilidad, proporcionalidad, vinculo){
+  var canvas = document.getElementById(canvasId);
+  if(!canvas || !canvas.getContext) return;
+  var ctx = canvas.getContext('2d');
+  var w = canvas.width, h = canvas.height;
+  var cx = w / 2, cy = h / 2 + 6, maxR = Math.min(w, h) / 2 - 28;
+  ctx.clearRect(0, 0, w, h);
+
+  var ejes = [
+    { label: 'Fiabilidad',       angulo: -Math.PI / 2,     val: fiabilidad },
+    { label: 'Proporcionalidad', angulo: Math.PI / 6,      val: proporcionalidad },
+    { label: 'Vínculo',          angulo: Math.PI * 5 / 6,  val: vinculo }
+  ];
+  function punto(angulo, r){ return { x: cx + r * Math.cos(angulo), y: cy + r * Math.sin(angulo) }; }
+
+  // Guía de referencia (triángulo al radio máximo) + ejes — neutro
+  ctx.strokeStyle = '#26344a';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ejes.forEach(function(e, i){
+    var p = punto(e.angulo, maxR);
+    if(i === 0) ctx.moveTo(p.x, p.y); else ctx.lineTo(p.x, p.y);
+  });
+  ctx.closePath();
+  ctx.stroke();
+  ejes.forEach(function(e){
+    var p = punto(e.angulo, maxR);
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.lineTo(p.x, p.y);
+    ctx.stroke();
+  });
+
+  // Triángulo de valores reales — escala [1,5] → radio [0, maxR]
+  var pts = ejes.map(function(e){
+    var val = e.val != null ? e.val : 1;
+    var r = maxR * Math.max(0, Math.min(1, (val - 1) / 4));
+    return punto(e.angulo, r);
+  });
+  ctx.beginPath();
+  pts.forEach(function(p, i){ if(i === 0) ctx.moveTo(p.x, p.y); else ctx.lineTo(p.x, p.y); });
+  ctx.closePath();
+  ctx.fillStyle = 'rgba(217,154,61,.25)';
+  ctx.fill();
+  ctx.strokeStyle = '#d99a3d';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+  pts.forEach(function(p){
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, 3.5, 0, Math.PI * 2);
+    ctx.fillStyle = '#d99a3d';
+    ctx.fill();
+  });
+
+  // Etiquetas de eje
+  ctx.fillStyle = '#8a94a6';
+  ctx.font = '9px "DM Sans", sans-serif';
+  ejes.forEach(function(e){
+    var p = punto(e.angulo, maxR + 15);
+    ctx.textAlign = Math.abs(p.x - cx) < 4 ? 'center' : (p.x > cx ? 'left' : 'right');
+    ctx.textBaseline = p.y < cy - 4 ? 'alphabetic' : (p.y > cy + 4 ? 'top' : 'middle');
+    ctx.fillText(e.label, p.x, p.y);
+  });
+}
+
+function _renderFPVNuevo(d){
+  // IAO de referencia — gated en d.iao_banda (ya aplica el N≥8 del marco
+  // 9.1 en el servidor); estadoDesdeIAO/_badgeEstado son los MISMOS que
+  // colorean el IAO en el resto del Workbook, no una copia.
+  var iaoWrap = document.getElementById('fpv-iao');
+  if(iaoWrap){
+    if(d.iao != null && d.iao_banda){
+      iaoWrap.innerHTML =
+        '<div class="icard" style="padding:20px"><div style="display:flex;align-items:center;gap:10px"><div class="icard-tag">IAO</div>' +
+        _badgeEstado(estadoDesdeIAO(d.iao)) + '</div>' +
+        '<div style="font-size:13px;color:rgba(255,255,255,.68);margin-top:6px">Modo predominante activado en la organización (n=' + d.iao_n + ') — referencia para comparar con el FPV.</div></div>';
+    } else {
+      iaoWrap.innerHTML = '<div class="icard" style="padding:20px"><div class="icard-tag">IAO</div>' + _sinDatos(8) + '</div>';
+    }
+  }
+
+  var incoWrap = document.getElementById('fpv-incoherencia');
+  if(incoWrap){
+    if(d.incoherencia_iao === true){
+      incoWrap.style.display = 'flex';
+      incoWrap.innerHTML = '<span class="ai">&#8505;</span><div>El IAO y el FPV muestran lecturas que no coinciden — vale la pena revisar por qué.</div>';
+    } else {
+      incoWrap.style.display = 'none';
+    }
+  }
+
+  var invWrap = document.getElementById('fpv-inversionista');
+  if(invWrap){
+    var inv = d.inversionista || {};
+    if(!inv.n){
+      // Nunca el mensaje de confidencialidad para Inversionista (marco 10.5)
+      // — n=0 es "todavía no hay respuestas", no un umbral sin alcanzar.
+      invWrap.innerHTML = '<div class="icard" style="padding:20px"><div class="icard-tag">Inversionista</div>' +
+        '<div style="font-size:13px;color:rgba(255,255,255,.6);font-style:italic;margin-top:6px">Todavía no hay respuestas registradas.</div></div>';
+    } else {
+      invWrap.innerHTML = '<div class="icard" style="padding:20px">' +
+        '<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px"><div class="icard-tag">Inversionista</div>' +
+        (inv.banda ? _badgeEstado(_estadoDesdeBandaFPV(inv.banda)) : '') + '</div>' +
+        '<canvas id="fpv-radar-inv" width="180" height="150" style="display:block;margin:0 auto"></canvas>' +
+        '<div style="font-family:\'DM Mono\',monospace;font-size:12.5px;color:rgba(255,255,255,.68);line-height:1.8;margin-top:8px">' +
+        'n = ' + inv.n + ' · fiabilidad = ' + inv.fiabilidad + ' · proporcionalidad = ' + inv.proporcionalidad + ' · vínculo = ' + inv.vinculo +
+        '</div></div>';
+      _dibujarRadarFPV('fpv-radar-inv', inv.fiabilidad, inv.proporcionalidad, inv.vinculo);
+    }
+  }
+
+  var conWrap = document.getElementById('fpv-consumidor');
+  if(conWrap){
+    var con = d.consumidor || {};
+    if(!con.n_suficiente){
+      conWrap.innerHTML = '<div class="icard" style="padding:20px"><div class="icard-tag">Consumidor</div>' + _sinDatos(8) +
+        '<div style="font-size:11px;color:rgba(255,255,255,.5);margin-top:6px">n=' + (con.n || 0) + '</div></div>';
+    } else {
+      conWrap.innerHTML = '<div class="icard" style="padding:20px">' +
+        '<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px"><div class="icard-tag">Consumidor</div>' +
+        (con.banda ? _badgeEstado(_estadoDesdeBandaFPV(con.banda)) : '') + '</div>' +
+        '<canvas id="fpv-radar-con" width="180" height="150" style="display:block;margin:0 auto"></canvas>' +
+        '<div style="font-family:\'DM Mono\',monospace;font-size:12.5px;color:rgba(255,255,255,.68);line-height:1.8;margin-top:8px">' +
+        'n = ' + con.n + ' · fiabilidad = ' + con.fiabilidad + ' · proporcionalidad = ' + con.proporcionalidad + ' · vínculo = ' + con.vinculo +
+        '</div></div>';
+      _dibujarRadarFPV('fpv-radar-con', con.fiabilidad, con.proporcionalidad, con.vinculo);
+    }
+  }
+}
+
+// ── Generar invitaciones FPV ─────────────────────────────────────────────
+function _fpvLinkUrl(codigo){
+  return new URL('fpv.html?codigo=' + encodeURIComponent(codigo), window.location.href).href;
+}
+function _fpvLinkRow(codigo){
+  var url = _fpvLinkUrl(codigo);
+  var id = 'fpv-link-' + codigo;
+  return '<div style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--dk-bg);border-radius:6px">' +
+    '<span style="font-family:\'DM Mono\',monospace;font-size:11.5px;color:var(--dk-text-2);flex:1;word-break:break-all" id="' + id + '">' + url + '</span>' +
+    '<button class="btn btn-ghost btn-sm" onclick="copiarTexto(\'' + id + '\', this)">Copiar</button></div>';
+}
+function copiarTexto(elId, btn){
+  var el = document.getElementById(elId);
+  if(!el) return;
+  navigator.clipboard.writeText(el.textContent).then(function(){
+    var orig = btn.textContent;
+    btn.textContent = 'Copiado ✓';
+    setTimeout(function(){ btn.textContent = orig; }, 1500);
+  }).catch(function(){});
+}
+
+function generarInvFPV(){
+  if(!S_ORG.id) return;
+  var input = document.getElementById('fpv-inv-cantidad');
+  var n = parseInt(input.value, 10);
+  var status = document.getElementById('fpv-inv-status');
+  if(!n || n < 1 || n > 500){
+    status.textContent = 'La cantidad debe estar entre 1 y 500.';
+    return;
+  }
+  status.textContent = 'Generando…';
+  supa.rpc('generar_invitaciones_fpv', { p_organizacion_id: S_ORG.id, p_tipo_actor: 'inversionista', p_cantidad: n }).then(function(res){
+    if(res.error){ status.textContent = 'Error: ' + res.error.message; return; }
+    var rows = res.data || [];
+    status.textContent = rows.length + ' código(s) generado(s).';
+    var list = document.getElementById('fpv-inv-list');
+    rows.forEach(function(row){ list.insertAdjacentHTML('afterbegin', _fpvLinkRow(row.codigo)); });
+  }).catch(function(err){
+    status.textContent = 'Error de conexión: ' + (err && err.message || err);
+  });
+}
+
+function obtenerLinkConsumidor(){
+  if(!S_ORG.id) return;
+  var status = document.getElementById('fpv-con-status');
+  status.textContent = 'Consultando…';
+  supa.rpc('generar_invitaciones_fpv', { p_organizacion_id: S_ORG.id, p_tipo_actor: 'consumidor', p_cantidad: 1 }).then(function(res){
+    if(res.error){ status.textContent = 'Error: ' + res.error.message; return; }
+    status.textContent = '';
+    var row = (res.data || [])[0];
+    document.getElementById('fpv-con-link').innerHTML = row ? _fpvLinkRow(row.codigo) : '';
+  }).catch(function(err){
+    status.textContent = 'Error de conexión: ' + (err && err.message || err);
+  });
+}
+
 // ── p-dashboard: ficha técnica + ICE/IEH/IAO + desglose por par + SD-MO ────
-function _renderDashboardNuevo(d){
-  // "Total de encuestas" usa n_cuestionarios (headcount de personas, una
-  // fila por invitación+periodo) y no el n del SD-MO (que cuenta jornadas,
-  // varias por persona) — es el denominador correcto para la tasa de
-  // participación contra n_empleados.
-  var fichaWrap = document.getElementById('dash-ficha');
+// ── p-dash-resumen: ficha técnica + 5 números consolidados (Página 1) ──
+function _renderResumenNuevo(d){
+  var fichaWrap = document.getElementById('dr-ficha');
   if(fichaWrap){
     var nCuest = d.n_cuestionarios != null ? d.n_cuestionarios : 0;
     var itemHtml = function(label, valor){
-      return '<div><div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--ink-s)">' + label + '</div>' +
-        '<div style="font-weight:700">' + valor + '</div></div>';
+      return '<div><div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--dk-text-2)">' + label + '</div>' +
+        '<div style="font-weight:700;color:var(--dk-text)">' + valor + '</div></div>';
     };
     var partHtml = '';
     if(d.n_empleados){
@@ -5942,76 +6362,501 @@ function _renderDashboardNuevo(d){
       partHtml;
   }
 
-  var idxWrap = document.getElementById('dash-indices');
-  if(idxWrap){
-    var descICE = 'Cómo la organización diseña y declara sus condiciones.';
-    var descIEH = 'Cómo el colaborador vive y percibe esas condiciones.';
-    var iaoEstado = estadoDesdeIAO(d.iao);
-    var iaoBlock = d.iao_n_suficiente
-      ? '<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px"><div class="icard-tag">IAO</div>' + _badgeEstado(iaoEstado) + '</div>' +
-        '<div style="font-size:13px;color:var(--ink-s)">Modo predominante activado en la organización — Seguridad o Amenaza (n=' + d.iao_n + ').</div>'
-      : '<div class="icard-tag">IAO</div>' + _sinDatos(8);
-    idxWrap.innerHTML =
-      '<div class="icard" style="padding:20px"><div class="icard-tag">ICE</div>' +
-      '<div style="font-size:13px;color:var(--ink-s);margin-top:8px;line-height:1.5">' + descICE + '</div></div>' +
-      '<div class="icard" style="padding:20px"><div class="icard-tag">IEH</div>' +
-      '<div style="font-size:13px;color:var(--ink-s);margin-top:8px;line-height:1.5">' + descIEH + '</div></div>' +
-      '<div class="icard" style="padding:20px">' + iaoBlock + '</div>';
-  }
-
-  var paresWrap = document.getElementById('dash-pares');
-  if(paresWrap){
-    paresWrap.innerHTML = (d.pares || []).map(function(p){ return _renderParCard(p); }).join('');
-  }
-
-  var sdmoWrap = document.getElementById('dash-sdmo');
-  if(sdmoWrap){
-    var s = d.sdmo || {};
-    if(!s.n_suficiente){
-      sdmoWrap.innerHTML = '<div class="icard" style="padding:20px">' + _sinDatos(8) + '</div>';
-    } else {
-      var estado = estadoDesdeIAO(s.ida_prom);
-      sdmoWrap.innerHTML =
-        '<div class="icard" style="padding:20px">' +
-        '<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px"><div class="icard-tag">SD-MO</div>' + _badgeEstado(estado) + '</div>' +
-        '<div style="font-size:13px;color:var(--ink-s)">n=' + s.n + ' en los últimos ' + s.ventana_dias + ' días.' +
-        (s.tendencia ? (' Tendencia: ' + (s.tendencia.direccion === 'deterioro' ? 'en deterioro' : s.tendencia.direccion === 'mejora' ? 'en mejora' : 'estable') + '.') : '') +
-        '</div></div>';
-    }
+  var numWrap = document.getElementById('dr-numeros');
+  if(numWrap){
+    numWrap.innerHTML = _numerosConsolidadosHtml(d);
   }
 }
 
-function _renderParCard(p){
-  var ficha = CATALOGO_INTERVENCION[p.par];
-  if(!p.n_suficiente){
-    return '<div class="icard" style="padding:20px">' +
-      '<div class="icard-tag">Par ' + p.par + ' — ' + (ficha ? ficha.nombre : '') + '</div>' +
-      _sinDatos(8) +
-      '<div style="font-size:11px;color:var(--ink-s);margin-top:6px">n=' + p.n + '</div></div>';
-  }
-  var estado  = estadoDesdeAmenaza(p.amenaza_par);
-  var signo   = p.brecha_final >= 0 ? 'positiva' : 'negativa';
-  var rama    = ficha ? ficha[signo] : null;
-  var accion  = rama ? rama[estado] : '';
-  var lectura = rama ? rama.lectura : '';
-  var corresp = rama ? rama.corresponsabilidad : '';
+// 5 números consolidados — compartido entre Resumen (Página 1, org
+// completa) y Por Área (Página 3, departamento filtrado): es exactamente
+// el mismo bloque, solo cambia el "d" de entrada (org completa vs.
+// resumen_organizacion_completo con p_departamento). Un solo punto de
+// cambio para ambos.
+//
+// ICE/IEH/Brecha: cifra neutra en DM Mono, sin color de severidad —
+// decisión de CONTEXTO, no una reversión silenciosa de la regla del
+// Cuestionario (marco, sección 2 / _renderCuestionarioNuevo más abajo):
+// ese panel es un explicador de primer contacto y omite el número a
+// propósito para no abrumar; este es el tablero ejecutivo, donde sí se
+// pidió mostrar la cifra. La razón de fondo para no colorear por
+// severidad sigue vigente sin excepción en ningún panel: no existe un
+// umbral validado para ICE/IEH (solo para amenaza_par/IAO — ver
+// estadoDesdeAmenaza más abajo, marco sección 6.4). Mostrar la cifra es
+// una cosa; inventarle un semáforo sería otra, y esa sigue fuera de
+// alcance. SD-MO/IAO sí llevan severidad — ya la llevan en el resto del
+// Workbook (estadoDesdeIAO), esto no es nuevo para ellos.
+function _numerosConsolidadosHtml(d){
+  var brecha = (d.ice != null && d.ieh != null) ? (d.ice - d.ieh) : null;
+  var sdmoOk = d.sdmo && d.sdmo.n_suficiente;
+  var numHtml = function(label, valor, estado){
+    var dot = estado ? '<span style="width:7px;height:7px;border-radius:50%;background:' + ESTADO_COLOR[estado] + ';display:inline-block;margin-right:7px"></span>' : '';
+    return '<div style="padding:14px 16px;background:var(--dk-card);border-radius:8px">' +
+      '<div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--dk-text-2);margin-bottom:6px">' + label + '</div>' +
+      '<div style="font-family:var(--f-mono);font-size:20px;font-weight:500;color:var(--dk-text);display:flex;align-items:center">' + dot + valor + '</div></div>';
+  };
+  return (
+      '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:12px">' +
+      numHtml('ICE', d.ice != null ? d.ice : '—') +
+      numHtml('IEH', d.ieh != null ? d.ieh : '—') +
+      numHtml('Brecha', brecha != null ? (brecha >= 0 ? '+' : '') + brecha.toFixed(2) : '—') +
+      numHtml('SD-MO', sdmoOk ? d.sdmo.ida_prom : '—', sdmoOk ? estadoDesdeIAO(d.sdmo.ida_prom) : null) +
+      numHtml('IAO', d.iao_n_suficiente ? d.iao : '—', d.iao_n_suficiente ? estadoDesdeIAO(d.iao) : null) +
+      '</div>'
+  );
+}
 
-  return '<div class="icard" style="padding:20px">' +
-    '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px;flex-wrap:wrap">' +
+// Dona de estados — anillo dibujado a mano en canvas (mismo patrón manual
+// que el resto de los gráficos del Workbook, sin librería). Segmentos por
+// severidad únicamente — completitud de dato (n suficiente o no) se
+// resuelve aparte, en la nota debajo, para no mezclar "en qué estado
+// está" con "si tenemos dato" en un solo gráfico (decisión confirmada).
+function _dibujarDonaEstados(canvasId, counts, total){
+  var canvas = document.getElementById(canvasId);
+  if(!canvas || !canvas.getContext) return;
+  var ctx = canvas.getContext('2d');
+  var w = canvas.width, h = canvas.height;
+  var cx = w / 2, cy = h / 2, r = Math.min(w, h) / 2 - 10, grosor = 16;
+  ctx.clearRect(0, 0, w, h);
+  if(!total){
+    ctx.strokeStyle = '#26344a';
+    ctx.lineWidth = grosor;
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, 0, Math.PI * 2);
+    ctx.stroke();
+    return;
+  }
+  var gap = 0.04; // radianes de separación visual entre segmentos
+  var start = -Math.PI / 2;
+  ['seguridad', 'alerta', 'amenaza'].forEach(function(estado){
+    var n = counts[estado] || 0;
+    if(!n) return;
+    var frac = n / total;
+    var end = start + frac * Math.PI * 2;
+    ctx.strokeStyle = ESTADO_COLOR[estado];
+    ctx.lineWidth = grosor;
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, start + gap / 2, end - gap / 2);
+    ctx.stroke();
+    start = end;
+  });
+}
+
+// ── p-dash-resumen: dona de estados (Página 1) ──────────────────────────
+// Cuenta los 5 d.pares por estado vía estadoDesdeAmenaza() (ya existe,
+// sin cálculo nuevo). Pares con n insuficiente se EXCLUYEN del conteo —
+// nunca se les inventa un estado — y se nombran aparte por su
+// ficha.nombre (no un conteo genérico "4 de 5": el consultor necesita
+// saber a quién empujarle respuestas, no solo cuántas faltan).
+function _renderDonaEstados(d){
+  var wrap = document.getElementById('dr-dona');
+  if(!wrap) return;
+  var pares = d.pares || [];
+  var counts = { seguridad: 0, alerta: 0, amenaza: 0 };
+  var faltantes = [];
+  pares.forEach(function(p){
+    if(!p.n_suficiente){
+      var fichaF = CATALOGO_INTERVENCION[p.par];
+      faltantes.push(fichaF ? fichaF.nombre : ('Par ' + p.par));
+      return;
+    }
+    var estado = estadoDesdeAmenaza(p.amenaza_par);
+    if(estado) counts[estado]++;
+  });
+  var total = counts.seguridad + counts.alerta + counts.amenaza;
+
+  var notaFaltantes = '';
+  if(faltantes.length){
+    notaFaltantes = '<div style="font-size:11.5px;color:var(--dk-text-2);margin-top:12px;line-height:1.6">' +
+      faltantes.join(' · ') + ' sin datos suficientes (n&lt;8) — no ' +
+      (faltantes.length > 1 ? 'incluidos' : 'incluido') + ' en este resumen.</div>';
+  }
+
+  var leyenda = ['seguridad', 'alerta', 'amenaza'].map(function(estado){
+    return '<div style="display:flex;align-items:center;gap:7px;font-size:12px;color:var(--dk-text-2)">' +
+      '<span style="width:8px;height:8px;border-radius:50%;background:' + ESTADO_COLOR[estado] + ';display:inline-block"></span>' +
+      ESTADO_LABEL[estado] + ' — ' + counts[estado] + '</div>';
+  }).join('');
+
+  wrap.innerHTML =
+    '<div class="card-title" style="margin-bottom:12px">Estados de los pares</div>' +
+    '<div style="display:flex;align-items:center;gap:20px;flex-wrap:wrap">' +
+      '<canvas id="dr-dona-canvas" width="120" height="120"></canvas>' +
+      '<div style="display:flex;flex-direction:column;gap:6px">' + leyenda + '</div>' +
+    '</div>' + notaFaltantes;
+
+  _dibujarDonaEstados('dr-dona-canvas', counts, total);
+}
+
+// Rueda de los 5 pares — polígono de 5 vértices, radio proporcional a
+// (1 − amenaza_par) por vértice (marco, sección 9). Parametrizada por
+// "vertices" (5 items: {label, angulo, radio, estado}) para que Real
+// (7.4a) e Ideal (7.4b) compartan exactamente esta función — Ideal es
+// solo el caso donde los 5 radios están al máximo (1) y el estado es
+// 'seguridad' en los cinco. Ninguna llamada aquí conoce si es Real o
+// Ideal — solo dibuja lo que le pasan.
+function _dibujarRuedaPares(canvasId, vertices){
+  var canvas = document.getElementById(canvasId);
+  if(!canvas || !canvas.getContext) return;
+  var ctx = canvas.getContext('2d');
+  var w = canvas.width, h = canvas.height;
+  var cx = w / 2, cy = h / 2 + 4, maxR = Math.min(w, h) / 2 - 30;
+  ctx.clearRect(0, 0, w, h);
+
+  function punto(angulo, fracR){
+    return { x: cx + maxR * fracR * Math.cos(angulo), y: cy + maxR * fracR * Math.sin(angulo) };
+  }
+  var pts = vertices.map(function(v){ return punto(v.angulo, v.radio); });
+
+  // Relleno interior — translúcido, siempre neutro (los 5 pares pueden
+  // estar en estados distintos a la vez; el relleno no toma partido).
+  ctx.beginPath();
+  pts.forEach(function(p, i){ if(i === 0) ctx.moveTo(p.x, p.y); else ctx.lineTo(p.x, p.y); });
+  ctx.closePath();
+  ctx.fillStyle = 'rgba(138,148,166,.12)';
+  ctx.fill();
+
+  // Guía de referencia al radio máximo (pentágono ideal, línea fina)
+  ctx.strokeStyle = '#26344a';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  vertices.forEach(function(v, i){
+    var p = punto(v.angulo, 1);
+    if(i === 0) ctx.moveTo(p.x, p.y); else ctx.lineTo(p.x, p.y);
+  });
+  ctx.closePath();
+  ctx.stroke();
+
+  // Borde real — arco entre vértices adyacentes cuya diferencia de radio
+  // es pequeña (≤ V_UMBRAL_ALERTA, el mismo umbral ya establecido para
+  // "un cambio que vale la pena marcar" — no se fabrica uno nuevo), al
+  // radio promedio de ambos (confirmado: evita el salto brusco que daría
+  // usar el radio de uno solo). Línea recta donde la diferencia es
+  // mayor — ahí el hundimiento debe leerse exacto. El criterio es la
+  // MAGNITUD de la caída entre vecinos, no el estado categórico de cada
+  // vértice por separado (esa frontera es arbitraria — 14 vs 16 caerían
+  // a lados distintos del semáforo pero son prácticamente el mismo
+  // valor; usarla aquí reintroduciría el mismo salto falso que ya
+  // evitamos con el radio promedio). El color del borde es neutro en
+  // ambos casos — el color no compite con la forma, la forma ya dice
+  // dónde se hunde; el semáforo va en el vértice, canal separado.
+  ctx.strokeStyle = '#8a94a6';
+  ctx.lineWidth = 2;
+  for(var i = 0; i < vertices.length; i++){
+    var a = vertices[i], b = vertices[(i + 1) % vertices.length];
+    var pa = pts[i], pb = pts[(i + 1) % vertices.length];
+    var delta = Math.abs(a.radio - b.radio);
+    ctx.beginPath();
+    if(delta > V_UMBRAL_ALERTA){
+      ctx.moveTo(pa.x, pa.y);
+      ctx.lineTo(pb.x, pb.y);
+    } else {
+      var avgR = (a.radio + b.radio) / 2;
+      ctx.arc(cx, cy, maxR * avgR, a.angulo, b.angulo);
+    }
+    ctx.stroke();
+  }
+
+  // Vértices — punto sólido coloreado por estado (semáforo categórico,
+  // canal separado de la geometría arco/recta, que usa magnitud).
+  pts.forEach(function(p, i){
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, 4.5, 0, Math.PI * 2);
+    ctx.fillStyle = ESTADO_COLOR[vertices[i].estado] || '#8a94a6';
+    ctx.fill();
+  });
+
+  // Etiquetas de vértice
+  ctx.fillStyle = '#8a94a6';
+  ctx.font = '9px "DM Sans", sans-serif';
+  vertices.forEach(function(v, i){
+    var p = punto(v.angulo, 1.18);
+    ctx.textAlign = Math.abs(p.x - cx) < 4 ? 'center' : (p.x > cx ? 'left' : 'right');
+    ctx.textBaseline = p.y < cy - 4 ? 'alphabetic' : (p.y > cy + 4 ? 'top' : 'middle');
+    ctx.fillText(v.label, p.x, p.y);
+  });
+}
+
+// ── p-dash-resumen: rueda de los 5 pares — Ideal (Página 1) ─────────────
+// Mismo peso visual que la Real (círculo relleno, líneas sólidas, nunca
+// punteado) — los 5 vértices al radio máximo, todos en Seguridad. No
+// depende de ningún dato de la organización. Reusa _dibujarRuedaPares de
+// 7.4a tal cual — no se tocó esa función, solo cambia el arreglo de
+// vértices que se le pasa.
+function _renderRuedaIdeal(){
+  var wrap = document.getElementById('dr-rueda-ideal');
+  if(!wrap) return;
+
+  var vertices = [1, 2, 3, 4, 5].map(function(n, i){
+    var ficha = CATALOGO_INTERVENCION[n];
+    return {
+      label: ficha ? ficha.nombre : ('Par ' + n),
+      angulo: -Math.PI / 2 + i * (2 * Math.PI / 5),
+      radio: 1,
+      estado: 'seguridad'
+    };
+  });
+
+  wrap.innerHTML =
+    '<div class="card-title" style="margin-bottom:12px">Rueda de los 5 pares — ideal</div>' +
+    '<canvas id="dr-rueda-ideal-canvas" width="240" height="240" style="display:block;margin:0 auto"></canvas>' +
+    '<p style="font-size:12px;color:var(--dk-text-2);text-align:center;margin-top:10px;line-height:1.6">Así funcionan las relaciones en una organización en Regulación plena — la energía avanza a coordinación y producción, sin fricción entre lo declarado y lo vivido.</p>';
+
+  _dibujarRuedaPares('dr-rueda-ideal-canvas', vertices);
+}
+
+// ── p-dash-resumen: rueda de los 5 pares — Real (Página 1) ──────────────
+// Gateada en bloque: si CUALQUIERA de los 5 pares tiene n insuficiente,
+// no se dibuja la rueda — a diferencia de la dona (segmentos
+// independientes), aquí un vértice inventado deformaría el cálculo
+// arco/recta de sus DOS vecinos reales (radio promedio, diferencia entre
+// vecinos) — no es un dato faltante aislado, contamina la lectura de los
+// pares que sí tienen datos buenos.
+function _renderRuedaReal(d){
+  var wrap = document.getElementById('dr-rueda-real');
+  if(!wrap) return;
+  var pares = d.pares || [];
+  var porPar = {};
+  pares.forEach(function(p){ porPar[p.par] = p; });
+
+  var faltantes = [];
+  for(var n = 1; n <= 5; n++){
+    var p = porPar[n];
+    if(!p || !p.n_suficiente){
+      var fichaF = CATALOGO_INTERVENCION[n];
+      faltantes.push(fichaF ? fichaF.nombre : ('Par ' + n));
+    }
+  }
+
+  if(faltantes.length){
+    wrap.innerHTML =
+      '<div class="card-title" style="margin-bottom:12px">Rueda de los 5 pares — hoy</div>' +
+      '<div style="font-size:13px;color:var(--dk-text-2);font-style:italic">Datos insuficientes para reportar (mínimo 8 respuestas) en: ' +
+      faltantes.join(' · ') + '. La rueda requiere los 5 pares completos — un vértice sin dato deformaría la lectura de sus vecinos.</div>';
+    return;
+  }
+
+  var vertices = [];
+  for(var i = 0; i < 5; i++){
+    var par = porPar[i + 1];
+    var ficha = CATALOGO_INTERVENCION[i + 1];
+    vertices.push({
+      label: ficha ? ficha.nombre : ('Par ' + (i + 1)),
+      angulo: -Math.PI / 2 + i * (2 * Math.PI / 5),
+      radio: Math.max(0, Math.min(1, 1 - par.amenaza_par)),
+      estado: estadoDesdeAmenaza(par.amenaza_par)
+    });
+  }
+
+  wrap.innerHTML =
+    '<div class="card-title" style="margin-bottom:12px">Rueda de los 5 pares — hoy</div>' +
+    '<canvas id="dr-rueda-real-canvas" width="240" height="240" style="display:block;margin:0 auto"></canvas>' +
+    '<p style="font-size:12px;color:var(--dk-text-2);text-align:center;margin-top:10px;line-height:1.6">Así se ve <strong style="color:var(--dk-text)">' +
+    (S_ORG.nombre || 'esta organización') + '</strong> hoy — cada punto donde el círculo se hunde es un par generando fricción real.</p>';
+
+  _dibujarRuedaPares('dr-rueda-real-canvas', vertices);
+}
+
+// ── p-dash-desglose: 10 letras + 5 pares con brecha (Página 2) ──────────
+// NUNCA llama a CATALOGO_INTERVENCION[*].positiva/negativa (acción/
+// corresponsabilidad) — esa lógica vive exclusivamente en la función de
+// la Página 4 (_renderRecomendaciones, más abajo). Esta función no genera
+// ese HTML en absoluto en ninguna rama — no es un ocultamiento por CSS.
+function _renderDesglose(d){
+  var pares = d.pares || [];
+  var porPar = {};
+  pares.forEach(function(p){ porPar[p.par] = p; });
+
+  var letrasWrap = document.getElementById('dg-letras');
+  if(letrasWrap){
+    var items = '';
+    for(var n = 1; n <= 5; n++){
+      var p = porPar[n];
+      var ficha = CATALOGO_INTERVENCION[n];
+      var nombres = ficha ? ficha.nombre.split(' / ') : ['ICE · Par ' + n, 'IEH · Par ' + n];
+      var sufic = p && p.n_suficiente;
+      // Letras = concepto_a_prom/concepto_b_prom, mismo tipo de promedio
+      // descriptivo que ICE/IEH (agregado más fino, misma naturaleza) —
+      // cifra neutra, sin severidad, mismo criterio que el Resumen.
+      items +=
+        '<div class="icard" style="padding:16px 18px">' +
+          '<div class="icard-tag" style="color:var(--ice)">' + nombres[0] + '</div>' +
+          '<div style="font-family:var(--f-mono);font-size:17px;color:var(--dk-text);margin-bottom:10px">' + (sufic ? p.concepto_a_prom : '—') + '</div>' +
+          '<div class="icard-tag">' + nombres[1] + '</div>' +
+          '<div style="font-family:var(--f-mono);font-size:17px;color:var(--dk-text)">' + (sufic ? p.concepto_b_prom : '—') + '</div>' +
+          (sufic ? '' : '<div style="margin-top:8px">' + _sinDatos(8) + '</div>') +
+        '</div>';
+    }
+    letrasWrap.innerHTML = items;
+  }
+
+  var paresWrap = document.getElementById('dg-pares');
+  if(paresWrap){
+    paresWrap.innerHTML = pares.map(function(p){ return _renderParBrechaCard(p); }).join('');
+  }
+}
+
+// Brecha de un solo eje por par — a diferencia de la brecha GLOBAL ICE/IEH
+// (Cuestionario, Paso 4: sin severidad porque ICE/IEH no tienen umbral
+// validado), aquí SÍ hay un umbral legítimo: brecha_final es directamente
+// el insumo de amenaza_par (marco, sección 6.4) — el tramo SÍ se colorea
+// por severidad, a propósito. No es una inconsistencia entre los dos
+// tracks, son dos métricas distintas con distinto respaldo estadístico.
+function _renderParBrechaCard(p){
+  var ficha = CATALOGO_INTERVENCION[p.par];
+  var nombres = ficha ? ficha.nombre.split(' / ') : ['ICE', 'IEH'];
+  if(!p.n_suficiente){
+    return '<div class="icard" style="padding:18px 20px">' +
+      '<div class="icard-tag">Par ' + p.par + ' — ' + (ficha ? ficha.nombre : '') + '</div>' +
+      _sinDatos(8) + '</div>';
+  }
+  var estado = estadoDesdeAmenaza(p.amenaza_par);
+  var aLeft = Math.max(0, Math.min(100, p.concepto_a_prom * 100));
+  var bLeft = Math.max(0, Math.min(100, p.concepto_b_prom * 100));
+  var lo = Math.min(aLeft, bLeft), hi = Math.max(aLeft, bLeft);
+  return '<div class="icard" style="padding:18px 20px">' +
+    '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:14px">' +
       '<div class="icard-tag">Par ' + p.par + ' — ' + (ficha ? ficha.nombre : '') + '</div>' +
       _badgeEstado(estado) +
     '</div>' +
-    '<div style="font-size:13px;color:var(--ink-s);margin-bottom:10px;line-height:1.5">' + lectura + '</div>' +
-    '<div style="font-size:13px;line-height:1.5;margin-bottom:8px"><strong>Acción recomendada</strong> (' + (ficha ? ficha.responsable : '') + '): ' + accion + '</div>' +
-    '<div style="font-size:12px;color:var(--ink-s);line-height:1.5"><strong>Corresponsabilidad del colaborador:</strong> ' + corresp + '</div>' +
-    '<details style="margin-top:10px"><summary style="cursor:pointer;font-size:11px;color:var(--ink-s);font-weight:700;text-transform:uppercase;letter-spacing:.04em">Ver detalle técnico</summary>' +
-    '<div style="margin-top:8px;font-size:11px;font-family:\'DM Mono\',monospace;color:var(--ink-s);line-height:1.8">' +
+    '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">' +
+      '<span style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--dk-text-2);text-transform:uppercase;letter-spacing:.06em"><span style="width:8px;height:8px;border-radius:50%;background:var(--ice);display:inline-block"></span>' + nombres[0] + '</span>' +
+      '<span style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--dk-text-2);text-transform:uppercase;letter-spacing:.06em">' + nombres[1] + '<span style="width:8px;height:8px;border-radius:50%;background:var(--ieh);display:inline-block"></span></span>' +
+    '</div>' +
+    '<div style="position:relative;height:6px;border-radius:3px;background:var(--dk-elevated)">' +
+      '<div style="position:absolute;top:0;left:' + lo + '%;width:' + (hi - lo) + '%;height:100%;background:' + ESTADO_COLOR[estado] + ';border-radius:3px"></div>' +
+      '<div style="position:absolute;top:50%;left:' + aLeft + '%;width:11px;height:11px;border-radius:50%;background:var(--ice);border:2px solid var(--dk-bg);transform:translate(-50%,-50%)"></div>' +
+      '<div style="position:absolute;top:50%;left:' + bLeft + '%;width:11px;height:11px;border-radius:50%;background:var(--ieh);border:2px solid var(--dk-bg);transform:translate(-50%,-50%)"></div>' +
+    '</div>' +
+    '<details style="margin-top:12px"><summary style="cursor:pointer;font-size:11px;color:var(--dk-text-2);font-weight:700;text-transform:uppercase;letter-spacing:.04em">Ver detalle técnico</summary>' +
+    '<div style="margin-top:8px;font-size:11px;font-family:var(--f-mono);color:var(--dk-text-2);line-height:1.8">' +
       'n = ' + p.n + ' · concepto_a_prom = ' + p.concepto_a_prom + ' · concepto_b_prom = ' + p.concepto_b_prom + '<br>' +
       'bipolar_prom = ' + p.bipolar_prom + ' · brecha_calculada = ' + p.brecha_calculada + ' · brecha_final = ' + p.brecha_final + '<br>' +
       'amenaza_par = ' + p.amenaza_par +
     '</div></details>' +
   '</div>';
 }
+
+// ── p-dash-area: selector de departamento + resumen filtrado (Página 3) ──
+// Nueva — no reutiliza p-areas (esa es config de KPIs, no diagnóstico,
+// confirmado). El N≥8 por departamento ya lo aplica el servidor
+// (resumen_organizacion_completo, migración 002 — un filtro angosto no
+// reconstruye una lectura casi individual), esta función solo consume lo
+// que ya viene gateado, no agrega ninguna lógica de confidencialidad
+// propia.
+function _initPorArea(){
+  var sel = document.getElementById('area-select');
+  if(!sel || !S_ORG.id || sel.dataset.cargado) return;
+  sel.dataset.cargado = '1';
+  supa.from('areas_organizacion').select('nombre').eq('organizacion_id', S_ORG.id).order('nombre').then(function(res){
+    if(res.error || !res.data) return;
+    res.data.forEach(function(a){
+      var opt = document.createElement('option');
+      opt.value = a.nombre;
+      opt.textContent = a.nombre;
+      sel.appendChild(opt);
+    });
+  });
+}
+
+function cargarPorArea(){
+  if(!S_ORG.id) return;
+  var sel = document.getElementById('area-select');
+  var depto = sel && sel.value ? sel.value : null;
+  var status = document.getElementById('area-status');
+  if(status) status.textContent = 'Cargando…';
+  supa.rpc('resumen_organizacion_completo', { p_organizacion_id: S_ORG.id, p_departamento: depto }).then(function(res){
+    if(res.error){
+      if(status) status.textContent = 'Error al cargar: ' + res.error.message;
+      return;
+    }
+    if(status) status.textContent = '';
+    _renderPorArea(res.data);
+  }).catch(function(err){
+    if(status) status.textContent = 'Error de conexión: ' + (err && err.message || err);
+  });
+}
+
+function _renderPorArea(d){
+  // Contexto de n — sin esto, un IAO de n=8 (justo en el mínimo) se leería
+  // con la misma confianza que uno de n=40, sin ninguna señal de que son
+  // estadísticamente muy distintos. Cuestionario y SD-MO son instrumentos
+  // separados con su propio n cada uno — NO necesariamente coinciden en
+  // un departamento (una persona puede responder uno y no el otro), así
+  // que se muestran por separado, nunca como un solo número que implique
+  // la misma cobertura para ambos. n del cuestionario se lee de
+  // d.pares[0].n — los 5 pares comparten n porque
+  // enviar_respuesta_cuestionario siempre inserta los 5 juntos (mismo
+  // supuesto ya documentado en individual_iao, migración 002).
+  var nWrap = document.getElementById('area-n');
+  if(nWrap){
+    var nCuest = (d.pares && d.pares.length) ? d.pares[0].n : null;
+    var nSdmo = d.sdmo ? d.sdmo.n : null;
+    nWrap.textContent = 'n=' + (nCuest != null ? nCuest : '—') + ' (cuestionario) · n=' + (nSdmo != null ? nSdmo : '—') + ' (SD-MO)';
+  }
+
+  var numWrap = document.getElementById('area-numeros');
+  if(numWrap) numWrap.innerHTML = _numerosConsolidadosHtml(d);
+
+  var paresWrap = document.getElementById('area-pares');
+  if(paresWrap) paresWrap.innerHTML = (d.pares || []).map(function(p){ return _renderParBrechaCard(p); }).join('');
+}
+
+// ── p-dash-recom: recomendaciones por severidad (Página 4) ──────────────
+// Extrae la lógica de acción/corresponsabilidad que antes vivía en
+// _renderParCard (del Tablero viejo, #p-dashboard, retirado en 7.8) —
+// CATALOGO_INTERVENCION[par][signo][estado] sigue siendo la única
+// fuente, sin narrativa nueva, sin recalcular nada. Orden: Amenaza
+// → Alerta → sin datos suficientes → Seguridad (agrupado al final,
+// atenuado — decisión: "sin datos" no es lo mismo que "seguro", así que
+// no se atenúa ni se mezcla con el grupo de Seguridad).
+function _renderRecomendaciones(d){
+  var wrap = document.getElementById('dg-recom');
+  if(!wrap) return;
+  var pares = d.pares || [];
+
+  var grupos = { amenaza: [], alerta: [], seguridad: [] };
+  var sinDatos = [];
+  pares.forEach(function(p){
+    if(!p.n_suficiente){ sinDatos.push(p); return; }
+    var estado = estadoDesdeAmenaza(p.amenaza_par);
+    if(grupos[estado]) grupos[estado].push(p);
+  });
+
+  var html = '';
+  grupos.amenaza.forEach(function(p){ html += _renderRecomendacionCard(p, false); });
+  grupos.alerta.forEach(function(p){ html += _renderRecomendacionCard(p, false); });
+  sinDatos.forEach(function(p){
+    var ficha = CATALOGO_INTERVENCION[p.par];
+    html += '<div class="icard" style="padding:18px 20px">' +
+      '<div class="icard-tag">Par ' + p.par + ' — ' + (ficha ? ficha.nombre : '') + '</div>' +
+      _sinDatos(8) + '</div>';
+  });
+  grupos.seguridad.forEach(function(p){ html += _renderRecomendacionCard(p, true); });
+
+  wrap.innerHTML = html || '<div style="font-size:13px;color:var(--dk-text-2);font-style:italic">Sin pares disponibles.</div>';
+}
+
+function _renderRecomendacionCard(p, atenuado){
+  var ficha = CATALOGO_INTERVENCION[p.par];
+  var estado = estadoDesdeAmenaza(p.amenaza_par);
+  var signo = p.brecha_final >= 0 ? 'positiva' : 'negativa';
+  var rama = ficha ? ficha[signo] : null;
+  var accion = rama ? rama[estado] : '';
+  var lectura = rama ? rama.lectura : '';
+  var corresp = rama ? rama.corresponsabilidad : '';
+
+  return '<div class="icard" style="padding:20px' + (atenuado ? ';opacity:.55' : '') + '">' +
+    '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px;flex-wrap:wrap">' +
+      '<div class="icard-tag">Par ' + p.par + ' — ' + (ficha ? ficha.nombre : '') + '</div>' +
+      _badgeEstado(estado) +
+    '</div>' +
+    '<div style="font-size:13px;color:var(--dk-text-2);margin-bottom:10px;line-height:1.5">' + lectura + '</div>' +
+    '<div style="font-size:13px;line-height:1.5;margin-bottom:8px;color:var(--dk-text)"><strong>Acción recomendada</strong> (' + (ficha ? ficha.responsable : '') + '): ' + accion + '</div>' +
+    '<div style="font-size:12px;color:var(--dk-text-2);line-height:1.5"><strong>Corresponsabilidad del colaborador:</strong> ' + corresp + '</div>' +
+  '</div>';
+}
+
 </script>
 
 </body>
