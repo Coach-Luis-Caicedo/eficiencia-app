@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>EFICIENCIA — Workbook Analítico v5.8</title>
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
 <style>
 :root{
   --azul:#0D2340; --azul-m:#1B3A5C; --azul-l:#2563A8; --azul-bg:#D6E4F7;
@@ -92,7 +93,7 @@ body:has(.panel.dark-panel.active){background:var(--dk-bg)}
 body:has(.panel.dark-panel.active) .main{background:var(--dk-bg)}
 body:has(.panel.dark-panel.active) .prog-top{background:var(--dk-elevated)}
 .dark-panel .ph{border-bottom-color:#26344a}
-.dark-panel .ph-title{color:var(--dk-text)}
+.dark-panel .ph-title{color:rgba(255,255,255,.7)}
 .dark-panel .ph-desc{color:var(--dk-text-2)}
 .dark-panel .ph-tag{color:var(--ieh)}
 .dark-panel .icard{background:var(--dk-card)}
@@ -170,7 +171,7 @@ body.cover-active .main{background:var(--azul)}
 .acr-tag-ieh{background:var(--dorado-lt);color:var(--amber)}
 .dark-panel .acr-table tr td:first-child{background:var(--dk-elevated)}
 .dark-panel .acr-table tr td:last-child{background:var(--dk-card);border-color:#26344a}
-.dark-panel .acr-dim{color:var(--dk-text)}
+.dark-panel .acr-dim{color:rgba(255,255,255,.7)}
 .dark-panel .acr-desc{color:var(--dk-text-2)}
 .dark-panel .acr-tag{background:none;padding:0;border-radius:0}
 .dark-panel .acr-tag-ice{color:var(--ice)}
@@ -6345,20 +6346,21 @@ function _renderResumenNuevo(d){
   var fichaWrap = document.getElementById('dr-ficha');
   if(fichaWrap){
     var nCuest = d.n_cuestionarios != null ? d.n_cuestionarios : 0;
-    var itemHtml = function(label, valor){
-      return '<div><div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--dk-text-2)">' + label + '</div>' +
-        '<div style="font-weight:700;color:var(--dk-text)">' + valor + '</div></div>';
+    var itemHtml = function(label, valor, icon){
+      var ic = '<i class="ti ' + icon + '" style="color:var(--dk-text-2);margin-right:6px;font-size:12px"></i>';
+      return '<div><div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--dk-text-2)">' + ic + label + '</div>' +
+        '<div style="font-weight:700;color:rgba(255,255,255,.7)">' + valor + '</div></div>';
     };
     var partHtml = '';
     if(d.n_empleados){
       var pct = Math.round((nCuest / d.n_empleados) * 100);
-      partHtml = itemHtml('Participación', nCuest + ' de ' + d.n_empleados + ' — ' + pct + '%');
+      partHtml = itemHtml('Participación', nCuest + ' de ' + d.n_empleados + ' — ' + pct + '%', 'ti-chart-bar');
     }
     fichaWrap.innerHTML =
-      itemHtml('Organización', S_ORG.nombre || '—') +
-      itemHtml('Empleados', d.n_empleados != null ? d.n_empleados : '—') +
-      itemHtml('Áreas', d.n_areas != null ? d.n_areas : '—') +
-      itemHtml('Total de encuestas', nCuest) +
+      itemHtml('Organización', S_ORG.nombre || '—', 'ti-building') +
+      itemHtml('Empleados', d.n_empleados != null ? d.n_empleados : '—', 'ti-users') +
+      itemHtml('Áreas', d.n_areas != null ? d.n_areas : '—', 'ti-map-2') +
+      itemHtml('Total de encuestas', nCuest, 'ti-clipboard-list') +
       partHtml;
   }
 
@@ -6389,19 +6391,21 @@ function _renderResumenNuevo(d){
 function _numerosConsolidadosHtml(d){
   var brecha = (d.ice != null && d.ieh != null) ? (d.ice - d.ieh) : null;
   var sdmoOk = d.sdmo && d.sdmo.n_suficiente;
-  var numHtml = function(label, valor, estado){
+  var numHtml = function(label, valor, estado, borderColor, icon){
     var dot = estado ? '<span style="width:7px;height:7px;border-radius:50%;background:' + ESTADO_COLOR[estado] + ';display:inline-block;margin-right:7px"></span>' : '';
-    return '<div style="padding:14px 16px;background:var(--dk-card);border-radius:8px">' +
-      '<div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--dk-text-2);margin-bottom:6px">' + label + '</div>' +
-      '<div style="font-family:var(--f-mono);font-size:20px;font-weight:500;color:var(--dk-text);display:flex;align-items:center">' + dot + valor + '</div></div>';
+    var border = borderColor || (estado ? ESTADO_COLOR[estado] : 'var(--dk-text-3)');
+    var ic = '<i class="ti ' + icon + '" style="color:var(--dk-text-2);margin-right:6px;font-size:12px"></i>';
+    return '<div style="padding:14px 16px;background:var(--dk-card);border-radius:8px;border-left:3px solid ' + border + '">' +
+      '<div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--dk-text-2);margin-bottom:6px">' + ic + label + '</div>' +
+      '<div style="font-family:var(--f-mono);font-size:20px;font-weight:500;color:rgba(255,255,255,.7);display:flex;align-items:center">' + dot + valor + '</div></div>';
   };
   return (
       '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:12px">' +
-      numHtml('ICE', d.ice != null ? d.ice : '—') +
-      numHtml('IEH', d.ieh != null ? d.ieh : '—') +
-      numHtml('Brecha', brecha != null ? (brecha >= 0 ? '+' : '') + brecha.toFixed(2) : '—') +
-      numHtml('SD-MO', sdmoOk ? d.sdmo.ida_prom : '—', sdmoOk ? estadoDesdeIAO(d.sdmo.ida_prom) : null) +
-      numHtml('IAO', d.iao_n_suficiente ? d.iao : '—', d.iao_n_suficiente ? estadoDesdeIAO(d.iao) : null) +
+      numHtml('ICE', d.ice != null ? d.ice : '—', null, 'var(--ice)', 'ti-building-arch') +
+      numHtml('IEH', d.ieh != null ? d.ieh : '—', null, 'var(--ieh)', 'ti-heart-handshake') +
+      numHtml('Brecha', brecha != null ? (brecha >= 0 ? '+' : '') + brecha.toFixed(2) : '—', null, 'var(--dk-text-3)', 'ti-arrows-diff') +
+      numHtml('SD-MO', sdmoOk ? d.sdmo.ida_prom : '—', sdmoOk ? estadoDesdeIAO(d.sdmo.ida_prom) : null, null, 'ti-heartbeat') +
+      numHtml('IAO', d.iao_n_suficiente ? d.iao : '—', d.iao_n_suficiente ? estadoDesdeIAO(d.iao) : null, null, 'ti-activity') +
       '</div>'
   );
 }
@@ -6651,7 +6655,7 @@ function _renderRuedaReal(d){
   wrap.innerHTML =
     '<div class="card-title" style="margin-bottom:12px">Rueda de los 5 pares — hoy</div>' +
     '<canvas id="dr-rueda-real-canvas" width="240" height="240" style="display:block;margin:0 auto"></canvas>' +
-    '<p style="font-size:12px;color:var(--dk-text-2);text-align:center;margin-top:10px;line-height:1.6">Así se ve <strong style="color:var(--dk-text)">' +
+    '<p style="font-size:12px;color:var(--dk-text-2);text-align:center;margin-top:10px;line-height:1.6">Así se ve <strong style="color:rgba(255,255,255,.7)">' +
     (S_ORG.nombre || 'esta organización') + '</strong> hoy — cada punto donde el círculo se hunde es un par generando fricción real.</p>';
 
   _dibujarRuedaPares('dr-rueda-real-canvas', vertices);
@@ -6681,9 +6685,9 @@ function _renderDesglose(d){
       items +=
         '<div class="icard" style="padding:16px 18px">' +
           '<div class="icard-tag" style="color:var(--ice)">' + nombres[0] + '</div>' +
-          '<div style="font-family:var(--f-mono);font-size:17px;color:var(--dk-text);margin-bottom:10px">' + (sufic ? p.concepto_a_prom : '—') + '</div>' +
+          '<div style="font-family:var(--f-mono);font-size:17px;color:rgba(255,255,255,.7);margin-bottom:10px">' + (sufic ? p.concepto_a_prom : '—') + '</div>' +
           '<div class="icard-tag">' + nombres[1] + '</div>' +
-          '<div style="font-family:var(--f-mono);font-size:17px;color:var(--dk-text)">' + (sufic ? p.concepto_b_prom : '—') + '</div>' +
+          '<div style="font-family:var(--f-mono);font-size:17px;color:rgba(255,255,255,.7)">' + (sufic ? p.concepto_b_prom : '—') + '</div>' +
           (sufic ? '' : '<div style="margin-top:8px">' + _sinDatos(8) + '</div>') +
         '</div>';
     }
@@ -6852,7 +6856,7 @@ function _renderRecomendacionCard(p, atenuado){
       _badgeEstado(estado) +
     '</div>' +
     '<div style="font-size:13px;color:var(--dk-text-2);margin-bottom:10px;line-height:1.5">' + lectura + '</div>' +
-    '<div style="font-size:13px;line-height:1.5;margin-bottom:8px;color:var(--dk-text)"><strong>Acción recomendada</strong> (' + (ficha ? ficha.responsable : '') + '): ' + accion + '</div>' +
+    '<div style="font-size:13px;line-height:1.5;margin-bottom:8px;color:rgba(255,255,255,.7)"><strong>Acción recomendada</strong> (' + (ficha ? ficha.responsable : '') + '): ' + accion + '</div>' +
     '<div style="font-size:12px;color:var(--dk-text-2);line-height:1.5"><strong>Corresponsabilidad del colaborador:</strong> ' + corresp + '</div>' +
   '</div>';
 }
