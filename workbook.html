@@ -1723,11 +1723,7 @@ supa.auth.getSession().then(function(res){
         </div>
 
         <div id="reg-pares" class="reg-tabpanel">
-          <div id="dr-dona" style="margin-bottom:28px"></div>
-          <div id="dr-ruedas" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:20px;margin-bottom:28px">
-            <div id="dr-rueda-ideal"></div>
-            <div id="dr-rueda-real"></div>
-          </div>
+          <div id="dr-donas-ice-ieh" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:16px;margin-bottom:28px"></div>
           <div class="card-title" style="margin-bottom:12px">Los 5 pares</div>
           <div id="dg-pares" style="display:grid;gap:14px"></div>
         </div>
@@ -6097,9 +6093,7 @@ function renderDiagnostico(){
   _renderSDMONuevo(d);
   _renderResumenNuevo(d);
   _renderResultadoGlobal(d);
-  _renderDonaEstados(d);
-  _renderRuedaIdeal();
-  _renderRuedaReal(d);
+  _renderDonasIceIeh(d);
   _renderDesglose(d);
   _renderRecomendaciones(d);
   _renderAlertasGlobales(d);
@@ -6562,44 +6556,6 @@ function _renderResultadoGlobal(d){
   }
 }
 
-// Torta de pares — cada uno de los 5 pares es su propio gajo (tamaño
-// igual, 1/n del círculo — no proporcional a nada, son identidades
-// categóricas, no cantidades), coloreado por su propio estado
-// individual. Reemplaza la dona anterior (arco por estado, que con
-// varios pares compartiendo estado colapsaba a un solo color) — aquí
-// cada par se ve siempre como su propio gajo, aunque comparta color.
-function _dibujarTortaPares(canvasId, segmentos){
-  var canvas = document.getElementById(canvasId);
-  if(!canvas || !canvas.getContext) return;
-  var ctx = canvas.getContext('2d');
-  var w = canvas.width, h = canvas.height;
-  var cx = w / 2, cy = h / 2, r = Math.min(w, h) / 2 - 10;
-  ctx.clearRect(0, 0, w, h);
-  var n = segmentos.length;
-  if(!n){
-    ctx.fillStyle = '#26344a';
-    ctx.beginPath();
-    ctx.arc(cx, cy, r, 0, Math.PI * 2);
-    ctx.fill();
-    return;
-  }
-  var anguloGajo = (Math.PI * 2) / n;
-  var start = -Math.PI / 2;
-  segmentos.forEach(function(seg){
-    var end = start + anguloGajo;
-    ctx.beginPath();
-    ctx.moveTo(cx, cy);
-    ctx.arc(cx, cy, r, start, end);
-    ctx.closePath();
-    ctx.fillStyle = ESTADO_COLOR[seg.estado];
-    ctx.fill();
-    ctx.strokeStyle = '#141f30'; // = --dk-card, separador visible entre gajos
-    ctx.lineWidth = 2;
-    ctx.stroke();
-    start = end;
-  });
-}
-
 // Torta completa (círculo entero, sin agujero central — no es una dona):
 // un track de base + una sola cuña de tamaño = fraccion (0-1). Dos roles
 // distintos la usan con tracks distintos a propósito (marco visual,
@@ -6629,229 +6585,93 @@ function _dibujarTortaFraccion(canvasId, trackColor, wedgeColor, fraccion){
   ctx.fill();
 }
 
-// ── p-dash-resumen: dona de estados (Página 1) ──────────────────────────
-// Cuenta los 5 d.pares por estado vía estadoDesdeAmenaza() (ya existe,
-// sin cálculo nuevo). Pares con n insuficiente se EXCLUYEN del conteo —
-// nunca se les inventa un estado — y se nombran aparte por su
-// ficha.nombre (no un conteo genérico "4 de 5": el consultor necesita
-// saber a quién empujarle respuestas, no solo cuántas faltan).
-function _renderDonaEstados(d){
-  var wrap = document.getElementById('dr-dona');
-  if(!wrap) return;
-  var pares = d.pares || [];
-  var counts = { seguridad: 0, alerta: 0, amenaza: 0 };
-  var faltantes = [];
-  var segmentos = [];
-  pares.forEach(function(p){
-    if(!p.n_suficiente){
-      var fichaF = CATALOGO_INTERVENCION[p.par];
-      faltantes.push(fichaF ? fichaF.nombre : ('Par ' + p.par));
-      return;
-    }
-    var estado = estadoDesdeAmenaza(p.amenaza_par);
-    if(estado){
-      counts[estado]++;
-      segmentos.push({ par: p.par, estado: estado });
-    }
-  });
-  var total = counts.seguridad + counts.alerta + counts.amenaza;
-
-  var notaFaltantes = '';
-  if(faltantes.length){
-    notaFaltantes = '<div style="font-size:11.5px;color:var(--dk-text-2);margin-top:12px;line-height:1.6">' +
-      faltantes.join(' · ') + ' sin datos suficientes (n&lt;8) — no ' +
-      (faltantes.length > 1 ? 'incluidos' : 'incluido') + ' en este resumen.</div>';
-  }
-
-  var leyenda = ['seguridad', 'alerta', 'amenaza'].map(function(estado){
-    return '<div style="display:flex;align-items:center;gap:7px;font-size:12px;color:var(--dk-text-2)">' +
-      '<span style="width:8px;height:8px;border-radius:50%;background:' + ESTADO_COLOR[estado] + ';display:inline-block"></span>' +
-      ESTADO_LABEL[estado] + ' — ' + counts[estado] + '</div>';
-  }).join('');
-
-  wrap.innerHTML =
-    '<div class="card-title" style="margin-bottom:12px">Estados de los pares</div>' +
-    '<div style="display:flex;align-items:center;gap:20px;flex-wrap:wrap">' +
-      '<canvas id="dr-dona-canvas" width="120" height="120"></canvas>' +
-      '<div style="display:flex;flex-direction:column;gap:6px">' + leyenda + '</div>' +
-    '</div>' + notaFaltantes;
-
-  _dibujarTortaPares('dr-dona-canvas', segmentos);
-}
-
-// Rueda de los 5 pares — polígono de 5 vértices, radio proporcional a
-// (1 − amenaza_par) por vértice (marco, sección 9). Parametrizada por
-// "vertices" (5 items: {label, angulo, radio, estado}) para que Real
-// (7.4a) e Ideal (7.4b) compartan exactamente esta función — Ideal es
-// solo el caso donde los 5 radios están al máximo (1) y el estado es
-// 'seguridad' en los cinco. Ninguna llamada aquí conoce si es Real o
-// Ideal — solo dibuja lo que le pasan.
-function _dibujarRuedaPares(canvasId, vertices){
+// Dona ICE/IEH — círculo completo, track neutro, con una cuña de
+// severidad que nace en las 12 y crece hacia cada hemisferio POR
+// SEPARADO: izquierdo = ICE, derecho = IEH. El ángulo de cada lado es la
+// distancia de ESE polo a su propio ideal — 1−concepto_a_prom (ICE),
+// 1−concepto_b_prom (IEH) — no la diferencia entre ambos (eso ya lo
+// cubre brecha_final/amenaza_par en otro lugar). Investigado y aprobado
+// con Luis: concepto_a_prom/concepto_b_prom son las únicas medidas
+// independientes por polo (0=nada alineado, 1=ideal, dominio de
+// 001_eficiencia_schema_inicial.sql:123-124); bipolar_prom/
+// brecha_calculada/brecha_final describen la RELACIÓN entre los dos
+// polos, no la distancia individual de uno solo — no sirven aquí. Un
+// solo polo desalineado → la cuña vive enteramente de ese lado, tocando
+// las 12 sin cruzarlas. Ambos desalineados → cruza las 12, cada lado
+// crece en proporción a su propia distancia, nunca "gana el peor".
+// Color = canal separado (estadoDesdeAmenaza(amenaza_par), el umbral de
+// siempre) — la forma no compite con el color, mismo principio que ya
+// usaba la rueda vieja que esto reemplaza.
+function _dibujarDonaIceIeh(canvasId, distIce, distIeh, wedgeColor){
   var canvas = document.getElementById(canvasId);
   if(!canvas || !canvas.getContext) return;
   var ctx = canvas.getContext('2d');
   var w = canvas.width, h = canvas.height;
-  var cx = w / 2, cy = h / 2 + 4, maxR = Math.min(w, h) / 2 - 30;
+  var cx = w / 2, cy = h / 2, r = Math.min(w, h) / 2 - 2;
   ctx.clearRect(0, 0, w, h);
 
-  function punto(angulo, fracR){
-    return { x: cx + maxR * fracR * Math.cos(angulo), y: cy + maxR * fracR * Math.sin(angulo) };
-  }
-  var pts = vertices.map(function(v){ return punto(v.angulo, v.radio); });
-
-  // Relleno interior — translúcido, siempre neutro (los 5 pares pueden
-  // estar en estados distintos a la vez; el relleno no toma partido).
   ctx.beginPath();
-  pts.forEach(function(p, i){ if(i === 0) ctx.moveTo(p.x, p.y); else ctx.lineTo(p.x, p.y); });
-  ctx.closePath();
-  ctx.fillStyle = 'rgba(138,148,166,.12)';
+  ctx.arc(cx, cy, r, 0, Math.PI * 2);
+  ctx.fillStyle = '#1c2740'; // --dk-elevated — mismo track neutro que _dibujarTortaFraccion
   ctx.fill();
 
-  // Guía de referencia al radio máximo (pentágono ideal) — punteada y con
-  // más contraste a propósito: Ideal y Real comparten exactamente esta
-  // misma escala (mismo maxR, misma función), así que esta línea es la
-  // prueba visual de que un vértice contraído en Real es señal real
-  // (fricción), no una inconsistencia de renderizado entre las dos ruedas.
-  ctx.strokeStyle = '#5a6478';
-  ctx.lineWidth = 1.3;
-  ctx.setLineDash([3, 4]);
-  ctx.beginPath();
-  vertices.forEach(function(v, i){
-    var p = punto(v.angulo, 1);
-    if(i === 0) ctx.moveTo(p.x, p.y); else ctx.lineTo(p.x, p.y);
-  });
-  ctx.closePath();
-  ctx.stroke();
-  ctx.setLineDash([]);
-
-  // Borde real — arco entre vértices adyacentes cuya diferencia de radio
-  // es pequeña (≤ V_UMBRAL_ALERTA, el mismo umbral ya establecido para
-  // "un cambio que vale la pena marcar" — no se fabrica uno nuevo), al
-  // radio promedio de ambos (confirmado: evita el salto brusco que daría
-  // usar el radio de uno solo). Línea recta donde la diferencia es
-  // mayor — ahí el hundimiento debe leerse exacto. El criterio es la
-  // MAGNITUD de la caída entre vecinos, no el estado categórico de cada
-  // vértice por separado (esa frontera es arbitraria — 14 vs 16 caerían
-  // a lados distintos del semáforo pero son prácticamente el mismo
-  // valor; usarla aquí reintroduciría el mismo salto falso que ya
-  // evitamos con el radio promedio). El color del borde es neutro en
-  // ambos casos — el color no compite con la forma, la forma ya dice
-  // dónde se hunde; el semáforo va en el vértice, canal separado.
-  ctx.strokeStyle = '#8a94a6';
-  ctx.lineWidth = 2;
-  for(var i = 0; i < vertices.length; i++){
-    var a = vertices[i], b = vertices[(i + 1) % vertices.length];
-    var pa = pts[i], pb = pts[(i + 1) % vertices.length];
-    var delta = Math.abs(a.radio - b.radio);
+  var left = Math.max(0, Math.min(1, distIce || 0)) * Math.PI;
+  var right = Math.max(0, Math.min(1, distIeh || 0)) * Math.PI;
+  if(left > 0 || right > 0){
+    var start = -Math.PI / 2 - left;
+    var end = -Math.PI / 2 + right;
     ctx.beginPath();
-    if(delta > V_UMBRAL_ALERTA){
-      ctx.moveTo(pa.x, pa.y);
-      ctx.lineTo(pb.x, pb.y);
-    } else {
-      var avgR = (a.radio + b.radio) / 2;
-      ctx.arc(cx, cy, maxR * avgR, a.angulo, b.angulo);
-    }
-    ctx.stroke();
+    ctx.moveTo(cx, cy);
+    ctx.arc(cx, cy, r, start, end);
+    ctx.closePath();
+    ctx.fillStyle = wedgeColor;
+    ctx.fill();
   }
 
-  // Vértices — punto sólido coloreado por estado (semáforo categórico,
-  // canal separado de la geometría arco/recta, que usa magnitud).
-  pts.forEach(function(p, i){
-    ctx.beginPath();
-    ctx.arc(p.x, p.y, 4.5, 0, Math.PI * 2);
-    ctx.fillStyle = ESTADO_COLOR[vertices[i].estado] || '#8a94a6';
-    ctx.fill();
-  });
-
-  // Etiquetas de vértice
-  ctx.fillStyle = '#8a94a6';
+  // Marca del punto de alineación (12:00) y etiquetas de hemisferio.
+  ctx.fillStyle = '#5a6478';
+  ctx.beginPath();
+  ctx.arc(cx, cy - r, 2, 0, Math.PI * 2);
+  ctx.fill();
   ctx.font = '9px "DM Sans", sans-serif';
-  vertices.forEach(function(v, i){
-    var p = punto(v.angulo, 1.18);
-    ctx.textAlign = Math.abs(p.x - cx) < 4 ? 'center' : (p.x > cx ? 'left' : 'right');
-    ctx.textBaseline = p.y < cy - 4 ? 'alphabetic' : (p.y > cy + 4 ? 'top' : 'middle');
-    ctx.fillText(v.label, p.x, p.y);
-  });
+  ctx.fillStyle = '#8a94a6';
+  ctx.textBaseline = 'middle';
+  ctx.textAlign = 'right';
+  ctx.fillText('ICE', cx - r - 4, cy);
+  ctx.textAlign = 'left';
+  ctx.fillText('IEH', cx + r + 4, cy);
 }
 
-// ── p-dash-resumen: rueda de los 5 pares — Ideal (Página 1) ─────────────
-// Mismo peso visual que la Real (círculo relleno, líneas sólidas, nunca
-// punteado) — los 5 vértices al radio máximo, todos en Seguridad. No
-// depende de ningún dato de la organización. Reusa _dibujarRuedaPares de
-// 7.4a tal cual — no se tocó esa función, solo cambia el arreglo de
-// vértices que se le pasa.
-function _renderRuedaIdeal(){
-  var wrap = document.getElementById('dr-rueda-ideal');
-  if(!wrap) return;
-
-  var vertices = [1, 2, 3, 4, 5].map(function(n, i){
-    var ficha = CATALOGO_INTERVENCION[n];
-    return {
-      label: ficha ? ficha.nombre : ('Par ' + n),
-      angulo: -Math.PI / 2 + i * (2 * Math.PI / 5),
-      radio: 1,
-      estado: 'seguridad'
-    };
-  });
-
-  wrap.innerHTML =
-    '<div class="card-title" style="margin-bottom:12px">Rueda de los 5 pares — ideal</div>' +
-    '<canvas id="dr-rueda-ideal-canvas" width="240" height="240" style="display:block;margin:0 auto"></canvas>' +
-    '<p style="font-size:12px;color:var(--dk-text-2);text-align:center;margin-top:10px;line-height:1.6">Así funcionan las relaciones en una organización en Regulación plena — la energía avanza a coordinación y producción, sin fricción entre lo declarado y lo vivido.</p>';
-
-  _dibujarRuedaPares('dr-rueda-ideal-canvas', vertices);
-}
-
-// ── p-dash-resumen: rueda de los 5 pares — Real (Página 1) ──────────────
-// Gateada en bloque: si CUALQUIERA de los 5 pares tiene n insuficiente,
-// no se dibuja la rueda — a diferencia de la dona (segmentos
-// independientes), aquí un vértice inventado deformaría el cálculo
-// arco/recta de sus DOS vecinos reales (radio promedio, diferencia entre
-// vecinos) — no es un dato faltante aislado, contamina la lectura de los
-// pares que sí tienen datos buenos.
-function _renderRuedaReal(d){
-  var wrap = document.getElementById('dr-rueda-real');
+// Dona ICE/IEH — tab Pares, arriba de las 5 tarjetas. Reemplaza tanto la
+// dona de estados vieja (_dibujarTortaPares, retirada) como la rueda
+// ideal/real (_dibujarRuedaPares, retirada) — ambas quedaban fuera de la
+// migración anterior "sin cambios de función" (Luis: "necesita reemplazo
+// por la dona nueva"). 5 donas, una por par — no una agregada global.
+function _renderDonasIceIeh(d){
+  var wrap = document.getElementById('dr-donas-ice-ieh');
   if(!wrap) return;
   var pares = d.pares || [];
-  var porPar = {};
-  pares.forEach(function(p){ porPar[p.par] = p; });
-
-  var faltantes = [];
-  for(var n = 1; n <= 5; n++){
-    var p = porPar[n];
-    if(!p || !p.n_suficiente){
-      var fichaF = CATALOGO_INTERVENCION[n];
-      faltantes.push(fichaF ? fichaF.nombre : ('Par ' + n));
+  wrap.innerHTML = pares.map(function(p){
+    var ficha = CATALOGO_INTERVENCION[p.par];
+    var nombre = ficha ? ficha.nombre : ('Par ' + p.par);
+    if(!p.n_suficiente){
+      return '<div class="icard" style="padding:14px;text-align:center">' +
+        '<div class="icard-tag" style="margin-bottom:8px">' + nombre + '</div>' +
+        _sinDatos(8) + '</div>';
     }
-  }
-
-  if(faltantes.length){
-    wrap.innerHTML =
-      '<div class="card-title" style="margin-bottom:12px">Rueda de los 5 pares — hoy</div>' +
-      '<div style="font-size:13px;color:var(--dk-text-2);font-style:italic">Datos insuficientes para reportar (mínimo 8 respuestas) en: ' +
-      faltantes.join(' · ') + '. La rueda requiere los 5 pares completos — un vértice sin dato deformaría la lectura de sus vecinos.</div>';
-    return;
-  }
-
-  var vertices = [];
-  for(var i = 0; i < 5; i++){
-    var par = porPar[i + 1];
-    var ficha = CATALOGO_INTERVENCION[i + 1];
-    vertices.push({
-      label: ficha ? ficha.nombre : ('Par ' + (i + 1)),
-      angulo: -Math.PI / 2 + i * (2 * Math.PI / 5),
-      radio: Math.max(0, Math.min(1, 1 - par.amenaza_par)),
-      estado: estadoDesdeAmenaza(par.amenaza_par)
-    });
-  }
-
-  wrap.innerHTML =
-    '<div class="card-title" style="margin-bottom:12px">Rueda de los 5 pares — hoy</div>' +
-    '<canvas id="dr-rueda-real-canvas" width="240" height="240" style="display:block;margin:0 auto"></canvas>' +
-    '<p style="font-size:12px;color:var(--dk-text-2);text-align:center;margin-top:10px;line-height:1.6">Así se ve <strong style="color:rgba(255,255,255,.7)">' +
-    (S_ORG.nombre || 'esta organización') + '</strong> hoy — cada punto donde el círculo se hunde es un par generando fricción real.</p>';
-
-  _dibujarRuedaPares('dr-rueda-real-canvas', vertices);
+    var canvasId = 'dona-ice-ieh-' + p.par;
+    return '<div class="icard" style="padding:14px;text-align:center">' +
+      '<div class="icard-tag" style="margin-bottom:8px">' + nombre + '</div>' +
+      '<canvas id="' + canvasId + '" width="100" height="100" style="display:block;margin:0 auto"></canvas>' +
+      '</div>';
+  }).join('');
+  pares.forEach(function(p){
+    if(!p.n_suficiente) return;
+    var estado = estadoDesdeAmenaza(p.amenaza_par);
+    var distIce = 1 - p.concepto_a_prom;
+    var distIeh = 1 - p.concepto_b_prom;
+    _dibujarDonaIceIeh('dona-ice-ieh-' + p.par, distIce, distIeh, ESTADO_COLOR[estado]);
+  });
 }
 
 // ── p-dash-desglose: 10 letras + 5 pares con brecha (Página 2) ──────────
