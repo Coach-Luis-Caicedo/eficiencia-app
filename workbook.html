@@ -1723,7 +1723,6 @@ supa.auth.getSession().then(function(res){
         </div>
 
         <div id="reg-pares" class="reg-tabpanel">
-          <div id="dr-donas-ice-ieh" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:16px;margin-bottom:28px"></div>
           <div class="card-title" style="margin-bottom:12px">Los 5 pares</div>
           <div id="dg-pares" style="display:grid;gap:14px"></div>
         </div>
@@ -6093,7 +6092,6 @@ function renderDiagnostico(){
   _renderSDMONuevo(d);
   _renderResumenNuevo(d);
   _renderResultadoGlobal(d);
-  _renderDonasIceIeh(d);
   _renderDesglose(d);
   _renderRecomendaciones(d);
   _renderAlertasGlobales(d);
@@ -6585,23 +6583,25 @@ function _dibujarTortaFraccion(canvasId, trackColor, wedgeColor, fraccion){
   ctx.fill();
 }
 
-// Dona ICE/IEH — círculo completo, track neutro, con una cuña de
-// severidad que nace en las 12 y crece hacia cada hemisferio POR
-// SEPARADO: izquierdo = ICE, derecho = IEH. El ángulo de cada lado es la
-// distancia de ESE polo a su propio ideal — 1−concepto_a_prom (ICE),
-// 1−concepto_b_prom (IEH) — no la diferencia entre ambos (eso ya lo
-// cubre brecha_final/amenaza_par en otro lugar). Investigado y aprobado
-// con Luis: concepto_a_prom/concepto_b_prom son las únicas medidas
-// independientes por polo (0=nada alineado, 1=ideal, dominio de
-// 001_eficiencia_schema_inicial.sql:123-124); bipolar_prom/
+// Dona ICE/IEH — círculo completo, hemisferio izquierdo con tinte celeste
+// (ICE) y derecho con tinte dorado (IEH), con una cuña de severidad que
+// nace en las 12 y crece hacia cada hemisferio POR SEPARADO. El ángulo de
+// cada lado es la distancia de ESE polo a su propio ideal —
+// 1−concepto_a_prom (ICE), 1−concepto_b_prom (IEH) — no la diferencia
+// entre ambos (eso ya lo cubre brecha_final/amenaza_par en otro lugar).
+// Investigado y aprobado con Luis: concepto_a_prom/concepto_b_prom son
+// las únicas medidas independientes por polo (0=nada alineado, 1=ideal,
+// dominio de 001_eficiencia_schema_inicial.sql:123-124); bipolar_prom/
 // brecha_calculada/brecha_final describen la RELACIÓN entre los dos
 // polos, no la distancia individual de uno solo — no sirven aquí. Un
 // solo polo desalineado → la cuña vive enteramente de ese lado, tocando
 // las 12 sin cruzarlas. Ambos desalineados → cruza las 12, cada lado
 // crece en proporción a su propia distancia, nunca "gana el peor".
-// Color = canal separado (estadoDesdeAmenaza(amenaza_par), el umbral de
-// siempre) — la forma no compite con el color, mismo principio que ya
-// usaba la rueda vieja que esto reemplaza.
+// Color de cuña = canal separado (estadoDesdeAmenaza(amenaza_par), el
+// umbral de siempre) — la forma no compite con el color. Integración
+// aprobada: reemplaza la torta de riesgo (fila 2) dentro de
+// _renderParTarjetaPares, no coexiste con ella (mockup revisado con
+// Luis — Opción A).
 function _dibujarDonaIceIeh(canvasId, distIce, distIeh, wedgeColor){
   var canvas = document.getElementById(canvasId);
   if(!canvas || !canvas.getContext) return;
@@ -6610,9 +6610,20 @@ function _dibujarDonaIceIeh(canvasId, distIce, distIeh, wedgeColor){
   var cx = w / 2, cy = h / 2, r = Math.min(w, h) / 2 - 2;
   ctx.clearRect(0, 0, w, h);
 
+  // Tinte de hemisferio — izquierda ICE (celeste), derecha IEH (dorado),
+  // opacidad ~0.18. Literal, no var(): canvas fillStyle no resuelve
+  // custom properties CSS. #5a95e0 = --ice, #d99a3d = --ieh.
   ctx.beginPath();
-  ctx.arc(cx, cy, r, 0, Math.PI * 2);
-  ctx.fillStyle = '#1c2740'; // --dk-elevated — mismo track neutro que _dibujarTortaFraccion
+  ctx.moveTo(cx, cy);
+  ctx.arc(cx, cy, r, Math.PI / 2, Math.PI * 1.5);
+  ctx.closePath();
+  ctx.fillStyle = 'rgba(90,149,224,.18)';
+  ctx.fill();
+  ctx.beginPath();
+  ctx.moveTo(cx, cy);
+  ctx.arc(cx, cy, r, -Math.PI / 2, Math.PI / 2);
+  ctx.closePath();
+  ctx.fillStyle = 'rgba(217,154,61,.18)';
   ctx.fill();
 
   var left = Math.max(0, Math.min(1, distIce || 0)) * Math.PI;
@@ -6628,50 +6639,11 @@ function _dibujarDonaIceIeh(canvasId, distIce, distIeh, wedgeColor){
     ctx.fill();
   }
 
-  // Marca del punto de alineación (12:00) y etiquetas de hemisferio.
+  // Marca del punto de alineación (12:00).
   ctx.fillStyle = '#5a6478';
   ctx.beginPath();
   ctx.arc(cx, cy - r, 2, 0, Math.PI * 2);
   ctx.fill();
-  ctx.font = '9px "DM Sans", sans-serif';
-  ctx.fillStyle = '#8a94a6';
-  ctx.textBaseline = 'middle';
-  ctx.textAlign = 'right';
-  ctx.fillText('ICE', cx - r - 4, cy);
-  ctx.textAlign = 'left';
-  ctx.fillText('IEH', cx + r + 4, cy);
-}
-
-// Dona ICE/IEH — tab Pares, arriba de las 5 tarjetas. Reemplaza tanto la
-// dona de estados vieja (_dibujarTortaPares, retirada) como la rueda
-// ideal/real (_dibujarRuedaPares, retirada) — ambas quedaban fuera de la
-// migración anterior "sin cambios de función" (Luis: "necesita reemplazo
-// por la dona nueva"). 5 donas, una por par — no una agregada global.
-function _renderDonasIceIeh(d){
-  var wrap = document.getElementById('dr-donas-ice-ieh');
-  if(!wrap) return;
-  var pares = d.pares || [];
-  wrap.innerHTML = pares.map(function(p){
-    var ficha = CATALOGO_INTERVENCION[p.par];
-    var nombre = ficha ? ficha.nombre : ('Par ' + p.par);
-    if(!p.n_suficiente){
-      return '<div class="icard" style="padding:14px;text-align:center">' +
-        '<div class="icard-tag" style="margin-bottom:8px">' + nombre + '</div>' +
-        _sinDatos(8) + '</div>';
-    }
-    var canvasId = 'dona-ice-ieh-' + p.par;
-    return '<div class="icard" style="padding:14px;text-align:center">' +
-      '<div class="icard-tag" style="margin-bottom:8px">' + nombre + '</div>' +
-      '<canvas id="' + canvasId + '" width="100" height="100" style="display:block;margin:0 auto"></canvas>' +
-      '</div>';
-  }).join('');
-  pares.forEach(function(p){
-    if(!p.n_suficiente) return;
-    var estado = estadoDesdeAmenaza(p.amenaza_par);
-    var distIce = 1 - p.concepto_a_prom;
-    var distIeh = 1 - p.concepto_b_prom;
-    _dibujarDonaIceIeh('dona-ice-ieh-' + p.par, distIce, distIeh, ESTADO_COLOR[estado]);
-  });
 }
 
 // ── p-dash-desglose: 10 letras + 5 pares con brecha (Página 2) ──────────
@@ -6732,9 +6704,7 @@ function _renderDesglose(d){
     pares.forEach(function(p){
       if(!p.n_suficiente) return;
       var estado = estadoDesdeAmenaza(p.amenaza_par);
-      // Literal, no var(): canvas fillStyle no resuelve custom properties CSS.
-      // '#0f3d91' = --par-sensor (línea 25).
-      _dibujarTortaFraccion('par-torta-' + p.par, '#0f3d91', ESTADO_COLOR[estado], p.amenaza_par);
+      _dibujarDonaIceIeh('par-torta-' + p.par, 1 - p.concepto_a_prom, 1 - p.concepto_b_prom, ESTADO_COLOR[estado]);
     });
   }
 }
@@ -6768,10 +6738,13 @@ function _barraVerticalHtml(pct, valor, color, label){
 // Pares; si hace falta recuperarlo, es una decisión aparte.
 //
 // Fila 1 usa barras VERTICALES en vez de un track horizontal
-// compartido, y agrega una fila 2 con la torta completa de riesgo
-// (_dibujarTortaFraccion, track --par-sensor) — no existía antes. El
-// signo de la brecha (positiva=▲ problema de comunicación, negativa=▼
-// fortaleza informal frágil) usa el mismo criterio que ya distingue
+// compartido, y agrega una fila 2 con la dona ICE/IEH (_dibujarDonaIceIeh)
+// — reemplaza la torta de riesgo genérica que tenía antes (mockup
+// revisado con Luis, Opción A: reemplaza, no convive) porque la dona ya
+// incluye esa misma lectura de magnitud (incluida en el color) y agrega
+// la dirección — qué polo pesa más en la desalineación. El signo de la
+// brecha (positiva=▲ problema de comunicación, negativa=▼ fortaleza
+// informal frágil) usa el mismo criterio que ya distingue
 // positiva/negativa en _renderRecomendacionCard (brecha_final >= 0).
 function _renderParTarjetaPares(p, idPrefix){
   idPrefix = idPrefix || 'par-torta-';
@@ -7014,8 +6987,7 @@ function _renderPorArea(d){
     pares.forEach(function(p){
       if(!p.n_suficiente) return;
       var estado = estadoDesdeAmenaza(p.amenaza_par);
-      // Literal, no var(): canvas fillStyle no resuelve custom properties CSS.
-      _dibujarTortaFraccion('area-torta-' + p.par, '#0f3d91', ESTADO_COLOR[estado], p.amenaza_par);
+      _dibujarDonaIceIeh('area-torta-' + p.par, 1 - p.concepto_a_prom, 1 - p.concepto_b_prom, ESTADO_COLOR[estado]);
     });
   }
 }
