@@ -252,7 +252,7 @@ table.dt td{color:var(--ink)}
 /* ── Resultado global — panel de 2 columnas (Variables/Pares/Por área/
    Alertas/Recomendaciones/CFF a la izquierda en tabs, 5 números fijos a
    la derecha, franja de ficha técnica compartida arriba de ambas). ── */
-.reg-wrap{max-width:1400px}
+.reg-wrap{max-width:none}
 .reg-ficha{display:flex;flex-wrap:wrap;gap:24px;padding:14px 18px;background:var(--dk-card);border:1px solid #26344a;border-radius:10px;margin-bottom:28px;font-size:13px}
 .reg-columns{display:grid;grid-template-columns:1fr 320px;gap:24px;align-items:start}
 .reg-tabs{display:flex;gap:4px;border-bottom:1px solid #26344a;margin-bottom:20px;flex-wrap:wrap}
@@ -1155,7 +1155,7 @@ supa.auth.getSession().then(function(res){
            respaldada). El valor numérico va en "Ver detalle técnico". -->
     </div>
 
-    <details open style="margin-top:20px">
+    <details style="margin-top:20px">
       <summary style="cursor:pointer;font-size:12px;color:var(--dk-text-2);font-weight:700;text-transform:uppercase;letter-spacing:.06em">Ver detalle técnico</summary>
       <div id="cuest-detalle" style="margin-top:12px;font-size:12px;font-family:'DM Mono',monospace;color:var(--dk-text-2);line-height:1.8"></div>
     </details>
@@ -1186,7 +1186,7 @@ supa.auth.getSession().then(function(res){
 
     <div id="sdmo-card"></div>
 
-    <details open style="margin-top:20px">
+    <details style="margin-top:20px">
       <summary style="cursor:pointer;font-size:12px;color:var(--dk-text-2);font-weight:700;text-transform:uppercase;letter-spacing:.06em">Ver detalle técnico</summary>
       <div id="sdmo-detalle" style="margin-top:12px;font-size:12px;font-family:'DM Mono',monospace;color:var(--dk-text-2);line-height:1.8"></div>
     </details>
@@ -6111,27 +6111,27 @@ function _renderCuestionarioNuevo(d){
   if(!wrap) return;
   var descICE = DESC_ICE;
   var descIEH = DESC_IEH;
-  // Brecha de un solo eje — posición relativa de ICE/IEH en [0,1], no su
-  // valor exacto (eso sigue solo en "Ver detalle técnico") y sin colorear
-  // el tramo por severidad: ICE/IEH son promedios descriptivos, nunca
-  // métricas de amenaza (ver estadoDesdeAmenaza más abajo) — el tramo va
-  // en neutro, el track comunica posición relativa, no magnitud leída
-  // como cifra.
+  // Mismo componente de barras verticales que ya usa la tarjeta de par
+  // (_barraVerticalHtml, Pares/Por área) — pero SIN torta de riesgo y SIN
+  // colorear la flecha por severidad: ICE/IEH global no tiene un
+  // amenaza_par equivalente (esa métrica es por par, marco sección 6.4),
+  // así que no hay umbral validado para fabricar ni un color de severidad
+  // ni un "% en riesgo" aquí. Decisión confirmada con Luis — reemplaza el
+  // track horizontal de puntos que tenía este bloque antes, mismo criterio
+  // de fondo (sin severidad para ICE/IEH), solo cambia la forma visual.
   var brecha = '';
   if(d.ice != null && d.ieh != null){
-    var iceLeft = Math.max(0, Math.min(100, d.ice * 100));
-    var iehLeft = Math.max(0, Math.min(100, d.ieh * 100));
-    var lo = Math.min(iceLeft, iehLeft), hi = Math.max(iceLeft, iehLeft);
+    var iceGPct = Math.max(0, Math.min(100, d.ice * 100));
+    var iehGPct = Math.max(0, Math.min(100, d.ieh * 100));
+    var brechaG = d.ice - d.ieh;
+    var flechaG = brechaG >= 0 ? '▲' : '▼';
     brecha =
-      '<div style="grid-column:1/-1;margin-top:6px">' +
-        '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">' +
-          '<span style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--dk-text-2);text-transform:uppercase;letter-spacing:.06em"><span style="width:8px;height:8px;border-radius:50%;background:var(--ice);display:inline-block"></span>ICE</span>' +
-          '<span style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--dk-text-2);text-transform:uppercase;letter-spacing:.06em">IEH<span style="width:8px;height:8px;border-radius:50%;background:var(--ieh);display:inline-block"></span></span>' +
-        '</div>' +
-        '<div style="position:relative;height:6px;border-radius:3px;background:var(--dk-elevated)">' +
-          '<div style="position:absolute;top:0;left:' + lo + '%;width:' + (hi - lo) + '%;height:100%;background:var(--dk-text-3);border-radius:3px"></div>' +
-          '<div style="position:absolute;top:50%;left:' + iceLeft + '%;width:11px;height:11px;border-radius:50%;background:var(--ice);border:2px solid var(--dk-bg);transform:translate(-50%,-50%)"></div>' +
-          '<div style="position:absolute;top:50%;left:' + iehLeft + '%;width:11px;height:11px;border-radius:50%;background:var(--ieh);border:2px solid var(--dk-bg);transform:translate(-50%,-50%)"></div>' +
+      '<div style="grid-column:1/-1;margin-top:6px;display:flex;align-items:flex-end;gap:20px">' +
+        _barraVerticalHtml(iceGPct, d.ice, 'var(--ice)', 'ICE') +
+        _barraVerticalHtml(iehGPct, d.ieh, 'var(--ieh)', 'IEH') +
+        '<div style="flex:1;text-align:right">' +
+          '<div style="font-family:var(--f-mono);font-size:20px;font-weight:700;color:var(--dk-text-3)">' + flechaG + ' ' + (brechaG >= 0 ? '+' : '') + brechaG.toFixed(2) + '</div>' +
+          '<div style="font-size:9px;color:var(--dk-text-2);text-transform:uppercase;letter-spacing:.06em;margin-top:2px">Brecha</div>' +
         '</div>' +
       '</div>';
   }
@@ -6908,7 +6908,7 @@ function _renderDesglose(d){
 
   var paresWrap = document.getElementById('dg-pares');
   if(paresWrap){
-    paresWrap.innerHTML = pares.map(function(p){ return _renderParTarjetaPares(p); }).join('');
+    paresWrap.innerHTML = pares.map(function(p){ return _renderParTarjetaPares(p, 'par-torta-'); }).join('');
     pares.forEach(function(p){
       if(!p.n_suficiente) return;
       var estado = estadoDesdeAmenaza(p.amenaza_par);
@@ -6919,56 +6919,42 @@ function _renderDesglose(d){
   }
 }
 
-// Brecha de un solo eje por par — a diferencia de la brecha GLOBAL ICE/IEH
-// (Cuestionario, Paso 4: sin severidad porque ICE/IEH no tienen umbral
-// validado), aquí SÍ hay un umbral legítimo: brecha_final es directamente
-// el insumo de amenaza_par (marco, sección 6.4) — el tramo SÍ se colorea
-// por severidad, a propósito. No es una inconsistencia entre los dos
-// tracks, son dos métricas distintas con distinto respaldo estadístico.
-function _renderParBrechaCard(p){
-  var ficha = CATALOGO_INTERVENCION[p.par];
-  var nombres = ficha ? ficha.nombre.split(' / ') : ['ICE', 'IEH'];
-  if(!p.n_suficiente){
-    return '<div class="icard" style="padding:18px 20px">' +
-      '<div class="icard-tag">Par ' + p.par + ' — ' + (ficha ? ficha.nombre : '') + '</div>' +
-      _sinDatos(8) + '</div>';
-  }
-  var estado = estadoDesdeAmenaza(p.amenaza_par);
-  var aLeft = Math.max(0, Math.min(100, p.concepto_a_prom * 100));
-  var bLeft = Math.max(0, Math.min(100, p.concepto_b_prom * 100));
-  var lo = Math.min(aLeft, bLeft), hi = Math.max(aLeft, bLeft);
-  return '<div class="icard" style="padding:18px 20px">' +
-    '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:14px">' +
-      '<div class="icard-tag">Par ' + p.par + ' — ' + (ficha ? ficha.nombre : '') + '</div>' +
-      _badgeEstado(estado) +
+// Barra vertical + valor + etiqueta — usada por la tarjeta de par
+// (_renderParTarjetaPares, Pares/Por área) y por la comparación global
+// ICE/IEH (_renderCuestionarioNuevo). Una sola fuente para el mismo
+// componente visual en los dos contextos.
+function _barraVerticalHtml(pct, valor, color, label){
+  return '<div style="display:flex;flex-direction:column;align-items:center;gap:6px">' +
+    '<div style="font-family:var(--f-mono);font-size:12px;color:rgba(255,255,255,.7)">' + valor + '</div>' +
+    '<div style="width:22px;height:56px;border-radius:4px;background:var(--dk-elevated);display:flex;align-items:flex-end;overflow:hidden">' +
+      '<div style="width:100%;height:' + pct + '%;background:' + color + '"></div>' +
     '</div>' +
-    '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">' +
-      '<span style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--dk-text-2);text-transform:uppercase;letter-spacing:.06em"><span style="width:8px;height:8px;border-radius:50%;background:var(--ice);display:inline-block"></span>' + nombres[0] + '</span>' +
-      '<span style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--dk-text-2);text-transform:uppercase;letter-spacing:.06em">' + nombres[1] + '<span style="width:8px;height:8px;border-radius:50%;background:var(--ieh);display:inline-block"></span></span>' +
-    '</div>' +
-    '<div style="position:relative;height:6px;border-radius:3px;background:var(--dk-elevated)">' +
-      '<div style="position:absolute;top:0;left:' + lo + '%;width:' + (hi - lo) + '%;height:100%;background:' + ESTADO_COLOR[estado] + ';border-radius:3px"></div>' +
-      '<div style="position:absolute;top:50%;left:' + aLeft + '%;width:11px;height:11px;border-radius:50%;background:var(--ice);border:2px solid var(--dk-bg);transform:translate(-50%,-50%)"></div>' +
-      '<div style="position:absolute;top:50%;left:' + bLeft + '%;width:11px;height:11px;border-radius:50%;background:var(--ieh);border:2px solid var(--dk-bg);transform:translate(-50%,-50%)"></div>' +
-    '</div>' +
-    '<details open style="margin-top:12px"><summary style="cursor:pointer;font-size:11px;color:var(--dk-text-2);font-weight:700;text-transform:uppercase;letter-spacing:.04em">Ver detalle técnico</summary>' +
-    '<div style="margin-top:8px;font-size:11px;font-family:var(--f-mono);color:var(--dk-text-2);line-height:1.8">' +
-      'n = ' + p.n + ' · concepto_a_prom = ' + p.concepto_a_prom + ' · concepto_b_prom = ' + p.concepto_b_prom + '<br>' +
-      'bipolar_prom = ' + p.bipolar_prom + ' · brecha_calculada = ' + p.brecha_calculada + ' · brecha_final = ' + p.brecha_final + '<br>' +
-      'amenaza_par = ' + p.amenaza_par +
-    '</div></details>' +
+    '<div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--dk-text-2)">' + label + '</div>' +
   '</div>';
 }
 
-// Tarjeta de par — tab Pares (panel de 2 columnas). Distinta a
-// _renderParBrechaCard (que sigue viva, intacta, para el tab Por área):
-// aquí la fila 1 usa barras VERTICALES en vez de un track horizontal
+// Tarjeta de par — usada por el tab Pares Y por el tab Por área (mismo
+// componente en los dos, decisión revertida: originalmente Por área usaba
+// _renderParBrechaCard, un componente horizontal de línea+puntos distinto
+// — se retiró por completo, cero callers, para no dejar dos formatos de
+// la misma información conviviendo en el Workbook). idPrefix distingue
+// los ids de canvas entre tabs ('par-torta-' / 'area-torta-') — ambos
+// tabs están montados en el DOM a la vez (solo ocultos por CSS), así que
+// un id compartido habría causado que document.getElementById devolviera
+// siempre el primero y el otro tab dibujara en el canvas equivocado.
+// Nota: a diferencia de _renderParBrechaCard, esta tarjeta no incluye un
+// "Ver detalle técnico" con n/concepto_a_prom/brecha_calculada — ese
+// detalle de auditoría no formaba parte del diseño ya aprobado para
+// Pares; si hace falta recuperarlo, es una decisión aparte.
+//
+// Fila 1 usa barras VERTICALES en vez de un track horizontal
 // compartido, y agrega una fila 2 con la torta completa de riesgo
 // (_dibujarTortaFraccion, track --par-sensor) — no existía antes. El
 // signo de la brecha (positiva=▲ problema de comunicación, negativa=▼
 // fortaleza informal frágil) usa el mismo criterio que ya distingue
 // positiva/negativa en _renderRecomendacionCard (brecha_final >= 0).
-function _renderParTarjetaPares(p){
+function _renderParTarjetaPares(p, idPrefix){
+  idPrefix = idPrefix || 'par-torta-';
   var ficha = CATALOGO_INTERVENCION[p.par];
   var nombres = ficha ? ficha.nombre.split(' / ') : ['ICE', 'IEH'];
   if(!p.n_suficiente){
@@ -6982,24 +6968,15 @@ function _renderParTarjetaPares(p){
   var brechaPos = p.brecha_final >= 0;
   var flecha = brechaPos ? '▲' : '▼';
   var pctRiesgo = Math.round(Math.max(0, Math.min(1, p.amenaza_par)) * 100);
-  var torreId = 'par-torta-' + p.par;
-  var barra = function(pct, valor, color, label){
-    return '<div style="display:flex;flex-direction:column;align-items:center;gap:6px">' +
-      '<div style="font-family:var(--f-mono);font-size:12px;color:rgba(255,255,255,.7)">' + valor + '</div>' +
-      '<div style="width:22px;height:56px;border-radius:4px;background:var(--dk-elevated);display:flex;align-items:flex-end;overflow:hidden">' +
-        '<div style="width:100%;height:' + pct + '%;background:' + color + '"></div>' +
-      '</div>' +
-      '<div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--dk-text-2)">' + label + '</div>' +
-    '</div>';
-  };
+  var torreId = idPrefix + p.par;
   return '<div class="icard" style="padding:18px 20px">' +
     '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:16px">' +
       '<div class="icard-tag">Par ' + p.par + ' — ' + (ficha ? ficha.nombre : '') + '</div>' +
       _badgeEstado(estado) +
     '</div>' +
     '<div style="display:flex;align-items:flex-end;gap:20px">' +
-      barra(aPct, p.concepto_a_prom, 'var(--ice)', nombres[0]) +
-      barra(bPct, p.concepto_b_prom, 'var(--ieh)', nombres[1]) +
+      _barraVerticalHtml(aPct, p.concepto_a_prom, 'var(--ice)', nombres[0]) +
+      _barraVerticalHtml(bPct, p.concepto_b_prom, 'var(--ieh)', nombres[1]) +
       '<div style="flex:1;text-align:right">' +
         '<div style="font-family:var(--f-mono);font-size:20px;font-weight:700;color:' + ESTADO_COLOR[estado] + '">' + flecha + ' ' + p.brecha_final + '</div>' +
         '<div style="font-size:9px;color:var(--dk-text-2);text-transform:uppercase;letter-spacing:.06em;margin-top:2px">Brecha</div>' +
@@ -7211,7 +7188,16 @@ function _renderPorArea(d){
   if(numWrap) numWrap.innerHTML = _numerosConsolidadosHtml(d);
 
   var paresWrap = document.getElementById('area-pares');
-  if(paresWrap) paresWrap.innerHTML = (d.pares || []).map(function(p){ return _renderParBrechaCard(p); }).join('');
+  if(paresWrap){
+    var pares = d.pares || [];
+    paresWrap.innerHTML = pares.map(function(p){ return _renderParTarjetaPares(p, 'area-torta-'); }).join('');
+    pares.forEach(function(p){
+      if(!p.n_suficiente) return;
+      var estado = estadoDesdeAmenaza(p.amenaza_par);
+      // Literal, no var(): canvas fillStyle no resuelve custom properties CSS.
+      _dibujarTortaFraccion('area-torta-' + p.par, '#0f3d91', ESTADO_COLOR[estado], p.amenaza_par);
+    });
+  }
 }
 
 // ── p-dash-recom: recomendaciones por severidad (Página 4) ──────────────
