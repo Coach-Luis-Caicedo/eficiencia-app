@@ -266,6 +266,7 @@ table.dt td{color:var(--ink)}
 .reg-card-label{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--dk-text-2);margin-bottom:8px}
 .reg-card-row{display:flex;align-items:center;justify-content:space-between;gap:10px}
 .reg-card-val{font-family:var(--f-mono);font-size:16px;color:rgba(255,255,255,.85);flex-shrink:0}
+.reg-variables-cols{display:grid;grid-template-columns:1fr 1fr;gap:24px;align-items:start}
 
 /* ── Alerts ── */
 .alert{border-radius:var(--r);padding:11px 14px;font-size:12.5px;margin-bottom:11px;display:flex;gap:9px;align-items:flex-start}
@@ -1715,8 +1716,10 @@ supa.auth.getSession().then(function(res){
         </div>
 
         <div id="reg-variables" class="reg-tabpanel active">
-          <div class="card-title" style="margin-bottom:12px">Las 10 letras</div>
-          <div id="dg-letras" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px"></div>
+          <div class="reg-variables-cols">
+            <div id="dg-letras" style="display:grid;grid-template-columns:repeat(2,1fr);gap:12px"></div>
+            <div id="dg-letras-chart"></div>
+          </div>
         </div>
 
         <div id="reg-pares" class="reg-tabpanel">
@@ -6862,6 +6865,9 @@ function _renderDesglose(d){
   pares.forEach(function(p){ porPar[p.par] = p; });
 
   var letrasWrap = document.getElementById('dg-letras');
+  var variablesArr = []; // {letra, valor, rol} — fuente única, reusada por la
+                          // gráfica de barras (dg-letras-chart) más abajo, no
+                          // se recalcula valor por separado para el gráfico.
   if(letrasWrap){
     var items = '';
     // Letras = concepto_a_prom/concepto_b_prom, mismo tipo de promedio
@@ -6878,6 +6884,7 @@ function _renderDesglose(d){
       var sufic = p && p.n_suficiente;
       var valor = l.rol === 'ice' ? (sufic ? p.concepto_a_prom : null) : (sufic ? p.concepto_b_prom : null);
       var pct = valor != null ? Math.max(0, Math.min(100, valor * 100)) : 0;
+      variablesArr.push({ letra: l.letra, valor: valor, rol: l.rol });
       items +=
         '<div class="icard" style="padding:14px 16px;display:flex;align-items:center;gap:14px">' +
           '<div style="font-family:\'Montserrat\',sans-serif;font-weight:800;font-size:26px;color:' + color + ';width:32px;text-align:center;flex-shrink:0">' + l.letra + '</div>' +
@@ -6891,6 +6898,12 @@ function _renderDesglose(d){
         '</div>';
     });
     letrasWrap.innerHTML = items;
+  }
+
+  var chartWrap = document.getElementById('dg-letras-chart');
+  if(chartWrap){
+    chartWrap.innerHTML = '<canvas id="dg-letras-chart-canvas" width="420" height="320" style="width:100%;height:auto;display:block"></canvas>';
+    _dibujarBarrasVariables('dg-letras-chart-canvas', variablesArr);
   }
 
   var paresWrap = document.getElementById('dg-pares');
@@ -7057,6 +7070,67 @@ function _renderComparacionDepartamentos(resultados){
     '<canvas id="area-comp-canvas" width="640" height="180" style="display:block;width:100%;height:180px;cursor:pointer"></canvas>' +
     '<div style="font-size:11px;color:var(--dk-text-2);margin-top:6px">Clic en una barra para ver ese departamento abajo.</div>';
   _dibujarBarrasDepartamentos('area-comp-canvas', datos);
+}
+
+// Gráfica de barras — tab Variables, columna derecha. Escala Y fija 0-1
+// con marcas y líneas guía (no auto-ajustada al rango de los datos): el
+// propósito explícito es comparar valor y diferencia entre variables de
+// un vistazo, y una escala que se reajusta rompería esa comparación.
+// items = mismo array {letra, valor, rol} que ya construyó _renderDesglose
+// para las 10 tarjetas — no vuelve a leer d.pares ni recalcula valores.
+function _dibujarBarrasVariables(canvasId, items){
+  var canvas = document.getElementById(canvasId);
+  if(!canvas || !canvas.getContext) return;
+  var ctx = canvas.getContext('2d');
+  var w = canvas.width, h = canvas.height;
+  var padLeft = 30, padRight = 8, padTop = 10, padBottom = 22;
+  var plotW = w - padLeft - padRight, plotH = h - padTop - padBottom;
+  ctx.clearRect(0, 0, w, h);
+
+  var marcas = [{ v: 0, label: '0' }, { v: .25, label: '0.25' }, { v: .5, label: '0.5' }, { v: .75, label: '0.75' }, { v: 1, label: '1.0' }];
+  ctx.strokeStyle = '#26344a';
+  ctx.lineWidth = 0.5;
+  ctx.fillStyle = '#5a6478';
+  ctx.font = '9px "DM Mono", monospace';
+  ctx.textAlign = 'right';
+  ctx.textBaseline = 'middle';
+  marcas.forEach(function(m){
+    var y = padTop + plotH * (1 - m.v);
+    ctx.beginPath();
+    ctx.moveTo(padLeft, y);
+    ctx.lineTo(w - padRight, y);
+    ctx.stroke();
+    ctx.fillText(m.label, padLeft - 6, y);
+  });
+
+  var n = items.length;
+  if(!n) return;
+  var gap = 8;
+  var barW = Math.max(10, (plotW - gap * (n - 1)) / n);
+  items.forEach(function(it, i){
+    var x = padLeft + i * (barW + gap);
+    if(it.valor != null){
+      var val = Math.max(0, Math.min(1, it.valor));
+      var barH = val * plotH;
+      var y = padTop + (plotH - barH);
+      var r = Math.min(3, barH / 2);
+      ctx.fillStyle = it.rol === 'ice' ? '#5a95e0' : '#d99a3d';
+      ctx.beginPath();
+      ctx.moveTo(x, y + r);
+      ctx.arcTo(x, y, x + r, y, r);
+      ctx.lineTo(x + barW - r, y);
+      ctx.arcTo(x + barW, y, x + barW, y + r, r);
+      ctx.lineTo(x + barW, padTop + plotH);
+      ctx.lineTo(x, padTop + plotH);
+      ctx.closePath();
+      ctx.fill();
+    }
+    ctx.fillStyle = '#8a94a6';
+    ctx.font = '10px "DM Sans", sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'top';
+    ctx.fillText(it.letra, x + barW / 2, padTop + plotH + 6);
+  });
 }
 
 // Barras verticales — altura proporcional al IAO (0-100), color por
