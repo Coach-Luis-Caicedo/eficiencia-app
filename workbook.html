@@ -882,7 +882,6 @@ supa.auth.getSession().then(function(res){
     <div class="nav-item active" onclick="show('p-cover')"><span class="nav-icon">🏠</span> Portada</div>
     <div class="nav-item" onclick="show('p-acrostico')"><span class="nav-icon">🔤</span> Acróstico</div>
     <div class="nav-grp">Diagnóstico EFICIENCIA</div>
-    <div class="nav-item" onclick="show('p-cuestionario')"><span class="nav-icon">📋</span> ICE / IEH</div>
     <div class="nav-item" onclick="show('p-sdmo')"><span class="nav-icon">📡</span> SD-MO — Sensor Diario</div>
     <!-- ── Paneles CFF (Costo Financiero de la Fricción) — ocultos del nav
          mientras se reconstruye el motor sobre IAO/CFF (marco, sección 8).
@@ -991,7 +990,7 @@ supa.auth.getSession().then(function(res){
     </table>
     <div class="btn-row">
       <button class="btn btn-ghost" onclick="show('p-cover')">← Portada</button>
-      <button class="btn btn-primary" onclick="show('p-cuestionario')">Iniciar diagnóstico →</button>
+      <button class="btn btn-primary" onclick="show('p-dash-resultado')">Ver Tablero Ejecutivo →</button>
     </div>
   </div>
 </div>
@@ -1118,7 +1117,7 @@ supa.auth.getSession().then(function(res){
           <div id="psum-warn" class="alert warn" style="display:none;margin-top:10px"><span class="ai">⚠</span><div>Los pesos no suman 1.0.</div></div>
         </div>
         <div class="btn-row">
-          <button class="btn btn-primary" onclick="show('p-cuestionario')">Continuar → Cuestionario</button>
+          <button class="btn btn-primary" onclick="show('p-dash-resultado')">Continuar → Tablero Ejecutivo</button>
         </div>
       </div>
       <div class="split-right">
@@ -1133,35 +1132,6 @@ supa.auth.getSession().then(function(res){
           <div style="font-size:10px;color:rgba(255,255,255,.28);line-height:1.5">FT alto: el deterioro se transmite con fuerza a los resultados operativos.</div>
         </div>
       </div>
-    </div>
-  </div>
-</div>
-
-<!-- ═══ CUESTIONARIO ═══ -->
-<div id="p-cuestionario" class="panel dark-panel">
-  <div class="panel-inner">
-    <div class="ph">
-      <div class="ph-tag">Cuestionario EFICIENCIA</div>
-      <div class="ph-title">ICE / IEH</div>
-      <div class="ph-desc">Cargado directo desde el diagnóstico de la organización — sin reimplementar fórmulas aquí, solo se muestra lo que ya llegó calculado.</div>
-    </div>
-
-    <div id="cuest-status" style="font-size:13px;color:var(--dk-text-2);margin-bottom:16px"></div>
-
-    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;margin-bottom:8px" id="cuest-cards">
-      <!-- ICE / IEH — sin semáforo, descripción fija en vez de número (marco,
-           sección 2: son promedios descriptivos, no métricas de amenaza
-           concentrada — fabricar un umbral aquí sería una calibración no
-           respaldada). El valor numérico va en "Ver detalle técnico". -->
-    </div>
-
-    <details style="margin-top:20px">
-      <summary style="cursor:pointer;font-size:12px;color:var(--dk-text-2);font-weight:700;text-transform:uppercase;letter-spacing:.06em">Ver detalle técnico</summary>
-      <div id="cuest-detalle" style="margin-top:12px;font-size:12px;font-family:'DM Mono',monospace;color:var(--dk-text-2);line-height:1.8"></div>
-    </details>
-
-    <div class="btn-row" style="margin-top:24px">
-      <button class="btn btn-primary" onclick="show('p-dash-resultado')">Ver desglose completo y acciones →</button>
     </div>
   </div>
 </div>
@@ -1192,7 +1162,6 @@ supa.auth.getSession().then(function(res){
     </details>
 
     <div class="btn-row" style="margin-top:24px">
-      <button class="btn btn-ghost" onclick="show('p-cuestionario')">← ICE / IEH</button>
       <button class="btn btn-primary" onclick="show('p-dash-resultado')">Ver desglose completo y acciones →</button>
     </div>
   </div>
@@ -2321,20 +2290,13 @@ function show(id){
     if((n.getAttribute('onclick')||'').includes(id)) n.classList.add('active');
   });
 
-  const steps=['p-cover','p-acrostico','p-config','p-cuestionario','p-sdmo','p-areas','p-piio','p-motor','p-longitudinal','p-predictor','p-dashboard'];
+  const steps=['p-cover','p-acrostico','p-config','p-sdmo','p-areas','p-piio','p-motor','p-longitudinal','p-predictor','p-dashboard'];
   const idx=steps.indexOf(id);
   document.getElementById('top-prog').style.width=Math.max(0,idx/(steps.length-1)*100)+'%';
 
   if(id==='p-areas') renderAreas();
   if(id==='p-fpv') cargarFPV();
   if(id==='p-dash-resultado') _showRegTab('variables');
-  if(id==='p-cuestionario'){
-    var orgN=document.getElementById('org-n');
-    var cInput=document.getElementById('cuest-org-input');
-    if(orgN && cInput && orgN.value && !cInput.value){
-      cInput.value=orgN.value.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
-    }
-  }
   if(id==='p-piio'){renderPIIOStruct();updatePIIORightPanel();piioCalcCTD();}
   if(id==='p-longitudinal'){renderLongTable();updateLongPanel();drawLongChart();}
 
@@ -3257,8 +3219,8 @@ function renderDash(){
           <div><strong>Completa el cuestionario EFICIENCIA</strong> para ver el tablero.<br>
           Estado: ICE=${S.ice!==null?S.ice.toFixed(3):'pendiente'} · IEHS=${S.iehs!==null?S.iehs.toFixed(3):'pendiente'}</div>
         </div>
-        <button class="btn btn-primary btn-sm" onclick="if(S.ice!==null||S.iehs!==null){if(!S.ice)S.ice=S.iehs;if(!S.iehs)S.iehs=S.ice;if(!S.iao)S.iao=(S.ice+S.iehs)/2;calcMotor();renderDash();}else{show('p-cuestionario');}">
-          ${S.ice!==null||S.iehs!==null ? '⚡ Calcular ahora' : '📋 Ir al cuestionario'}
+        <button class="btn btn-primary btn-sm" onclick="if(S.ice!==null||S.iehs!==null){if(!S.ice)S.ice=S.iehs;if(!S.iehs)S.iehs=S.ice;if(!S.iao)S.iao=(S.ice+S.iehs)/2;calcMotor();renderDash();}else{show('p-dash-resultado');}">
+          ${S.ice!==null||S.iehs!==null ? '⚡ Calcular ahora' : '📋 Ir al tablero'}
         </button>
       </div>`;
     return;
@@ -6013,19 +5975,10 @@ var ESTADO_LABEL = { seguridad: 'Seguridad', alerta: 'Alerta', amenaza: 'Amenaza
 // rueda). Sin ESTADO_BG: el texto toma el color de severidad directo.
 var ESTADO_COLOR = { seguridad: '#4a9d6e', alerta: '#f2542d', amenaza: '#b3261e' };
 
-// Descripciones fijas de ICE/IEH — fuente única, para que el panel
-// Cuestionario y las tarjetas de Resumen nunca queden con textos que
-// divergen entre sí.
+// Descripciones fijas de ICE/IEH — fuente única para que las tarjetas de
+// Resumen nunca queden con textos que divergen entre sí.
 var DESC_ICE = 'Cómo la organización diseña y declara sus condiciones — estructura, intención, impacto, nexo, integración.';
 var DESC_IEH = 'Cómo el colaborador vive y percibe esas mismas condiciones.';
-
-// Color por rol de instrumento (marco, sección 0): ICE = declarado
-// (celeste), todo lo demás = IEH/acento general (dorado — el mismo
-// dorado ya sirve doble rol de marca, sección 0). No es una paleta
-// nueva por sigla: es binario, ICE vs. todo lo demás.
-function _tagColor(sigla){
-  return sigla === 'ICE' ? 'var(--ice)' : 'var(--ieh)';
-}
 
 function _badgeEstado(estado){
   if(!estado) return '';
@@ -6058,14 +6011,13 @@ function _showRegTab(tab){
 function cargarDiagnostico(){
   if(!S_ORG.id) return;
   var st  = document.getElementById('dr-status');
-  var stc = document.getElementById('cuest-status');
   var sts = document.getElementById('sdmo-status');
-  [st, stc, sts].forEach(function(el){ if(el) el.textContent = 'Cargando diagnóstico…'; });
+  [st, sts].forEach(function(el){ if(el) el.textContent = 'Cargando diagnóstico…'; });
 
   supa.rpc('resumen_organizacion_completo', { p_organizacion_id: S_ORG.id }).then(function(res){
     if(res.error){
       var msg = 'Error al cargar el diagnóstico: ' + res.error.message;
-      [st, stc, sts].forEach(function(el){ if(el) el.textContent = msg; });
+      [st, sts].forEach(function(el){ if(el) el.textContent = msg; });
       try{ showToast('<strong>Error</strong> — ' + res.error.message, 'bad'); }catch(e){}
       return;
     }
@@ -6076,72 +6028,24 @@ function cargarDiagnostico(){
     S.iehs = res.data.ieh;
     S.iao  = res.data.iao;
 
-    [st, stc, sts].forEach(function(el){ if(el) el.textContent = ''; });
+    [st, sts].forEach(function(el){ if(el) el.textContent = ''; });
     renderDiagnostico();
     try{ showToast('<strong>Diagnóstico cargado</strong> — ' + (S_ORG.nombre || ''), 'good'); }catch(e){}
   }).catch(function(err){
     var msg = 'Error de conexión: ' + (err && err.message || err);
-    [st, stc, sts].forEach(function(el){ if(el) el.textContent = msg; });
+    [st, sts].forEach(function(el){ if(el) el.textContent = msg; });
   });
 }
 
 function renderDiagnostico(){
   var d = S.diagnostico;
   if(!d) return;
-  _renderCuestionarioNuevo(d);
   _renderSDMONuevo(d);
   _renderResumenNuevo(d);
   _renderResultadoGlobal(d);
   _renderDesglose(d);
   _renderRecomendaciones(d);
   _renderAlertasGlobales(d);
-}
-
-// ── p-cuestionario: ICE / IEH, sin semáforo, descripción fija en vez de número ──
-function _renderCuestionarioNuevo(d){
-  var wrap = document.getElementById('cuest-cards');
-  if(!wrap) return;
-  var descICE = DESC_ICE;
-  var descIEH = DESC_IEH;
-  // Mismo componente de barras verticales que ya usa la tarjeta de par
-  // (_barraVerticalHtml, Pares/Por área) — pero SIN torta de riesgo y SIN
-  // colorear la flecha por severidad: ICE/IEH global no tiene un
-  // amenaza_par equivalente (esa métrica es por par, marco sección 6.4),
-  // así que no hay umbral validado para fabricar ni un color de severidad
-  // ni un "% en riesgo" aquí. Decisión confirmada con Luis — reemplaza el
-  // track horizontal de puntos que tenía este bloque antes, mismo criterio
-  // de fondo (sin severidad para ICE/IEH), solo cambia la forma visual.
-  var brecha = '';
-  if(d.ice != null && d.ieh != null){
-    var iceGPct = Math.max(0, Math.min(100, d.ice * 100));
-    var iehGPct = Math.max(0, Math.min(100, d.ieh * 100));
-    var brechaG = d.ice - d.ieh;
-    var flechaG = brechaG >= 0 ? '▲' : '▼';
-    brecha =
-      '<div style="grid-column:1/-1;margin-top:6px;display:flex;align-items:flex-end;gap:20px">' +
-        _barraVerticalHtml(iceGPct, d.ice, 'var(--ice)', 'ICE') +
-        _barraVerticalHtml(iehGPct, d.ieh, 'var(--ieh)', 'IEH') +
-        '<div style="flex:1;text-align:right">' +
-          '<div style="font-family:var(--f-mono);font-size:20px;font-weight:700;color:var(--dk-text-3)">' + flechaG + ' ' + (brechaG >= 0 ? '+' : '') + brechaG.toFixed(2) + '</div>' +
-          '<div style="font-size:9px;color:var(--dk-text-2);text-transform:uppercase;letter-spacing:.06em;margin-top:2px">Brecha</div>' +
-        '</div>' +
-      '</div>';
-  }
-
-  wrap.innerHTML =
-    '<div class="icard" style="padding:20px"><div class="icard-tag" style="color:' + _tagColor('ICE') + '">ICE</div>' +
-    '<div style="font-size:13px;color:var(--dk-text-2);margin-top:8px;line-height:1.5">' + descICE + '</div></div>' +
-    '<div class="icard" style="padding:20px"><div class="icard-tag">IEH</div>' +
-    '<div style="font-size:13px;color:var(--dk-text-2);margin-top:8px;line-height:1.5">' + descIEH + '</div></div>' +
-    brecha;
-
-  var det = document.getElementById('cuest-detalle');
-  if(det){
-    det.innerHTML =
-      'ICE = ' + (d.ice != null ? d.ice : '—') + ' · IEH = ' + (d.ieh != null ? d.ieh : '—') +
-      ' · n suficiente: ' + (d.ice_ieh_n_suficiente ? 'sí' : 'no') +
-      ' · periodo: ' + (d.periodo || '—');
-  }
 }
 
 // ── p-sdmo: resumen SD-MO ──────────────────────────────────────────────────
@@ -6429,13 +6333,10 @@ function _renderResumenNuevo(d){
 //
 // ICE/IEH/Brecha: cifra neutra en DM Mono, sin color de severidad —
 // decisión de CONTEXTO, no una reversión silenciosa de la regla del
-// Cuestionario (marco, sección 2 / _renderCuestionarioNuevo más abajo):
-// ese panel es un explicador de primer contacto y omite el número a
-// propósito para no abrumar; este es el tablero ejecutivo, donde sí se
-// pidió mostrar la cifra. La razón de fondo para no colorear por
-// severidad sigue vigente sin excepción en ningún panel: no existe un
-// umbral validado para ICE/IEH (solo para amenaza_par/IAO — ver
-// estadoDesdeAmenaza más abajo, marco sección 6.4). Mostrar la cifra es
+// marco (sección 2): no existe un umbral validado para ICE/IEH (solo
+// para amenaza_par/IAO — ver estadoDesdeAmenaza más abajo, marco
+// sección 6.4), y esa razón de fondo sigue vigente sin excepción en
+// ningún panel. Mostrar la cifra es
 // una cosa; inventarle un semáforo sería otra, y esa sigue fuera de
 // alcance. SD-MO/IAO sí llevan severidad — ya la llevan en el resto del
 // Workbook (estadoDesdeIAO), esto no es nuevo para ellos.
@@ -6710,9 +6611,7 @@ function _renderDesglose(d){
 }
 
 // Barra vertical + valor + etiqueta — usada por la tarjeta de par
-// (_renderParTarjetaPares, Pares/Por área) y por la comparación global
-// ICE/IEH (_renderCuestionarioNuevo). Una sola fuente para el mismo
-// componente visual en los dos contextos.
+// (_renderParTarjetaPares, Pares/Por área).
 function _barraVerticalHtml(pct, valor, color, label){
   return '<div style="display:flex;flex-direction:column;align-items:center;gap:6px">' +
     '<div style="font-family:var(--f-mono);font-size:12px;color:rgba(255,255,255,.7)">' + valor + '</div>' +
