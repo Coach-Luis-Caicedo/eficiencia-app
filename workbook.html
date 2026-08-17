@@ -6016,16 +6016,31 @@ var ESTADO_COLOR = { seguridad: '#4a9d6e', alerta: '#f2542d', amenaza: '#b3261e'
 var DESC_ICE = 'Cómo la organización diseña y declara sus condiciones — estructura, intención, impacto, nexo, integración.';
 var DESC_IEH = 'Cómo el colaborador vive y percibe esas mismas condiciones.';
 
-// Descripciones fijas por par (fila 1 de _renderParTarjetaPares) — mismo
-// criterio que DESC_ICE/DESC_IEH: fuente única, texto fijo por par
-// (1-5), independiente de la organización.
-var DESC_PAR = {
-  1: 'Estructura: cómo está configurado el sistema. Fortaleza: si la persona lo percibe como un espacio que le brinda seguridad y confianza.',
-  2: 'Intención: la visión y valores que la organización declara. Coherencia: consistencia entre lo que hace y lo que declara.',
-  3: 'Impacto: cómo el sistema afecta la vida de la persona. Equilibrio: percepción de la persona sobre cuán justo es ese impacto.',
-  4: 'Nexo: el vínculo entre la organización y la persona. Confianza: cómo la persona percibe ese vínculo con la organización.',
-  5: 'Integración: la inteligencia con que la organización maneja sus relaciones. Actitud: respuesta de la persona al significado que le da a la relación con la empresa.'
+// Descripciones condensadas por par (línea única debajo de la fila de la
+// tarjeta, tab Pares) — mismo criterio que DESC_ICE/DESC_IEH: fuente
+// única, texto fijo por par (1-5), independiente de la organización.
+// Cada mitad es [nombre, etiqueta declarado/vivido, cláusula] — la
+// etiqueta se pinta más tenue que el resto del texto (_descParCondensadoHtml).
+var PAR_TEXTO_CONDENSADO = {
+  1: [['Estructura', 'declarado', 'qué tan claro está el sistema'], ['Fortaleza', 'vivido', 'qué tan segura se siente la persona']],
+  2: [['Intención', 'declarado', 'qué tan clara es la visión que declara la organización'], ['Coherencia', 'vivido', 'qué tanto lo que hace corresponde con lo que declara']],
+  3: [['Impacto', 'declarado', 'qué tanto el sistema afecta la vida de la persona'], ['Equilibrio', 'vivido', 'qué tan justo percibe ese impacto']],
+  4: [['Nexo', 'declarado', 'qué tan real es el vínculo con la organización'], ['Confianza', 'vivido', 'qué tan creíble percibe ese vínculo']],
+  5: [['Integración', 'declarado', 'qué tan inteligente es la organización manejando sus relaciones'], ['Actitud', 'vivido', 'cómo responde la persona a esa inteligencia']]
 };
+function _descParCondensadoHtml(par){
+  var mitades = PAR_TEXTO_CONDENSADO[par];
+  if(!mitades) return '';
+  return mitades.map(function(m){
+    return m[0] + ' <span style="opacity:.6">(' + m[1] + ')</span>: ' + m[2];
+  }).join(' · ');
+}
+// Misma etiqueta declarado/vivido, versión corta (solo el paréntesis,
+// sin la cláusula) — usada junto al nombre de la variable en las
+// columnas ICE/IEH del tab Por área (_renderParAreaTripleColumna).
+function _etiquetaDeclaradoVivido(tipo){
+  return ' <span style="opacity:.6;font-weight:400;text-transform:none;letter-spacing:normal">(' + (tipo === 'ice' ? 'declarado' : 'vivido') + ')</span>';
+}
 
 // Explica cuál de los dos términos de Amenaza_par domina (marco, fórmula
 // de amenaza_par) — aproximación a nivel de PAR: usa brecha_final y
@@ -6038,17 +6053,24 @@ var DESC_PAR = {
 // la mejor aproximación disponible con lo que sí se expone, y usa
 // d.parametros_usados en vez de constantes propias para que el texto se
 // recalibre solo cuando esos parámetros cambien en el servidor.
+//
+// Devuelve solo la CLÁUSULA (sin el prefijo "{pct}% en riesgo:") — cada
+// llamador antepone el porcentaje a su manera: Pares lo funde en una sola
+// oración de fila única, Por área lo deja como número grande aparte
+// (ya lo tenía) y agrega esta cláusula como línea nueva debajo, sin
+// duplicar el porcentaje. Compartida entre _renderParTarjetaPares (tab
+// Pares) y _renderParAreaTripleColumna (tab Por área) — mismo cálculo de
+// atribución de causa en los dos lugares, texto idéntico.
 function _explicacionAmenazaPar(p, parametros, nombres){
   var wNeg = (parametros && parametros.w_neg != null) ? parametros.w_neg : 0.5;
   var umbralPiso = (parametros && parametros.umbral_piso != null) ? parametros.umbral_piso : 0.5;
   var brecha = p.brecha_final;
   var incongruencia = Math.max(brecha, 0) * 1 + Math.max(-brecha, 0) * wNeg;
   var absoluta = Math.max(0, umbralPiso - p.concepto_b_prom);
-  var pct = Math.round(Math.max(0, Math.min(1, p.amenaza_par)) * 100);
   if(incongruencia >= absoluta){
-    return 'Este ' + pct + '% viene principalmente de la brecha entre ' + nombres[0] + ' y ' + nombres[1] + '.';
+    return 'la brecha entre ' + nombres[0] + ' y ' + nombres[1] + ' pesa más que el piso mínimo.';
   }
-  return 'Este ' + pct + '% viene principalmente de qué tan bajo está ' + nombres[1] + ' frente al mínimo saludable, no de la diferencia con ' + nombres[0] + '.';
+  return nombres[1] + ' está por debajo del mínimo saludable, más que la brecha con ' + nombres[0] + '.';
 }
 
 function _badgeEstado(estado){
@@ -6736,29 +6758,14 @@ function _barraVerticalHtml(pct, valor, color, label){
   '</div>';
 }
 
-// Tarjeta de par — usada por el tab Pares Y por el tab Por área (mismo
-// componente en los dos, decisión revertida: originalmente Por área usaba
-// _renderParBrechaCard, un componente horizontal de línea+puntos distinto
-// — se retiró por completo, cero callers, para no dejar dos formatos de
-// la misma información conviviendo en el Workbook). idPrefix distingue
-// los ids de canvas entre tabs ('par-torta-' / 'area-torta-') — ambos
-// tabs están montados en el DOM a la vez (solo ocultos por CSS), así que
-// un id compartido habría causado que document.getElementById devolviera
-// siempre el primero y el otro tab dibujara en el canvas equivocado.
-// Nota: a diferencia de _renderParBrechaCard, esta tarjeta no incluye un
-// "Ver detalle técnico" con n/concepto_a_prom/brecha_calculada — ese
-// detalle de auditoría no formaba parte del diseño ya aprobado para
-// Pares; si hace falta recuperarlo, es una decisión aparte.
-//
-// Fila 1 usa barras VERTICALES en vez de un track horizontal
-// compartido, y agrega una fila 2 con la dona ICE/IEH (_dibujarDonaIceIeh)
-// — reemplaza la torta de riesgo genérica que tenía antes (mockup
-// revisado con Luis, Opción A: reemplaza, no convive) porque la dona ya
-// incluye esa misma lectura de magnitud (incluida en el color) y agrega
-// la dirección — qué polo pesa más en la desalineación. El signo de la
-// brecha (positiva=▲ problema de comunicación, negativa=▼ fortaleza
-// informal frágil) usa el mismo criterio que ya distingue
-// positiva/negativa en _renderRecomendacionCard (brecha_final >= 0).
+// Tarjeta de par del tab Pares — fila única (barras ICE/IEH, brecha,
+// torta, % de riesgo, todo horizontal) con texto condensado debajo
+// (_descParCondensadoHtml, 10px/#8a94a6/opacity .7). Reemplaza el diseño
+// anterior de 2 filas (barras+desc arriba, torta+riesgo abajo) — diseño
+// aprobado, ver spec. idPrefix distingue los ids de canvas entre tabs
+// ('par-torta-' / 'area-torta-', aunque Por área ya no usa esta función
+// — tiene su propio componente, _renderParAreaTripleColumna — ambos
+// comparten _explicacionAmenazaPar para el texto de riesgo).
 function _renderParTarjetaPares(p, idPrefix, parametros){
   idPrefix = idPrefix || 'par-torta-';
   var ficha = CATALOGO_INTERVENCION[p.par];
@@ -6775,32 +6782,24 @@ function _renderParTarjetaPares(p, idPrefix, parametros){
   var flecha = brechaPos ? '▲' : '▼';
   var pctRiesgo = Math.round(Math.max(0, Math.min(1, p.amenaza_par)) * 100);
   var torreId = idPrefix + p.par;
-  var descPar = DESC_PAR[p.par] || '';
-  var descRiesgo = _explicacionAmenazaPar(p, parametros, nombres);
-  var descStyle = 'flex:1;align-self:center;padding-left:14px;border-left:1px solid #1c2740;font-size:10px;color:#8a94a6;opacity:0.7;line-height:1.4';
-  return '<div class="icard" style="padding:18px 20px">' +
-    '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:16px">' +
+  var descCondensado = _descParCondensadoHtml(p.par);
+  var textoRiesgo = '<strong>' + pctRiesgo + '% en riesgo</strong>: ' + _explicacionAmenazaPar(p, parametros, nombres);
+  return '<div class="icard" style="padding:16px 20px">' +
+    '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:14px">' +
       '<div class="icard-tag">Par ' + p.par + ' — ' + (ficha ? ficha.nombre : '') + '</div>' +
       _badgeEstado(estado) +
     '</div>' +
-    '<div style="display:flex;align-items:flex-end;gap:20px">' +
+    '<div style="display:flex;align-items:center;gap:20px">' +
       _barraVerticalHtml(aPct, p.concepto_a_prom, 'var(--ice)', nombres[0]) +
       _barraVerticalHtml(bPct, p.concepto_b_prom, 'var(--ieh)', nombres[1]) +
-      '<div style="' + descStyle + '">' + descPar + '</div>' +
-      '<div style="text-align:right;white-space:nowrap">' +
+      '<div style="text-align:center;white-space:nowrap;flex-shrink:0">' +
         '<div style="font-family:var(--f-mono);font-size:20px;font-weight:700;color:' + ESTADO_COLOR[estado] + '">' + flecha + ' ' + p.brecha_final + '</div>' +
         '<div style="font-size:9px;color:var(--dk-text-2);text-transform:uppercase;letter-spacing:.06em;margin-top:2px">Brecha</div>' +
       '</div>' +
+      '<canvas id="' + torreId + '" width="48" height="48" style="flex-shrink:0"></canvas>' +
+      '<div style="flex:1;min-width:120px;font-size:12px;color:' + ESTADO_COLOR[estado] + ';line-height:1.4">' + textoRiesgo + '</div>' +
     '</div>' +
-    '<div style="border-top:0.5px solid #1c2740;margin:16px 0"></div>' +
-    '<div style="display:flex;align-items:center;gap:14px">' +
-      '<canvas id="' + torreId + '" width="52" height="52"></canvas>' +
-      '<div>' +
-        '<div style="font-family:var(--f-mono);font-size:16px;font-weight:700;color:' + ESTADO_COLOR[estado] + '">' + pctRiesgo + '% en riesgo</div>' +
-        '<div style="font-size:11px;color:var(--dk-text-2);margin-top:2px">nivel: ' + estado + '</div>' +
-      '</div>' +
-      '<div style="' + descStyle + '">' + descRiesgo + '</div>' +
-    '</div>' +
+    '<div style="margin-top:12px;font-size:10px;color:#8a94a6;opacity:.7;line-height:1.4">' + descCondensado + '</div>' +
   '</div>';
 }
 
@@ -7091,7 +7090,7 @@ function _barraFinaHtml(valor, color, textColor){
 // el dato de organización, no hay una segunda serie que mostrarle al
 // lado): en ese caso una sola barra, sin inventar una desviación de 0
 // que sugeriría que sí se midió el área.
-function _renderParAreaTripleColumna(p, pOrg, idPrefix, comparar, sufijoTorta){
+function _renderParAreaTripleColumna(p, pOrg, idPrefix, comparar, sufijoTorta, parametros){
   var ficha = CATALOGO_INTERVENCION[p.par];
   var nombres = ficha ? ficha.nombre.split(' / ') : ['ICE', 'IEH'];
   var estado = estadoDesdeAmenaza(p.amenaza_par);
@@ -7100,8 +7099,8 @@ function _renderParAreaTripleColumna(p, pOrg, idPrefix, comparar, sufijoTorta){
     return '<div style="background:var(--dk-card);border-radius:12px;padding:16px 18px' + (extraStyle || '') + '">' + inner + '</div>';
   };
 
-  function columna(valor, valorOrg, color, nombre){
-    var filas = '<div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--dk-text-2);margin-bottom:8px">' + nombre + '</div>' +
+  function columna(valor, valorOrg, color, nombre, tipo){
+    var filas = '<div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--dk-text-2);margin-bottom:8px">' + nombre + _etiquetaDeclaradoVivido(tipo) + '</div>' +
       _barraFinaHtml(valor, color);
     if(!comparar || pOrg == null) return tarjeta(filas);
     filas += '<div style="margin-top:5px">' + _barraFinaHtml(valorOrg, '#8a94a6', 'var(--dk-text-2)') + '</div>';
@@ -7112,11 +7111,17 @@ function _renderParAreaTripleColumna(p, pOrg, idPrefix, comparar, sufijoTorta){
   }
 
   var pctRiesgo = Math.round(Math.max(0, Math.min(1, p.amenaza_par)) * 100);
+  // Misma cláusula de atribución de causa que Pares (_explicacionAmenazaPar,
+  // compartida) — reemplaza el texto genérico que había antes acá. El
+  // porcentaje se muestra aparte (número grande, ya existía), la cláusula
+  // no lo repite.
+  var clausulaRiesgo = _explicacionAmenazaPar(p, parametros, nombres);
   var colTorta = tarjeta(
-    '<canvas id="' + torreId + '" width="48" height="48"></canvas>' +
+    '<canvas id="' + torreId + '" width="48" height="48" style="flex-shrink:0"></canvas>' +
     '<div>' +
       '<div style="font-family:var(--f-mono);font-size:15px;font-weight:700;color:' + ESTADO_COLOR[estado] + '">' + pctRiesgo + '% en riesgo</div>' +
-      '<div style="font-size:10px;color:var(--dk-text-2);margin-top:2px">' + sufijoTorta + '</div>' +
+      '<div style="font-size:10px;color:#8a94a6;opacity:.7;line-height:1.4;margin-top:3px">' + clausulaRiesgo + '</div>' +
+      '<div style="font-size:10px;color:var(--dk-text-2);margin-top:3px">' + sufijoTorta + '</div>' +
     '</div>',
     ';display:flex;align-items:center;gap:12px'
   );
@@ -7127,8 +7132,8 @@ function _renderParAreaTripleColumna(p, pOrg, idPrefix, comparar, sufijoTorta){
       _badgeEstado(estado) +
     '</div>' +
     '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:20px">' +
-      columna(p.concepto_a_prom, pOrg ? pOrg.concepto_a_prom : null, 'var(--ice)', nombres[0]) +
-      columna(p.concepto_b_prom, pOrg ? pOrg.concepto_b_prom : null, 'var(--ieh)', nombres[1]) +
+      columna(p.concepto_a_prom, pOrg ? pOrg.concepto_a_prom : null, 'var(--ice)', nombres[0], 'ice') +
+      columna(p.concepto_b_prom, pOrg ? pOrg.concepto_b_prom : null, 'var(--ieh)', nombres[1], 'ieh') +
       colTorta +
     '</div>' +
   '</div>';
@@ -7180,7 +7185,7 @@ function _renderPorArea(d, dOrg, escalada, dDeptoReal){
         var ficha = CATALOGO_INTERVENCION[p.par];
         return '<div class="icard" style="padding:18px 20px"><div class="icard-tag">Par ' + p.par + ' — ' + (ficha ? ficha.nombre : '') + '</div>' + _sinDatos(8) + '</div>';
       }
-      return _renderParAreaTripleColumna(p, paresOrg[p.par], 'area-torta-', comparar, sufijo);
+      return _renderParAreaTripleColumna(p, paresOrg[p.par], 'area-torta-', comparar, sufijo, d.parametros_usados);
     }).join('');
     pares.forEach(function(p){
       if(!p.n_suficiente) return;
