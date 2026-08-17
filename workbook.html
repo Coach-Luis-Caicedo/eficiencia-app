@@ -6529,7 +6529,14 @@ function _svgMedidorSemicircular(valor, estado){
   };
   var arcPath = function(f0, f1, radius){
     var p0 = pt(f0, radius), p1 = pt(f1, radius);
-    var largeArc = (f1 - f0) > 0.5 ? 1 : 0;
+    // largeArc SIEMPRE 0: angleFor mapea el dominio completo 0-1 a 180°
+    // exactos (π a 0), nunca más — el span angular máximo posible entre
+    // dos puntos de este semicírculo es 180° (f0=0, f1=1), el caso límite
+    // donde el flag no cambia el resultado. Comparar (f1-f0) contra 0.5
+    // era un umbral de FRACCIÓN, no de grados: la banda roja (0.35 a 1,
+    // diff=0.65 en fracción) disparaba largeArc=1 con solo 117° reales de
+    // arco, y SVG intentaba el camino largo (243°) saliéndose del viewBox.
+    var largeArc = 0;
     return 'M ' + p0.x.toFixed(2) + ' ' + p0.y.toFixed(2) +
       ' A ' + radius + ' ' + radius + ' 0 ' + largeArc + ' 1 ' + p1.x.toFixed(2) + ' ' + p1.y.toFixed(2);
   };
