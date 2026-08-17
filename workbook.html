@@ -55,7 +55,24 @@ body{font-family:'DM Sans',sans-serif;background:var(--paper);color:var(--ink);f
 .sdot.on{background:#4ade80;box-shadow:0 0 6px #4ade80}
 
 /* ── MAIN ── */
-.main{flex:1;overflow-x:hidden;min-width:0;min-height:100vh}
+/* overflow-x:clip, NO hidden — causa real del sticky roto en .reg-right-
+   inner, confirmada en vivo con el inspector (ver commit). "hidden" en un
+   eje fuerza el otro eje (aquí overflow-y) a computar "auto" (regla CSS:
+   si un eje no es visible y el otro sí, el visible pasa a auto) — eso
+   convierte a .main en el "scroll container" de referencia para
+   position:sticky de TODOS sus descendientes. El problema: .main nunca
+   hace scroll interno de verdad (su alto crece para acomodar todo el
+   contenido, min-height sin height fija que lo tope), así que ese
+   scroller de referencia nunca se mueve — el scroll real ocurre en
+   <html>, fuera de esa referencia — y el sticky queda huérfano: nunca
+   tiene un scroll que lo dispare, aunque la página sí se vea scrolleando.
+   "clip" logra el mismo recorte horizontal sin activar esa regla (no
+   fuerza el otro eje) — verificado en vivo: overflow-y vuelve a computar
+   "visible", .main deja de calificar como scroll container, y el sticky
+   de .reg-right-inner (y de cualquier otro futuro) vuelve a referenciar
+   el viewport real — mismo comportamiento que ya tenía .sidebar (sticky
+   correcto porque cuelga directo de body, nunca pasó por .main). */
+.main{flex:1;overflow-x:clip;min-width:0;min-height:100vh}
 .prog-top{height:3px;background:var(--rule);position:sticky;top:0;z-index:50}
 .prog-top-fill{height:100%;background:linear-gradient(90deg,var(--azul-l),var(--dorado));transition:width .5s ease}
 
@@ -6811,8 +6828,9 @@ function _renderParTarjetaPares(p, idPrefix, parametros){
 // consume lo que ya viene gateado, no agrega ninguna lógica de
 // confidencialidad propia.
 //
-// Sin <select> propio — las barras clicables de _dibujarBarrasDepartamentos
-// son el único selector (redundante tener los dos). Estado de selección
+// Sin <select> propio — las tarjetas/barras clicables de
+// _renderFilaComparacionAreas son el único selector (redundante tener
+// los dos). Estado de selección
 // vive en _areaSeleccionada (null = toda la organización); clic en la
 // misma barra ya seleccionada vuelve a null (toggle), único mecanismo
 // para "volver a organización" ahora que no hay opción de dropdown para eso.
@@ -6854,11 +6872,64 @@ function _renderComparacionDepartamentos(resultados){
     var suf = r.d && r.d.iao_n_suficiente;
     return { nombre: r.nombre, iao: suf ? r.d.iao : null, estado: suf ? estadoDesdeIAO(r.d.iao) : null };
   });
+  wrap._datosComparacion = datos;
   wrap.innerHTML =
     '<div class="card-title" style="margin-bottom:12px">Comparación entre áreas — IAO</div>' +
-    '<canvas id="area-comp-canvas" width="640" height="130" style="display:block;width:100%;height:130px;cursor:pointer"></canvas>' +
-    '<div style="font-size:11px;color:var(--dk-text-2);margin-top:6px">Clic en una barra para ver ese departamento abajo. Clic de nuevo para volver a toda la organización.</div>';
-  _dibujarBarrasDepartamentos('area-comp-canvas', datos);
+    '<div id="area-comp-fila"></div>' +
+    '<div style="font-size:11px;color:var(--dk-text-2);margin-top:6px">Clic en un área para verla abajo. Clic de nuevo para volver a toda la organización.</div>';
+  _renderFilaComparacionAreas(datos);
+}
+
+// Selector de áreas — cada área se renderiza en Modo A o Modo B según su
+// PROPIO n, independiente de las demás (una fila puede tener 2 áreas en
+// Modo A y 1 en Modo B a la vez, no es un modo global). Modo A (n<8) es
+// una tarjeta/botón, no una barra — mostrar una barra corta para "sin
+// datos" sugeriría que sí hay una medición, aunque sea pequeña, y no la
+// hay (mismo principio que ya llevó a separar "sin dato" de "dato bajo"
+// en el resto del Tablero). Modo B (n≥8) es la barra real, proporcional
+// al IAO, mismo color de severidad que el resto del sistema
+// (estadoDesdeIAO/ESTADO_COLOR). DOM en vez de canvas — un <button>/tarjeta
+// real no tiene sentido dibujado a mano en un canvas, y esto además
+// resuelve gratis el wrap de nombres largos (antes _envolverEtiqueta
+// medía texto a mano; ahora es CSS normal). ALTURA_FILA_COMPARACION fija
+// para que ambos modos convivan en la misma fila sin que el contenedor
+// cambie de alto según cuántas áreas caigan en cada modo.
+var ALTURA_FILA_COMPARACION = 150;
+function _renderFilaComparacionAreas(datos){
+  var fila = document.getElementById('area-comp-fila');
+  if(!fila) return;
+  fila.style.cssText = 'display:flex;align-items:flex-end;gap:10px;height:' + ALTURA_FILA_COMPARACION + 'px';
+  var barMax = ALTURA_FILA_COMPARACION - 46; // deja lugar al valor arriba y al nombre abajo de la barra
+  fila.innerHTML = datos.map(function(dpto){
+    var sel = dpto.nombre === _areaSeleccionada;
+    var onclick = 'onclick="_seleccionarArea(' + JSON.stringify(dpto.nombre).replace(/"/g, '&quot;') + ')"';
+    if(dpto.iao == null){
+      // Modo A — sin datos suficientes: tarjeta, no barra.
+      return '<div style="flex:1;min-width:0;height:100%;display:flex;flex-direction:column;justify-content:flex-end;cursor:pointer" ' + onclick + '>' +
+        '<div style="background:#141f30;border:1px solid ' + (sel ? '#5a95e0' : '#26344a') + ';' + (sel ? 'background-color:#1c2740;' : '') + 'border-radius:8px;padding:10px;text-align:center;box-sizing:border-box">' +
+          '<div style="font-size:12px;color:#f5f0e8;word-break:break-word">' + dpto.nombre + '</div>' +
+          '<div style="font-size:10px;color:#8a94a6;margin-top:4px">n&lt;8 · sin datos suficientes</div>' +
+        '</div>' +
+      '</div>';
+    }
+    // Modo B — barra real proporcional al IAO (0-100 → 0-barMax px).
+    var barH = Math.max(4, (dpto.iao / 100) * barMax);
+    return '<div style="flex:1;min-width:0;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:4px;cursor:pointer" ' + onclick + '>' +
+      '<div style="font-family:var(--f-mono);font-size:11px;font-weight:700;color:' + ESTADO_COLOR[dpto.estado] + '">' + dpto.iao + '</div>' +
+      '<div style="width:100%;max-width:56px;height:' + barH + 'px;background:' + ESTADO_COLOR[dpto.estado] + ';border-radius:4px 4px 0 0;border:2px solid ' + (sel ? '#5a95e0' : 'transparent') + ';box-sizing:border-box"></div>' +
+      '<div style="font-size:10px;color:#8a94a6;text-align:center;word-break:break-word;line-height:1.3">' + dpto.nombre + '</div>' +
+    '</div>';
+  }).join('');
+}
+
+// Clic en cualquiera de los dos modos selecciona esa área — toggle
+// (clic de nuevo vuelve a "toda la organización"), mismo comportamiento
+// ya implementado antes con las barras de canvas.
+function _seleccionarArea(nombre){
+  _areaSeleccionada = (_areaSeleccionada === nombre) ? null : nombre;
+  var wrap = document.getElementById('area-comparacion');
+  if(wrap && wrap._datosComparacion) _renderFilaComparacionAreas(wrap._datosComparacion);
+  cargarPorArea();
 }
 
 // Gráfica de barras — tab ICE / IEH, columna derecha. Escala Y fija 0-1
@@ -6920,85 +6991,6 @@ function _dibujarBarrasVariables(canvasId, items){
     ctx.textBaseline = 'top';
     ctx.fillText(it.letra, x + barW / 2, padTop + plotH + 6);
   });
-}
-
-// Parte un nombre de área en hasta 2 líneas cuando no cabe completo en
-// barW, en vez de truncar con "…" — busca el punto de corte (por
-// espacio) que deja las dos líneas más parejas en ancho. Nombre de una
-// sola palabra que igual no cabe: se deja tal cual, sin partir letras.
-function _envolverEtiqueta(ctx, texto, maxWidth, font){
-  ctx.font = font;
-  if(ctx.measureText(texto).width <= maxWidth) return [texto];
-  var palabras = texto.split(' ');
-  if(palabras.length < 2) return [texto];
-  var mejor = 1, mejorDiff = Infinity;
-  for(var i = 1; i < palabras.length; i++){
-    var l1 = palabras.slice(0, i).join(' '), l2 = palabras.slice(i).join(' ');
-    var diff = Math.abs(ctx.measureText(l1).width - ctx.measureText(l2).width);
-    if(diff < mejorDiff){ mejorDiff = diff; mejor = i; }
-  }
-  return [palabras.slice(0, mejor).join(' '), palabras.slice(mejor).join(' ')];
-}
-
-// Barras verticales — altura proporcional al IAO (0-100), color por
-// banda vía estadoDesdeIAO/ESTADO_COLOR (mismo semáforo de siempre).
-// n<8 → barra corta gris neutro con "n<8" superpuesto, nunca altura 0.
-// Canvas más bajo (130, antes 180) — sin ejes ni marcas de escala en
-// este gráfico, no hace falta tanto alto de plotH para comparar barras
-// entre sí; la altura anterior venía heredada de cuando se esperaban
-// barras reales llenando ese espacio y dejaba un hueco vacío grande con
-// los datos de prueba (todas n<8). padBottom sube un poco (de 34 a 40)
-// para dar lugar a nombres de área en 2 líneas (_envolverEtiqueta) en
-// vez de truncarlos con "…".
-function _dibujarBarrasDepartamentos(canvasId, datos){
-  var canvas = document.getElementById(canvasId);
-  if(!canvas || !canvas.getContext) return;
-  canvas._datos = datos;
-  var ctx = canvas.getContext('2d');
-  var w = canvas.width, h = canvas.height;
-  var padBottom = 40, padTop = 8, plotH = h - padBottom - padTop;
-  ctx.clearRect(0, 0, w, h);
-  var n = datos.length;
-  if(!n) return;
-  var gap = 10, barW = Math.max(18, (w - gap * (n + 1)) / n);
-  var barHMin = Math.round(plotH * 0.22);
-  var labelFont = '9px "DM Sans", sans-serif';
-  canvas._barras = [];
-  datos.forEach(function(dpto, i){
-    var x = gap + i * (barW + gap);
-    var sinDatos = dpto.iao == null;
-    var barH = sinDatos ? barHMin : Math.max(barHMin, (dpto.iao / 100) * plotH);
-    var y = padTop + (plotH - barH);
-    ctx.fillStyle = sinDatos ? '#3a4256' : ESTADO_COLOR[dpto.estado];
-    ctx.fillRect(x, y, barW, barH);
-    if(dpto.nombre === _areaSeleccionada){
-      ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.5;
-      ctx.strokeRect(x + 0.75, y + 0.75, barW - 1.5, barH - 1.5);
-    }
-    if(sinDatos){
-      ctx.fillStyle = '#c3cad6';
-      ctx.font = '8px "DM Mono", monospace';
-      ctx.textAlign = 'center';
-      ctx.fillText('n<8', x + barW / 2, y + barH / 2 + 3);
-    }
-    ctx.fillStyle = '#8a94a6';
-    ctx.textAlign = 'center';
-    var lineas = _envolverEtiqueta(ctx, dpto.nombre, barW - 2, labelFont);
-    ctx.font = labelFont;
-    lineas.forEach(function(linea, li){
-      ctx.fillText(linea, x + barW / 2, h - padBottom + 14 + li * 11);
-    });
-    canvas._barras.push({ x: x, w: barW, nombre: dpto.nombre });
-  });
-  canvas.onclick = function(ev){
-    var rect = canvas.getBoundingClientRect();
-    var clickX = (ev.clientX - rect.left) * (canvas.width / rect.width);
-    var hit = canvas._barras.find(function(b){ return clickX >= b.x && clickX <= b.x + b.w; });
-    if(!hit) return;
-    _areaSeleccionada = (_areaSeleccionada === hit.nombre) ? null : hit.nombre;
-    _dibujarBarrasDepartamentos(canvasId, canvas._datos);
-    cargarPorArea();
-  };
 }
 
 // Estructura de areas_organizacion es plana (id, organizacion_id, nombre)
