@@ -250,7 +250,7 @@ table.dt td{color:var(--ink)}
 .icard-meta strong{color:var(--dorado);margin-right:4px}
 
 /* ── Resultado global — panel de 2 columnas (Variables/Pares/Por área/
-   Alertas/Recomendaciones/CFF a la izquierda en tabs, 5 números fijos a
+   SD-MO/Recomendaciones/CFF a la izquierda en tabs, 5 números fijos a
    la derecha, franja de ficha técnica compartida arriba de ambas). ── */
 .reg-wrap{max-width:none}
 .reg-ficha{display:flex;flex-wrap:wrap;gap:24px;padding:14px 18px;background:var(--dk-card);border:1px solid #26344a;border-radius:10px;margin-bottom:28px;font-size:13px}
@@ -908,8 +908,6 @@ supa.auth.getSession().then(function(res){
     <div class="nav-grp">Inicio</div>
     <div class="nav-item active" onclick="show('p-cover')"><span class="nav-icon">🏠</span> Portada</div>
     <div class="nav-item" onclick="show('p-acrostico')"><span class="nav-icon">🔤</span> Acróstico</div>
-    <div class="nav-grp">Diagnóstico EFICIENCIA</div>
-    <div class="nav-item" onclick="show('p-sdmo')"><span class="nav-icon">📡</span> SD-MO — Sensor Diario</div>
     <!-- ── Paneles CFF (Costo Financiero de la Fricción) — ocultos del nav
          mientras se reconstruye el motor sobre IAO/CFF (marco, sección 8).
          El HTML/JS internos siguen en el archivo, intactos, para esa
@@ -1164,35 +1162,14 @@ supa.auth.getSession().then(function(res){
 </div>
 
 <!-- ═══ SDMO ═══ -->
-<!-- Pendiente aparte (no bloquea este panel): gráfico de tendencia SD-MO
-     de últimas 4 semanas — requiere migración nueva que agregue
-     respuestas_sdmo por semana con mínimo N≥8 por semana (hoy la tabla
-     cruda no tiene ningún acceso directo desde el cliente, a propósito —
-     003_grants_tablas_authenticated.sql:47-49). Se diseña en su propia
-     sesión, no a mitad de este rediseño visual. El resumen de estado
-     actual de abajo no depende de ese dato y sí queda en tema oscuro. -->
-<div id="p-sdmo" class="panel dark-panel">
-  <div class="panel-inner">
-    <div class="ph">
-      <div class="ph-tag">SD-MO — Sensor Diario</div>
-      <div class="ph-title">Resumen SD-MO</div>
-      <div class="ph-desc">Estado del sensor diario de la organización — cargado directo desde el diagnóstico, sin recalcular nada aquí.</div>
-    </div>
-
-    <div id="sdmo-status" style="font-size:13px;color:var(--dk-text-2);margin-bottom:16px"></div>
-
-    <div id="sdmo-card"></div>
-
-    <details style="margin-top:20px">
-      <summary style="cursor:pointer;font-size:12px;color:var(--dk-text-2);font-weight:700;text-transform:uppercase;letter-spacing:.06em">Ver detalle técnico</summary>
-      <div id="sdmo-detalle" style="margin-top:12px;font-size:12px;font-family:'DM Mono',monospace;color:var(--dk-text-2);line-height:1.8"></div>
-    </details>
-
-    <div class="btn-row" style="margin-top:24px">
-      <button class="btn btn-primary" onclick="show('p-dash-resultado')">Ver desglose completo y acciones →</button>
-    </div>
-  </div>
-</div>
+<!-- Panel p-sdmo (Resumen SD-MO) retirado — su contenido (tarjeta IDA/
+     tendencia + detalle técnico) migró al tab "SD-MO" del Tablero
+     Ejecutivo (#p-dash-resultado, reemplaza el tab "Alertas"), mismas
+     ids #sdmo-card/#sdmo-detalle, sin tocar _renderSDMONuevo(). Pendiente
+     de gráfico de tendencia de últimas 4 semanas (requiere migración
+     nueva, agregación semanal con N≥8 — 003_grants_tablas_authenticated.
+     sql:47-49) sigue igual de pendiente ahí, no se resolvió con la
+     migración de contenedor. -->
 
 <!-- ═══ ÁREAS ═══ -->
 <div id="p-areas" class="panel">
@@ -1210,7 +1187,7 @@ supa.auth.getSession().then(function(res){
           <div class="btn-row"><button class="btn btn-ghost btn-sm" onclick="fillAreasRandom()">Datos de ejemplo</button></div>
         </div>
         <div class="btn-row">
-          <button class="btn btn-ghost" onclick="show('p-sdmo')">← Volver</button>
+          <button class="btn btn-ghost" onclick="show('p-dash-resultado');_showRegTab('sdmo')">← Volver</button>
           <button class="btn btn-primary" onclick="if(calcDispersion())show('p-piio')">Calcular → PIIO</button>
         </div>
       </div>
@@ -1687,14 +1664,15 @@ supa.auth.getSession().then(function(res){
      10 letras → tab ICE / IEH, 3 columnas iguales (#dg-letras-ice,
      #dg-letras-ieh, #dg-letras-chart; id interno del tab 'variables'); 5 pares → tab Pares
      (#dg-pares, tarjeta nueva _renderParTarjetaPares); Por área y
-     Recomendaciones migran tal cual a sus tabs; Alertas y CFF son tabs
-     nuevos. SD-MO resumido sigue vivo sin cambios en #p-sdmo. ═══ -->
+     Recomendaciones migran tal cual a sus tabs; CFF es tab nuevo. SD-MO
+     resumido migró aquí desde el panel independiente #p-sdmo (retirado)
+     al tab "SD-MO" (#reg-sdmo, reemplaza el viejo tab "Alertas"). ═══ -->
 <div id="p-dash-resultado" class="panel dark-panel">
   <div class="panel-inner reg-wrap">
     <div class="ph">
       <div class="ph-tag">Resultado</div>
       <div class="ph-title">Tablero Ejecutivo</div>
-      <div class="ph-desc">Resultado global siempre visible a la derecha — Variables, Pares, Por área, Alertas, Recomendaciones y CFF en los tabs de la izquierda.</div>
+      <div class="ph-desc">Resultado global siempre visible a la derecha — Variables, Pares, Por área, SD-MO, Recomendaciones y CFF en los tabs de la izquierda.</div>
     </div>
 
     <div id="dr-status" style="font-size:13px;color:var(--dk-text-2);margin-bottom:16px"></div>
@@ -1707,7 +1685,7 @@ supa.auth.getSession().then(function(res){
           <button type="button" class="reg-tab-btn active" onclick="_showRegTab('variables')">ICE / IEH</button>
           <button type="button" class="reg-tab-btn" onclick="_showRegTab('pares')">Pares</button>
           <button type="button" class="reg-tab-btn" onclick="_showRegTab('area')">Por área</button>
-          <button type="button" class="reg-tab-btn" onclick="_showRegTab('alertas')">Alertas</button>
+          <button type="button" class="reg-tab-btn" onclick="_showRegTab('sdmo')">SD-MO</button>
           <button type="button" class="reg-tab-btn" onclick="_showRegTab('recom')">Recomendaciones</button>
           <button type="button" class="reg-tab-btn" onclick="_showRegTab('cff')">CFF</button>
         </div>
@@ -1728,10 +1706,6 @@ supa.auth.getSession().then(function(res){
         <div id="reg-area" class="reg-tabpanel">
           <div id="area-comparacion" style="margin-bottom:28px"></div>
 
-          <div class="fg" style="max-width:320px;margin-bottom:8px">
-            <label class="fl">Área / departamento</label>
-            <select class="fi" id="area-select" onchange="cargarPorArea()"><option value="">Toda la organización</option></select>
-          </div>
           <div id="area-status" style="font-size:13px;color:var(--dk-text-2);margin-bottom:20px"></div>
           <div id="area-nota-escalada"></div>
 
@@ -1743,9 +1717,20 @@ supa.auth.getSession().then(function(res){
           <div id="area-pares" style="display:grid;gap:20px"></div>
         </div>
 
-        <div id="reg-alertas" class="reg-tabpanel">
-          <div class="card-title" style="margin-bottom:12px">Alertas globales</div>
-          <div id="alertas-globales" style="display:grid;gap:20px;margin-bottom:28px"></div>
+        <!-- Reemplaza el viejo tab "Alertas" (alertas globales por par —
+             retirado, redundante con los badges de severidad que ya
+             llevan las tarjetas de Pares/Por área). Contenido migrado
+             desde el panel independiente #p-sdmo (retirado, ver comentario
+             donde vivía, cerca de #p-areas): misma tarjeta IDA/tendencia
+             (#sdmo-card/#sdmo-detalle, _renderSDMONuevo sin tocar) + el
+             bloque "SD-MO por área" que ya vivía en este mismo tab. -->
+        <div id="reg-sdmo" class="reg-tabpanel">
+          <div class="card-title" style="margin-bottom:12px">Resumen SD-MO</div>
+          <div id="sdmo-card"></div>
+          <details style="margin-top:12px;margin-bottom:28px">
+            <summary style="cursor:pointer;font-size:12px;color:var(--dk-text-2);font-weight:700;text-transform:uppercase;letter-spacing:.06em">Ver detalle técnico</summary>
+            <div id="sdmo-detalle" style="margin-top:12px;font-size:12px;font-family:'DM Mono',monospace;color:var(--dk-text-2);line-height:1.8"></div>
+          </details>
 
           <div class="card-title" style="margin-bottom:12px">SD-MO por área</div>
           <div id="sdmo-area" style="display:grid;gap:20px"></div>
@@ -6058,7 +6043,7 @@ function _sinDatos(minimo){
 
 // ── Carga del diagnóstico — una sola llamada, resultados ya calculados ───
 // ── p-dash-resultado: switcher de los 6 tabs internos (Variables/Pares/
-// Por área/Alertas/Recomendaciones/CFF) — no usa show(), ese sigue
+// Por área/SD-MO/Recomendaciones/CFF) — no usa show(), ese sigue
 // gobernando la navegación entre paneles de nivel superior; esto solo
 // alterna .reg-tabpanel dentro del panel ya activo. "area" dispara la
 // misma carga que antes hacía show('p-dash-area') directamente.
@@ -6075,14 +6060,13 @@ function _showRegTab(tab){
 
 function cargarDiagnostico(){
   if(!S_ORG.id) return;
-  var st  = document.getElementById('dr-status');
-  var sts = document.getElementById('sdmo-status');
-  [st, sts].forEach(function(el){ if(el) el.textContent = 'Cargando diagnóstico…'; });
+  var st = document.getElementById('dr-status');
+  if(st) st.textContent = 'Cargando diagnóstico…';
 
   supa.rpc('resumen_organizacion_completo', { p_organizacion_id: S_ORG.id }).then(function(res){
     if(res.error){
       var msg = 'Error al cargar el diagnóstico: ' + res.error.message;
-      [st, sts].forEach(function(el){ if(el) el.textContent = msg; });
+      if(st) st.textContent = msg;
       try{ showToast('<strong>Error</strong> — ' + res.error.message, 'bad'); }catch(e){}
       return;
     }
@@ -6093,12 +6077,12 @@ function cargarDiagnostico(){
     S.iehs = res.data.ieh;
     S.iao  = res.data.iao;
 
-    [st, sts].forEach(function(el){ if(el) el.textContent = ''; });
+    if(st) st.textContent = '';
     renderDiagnostico();
     try{ showToast('<strong>Diagnóstico cargado</strong> — ' + (S_ORG.nombre || ''), 'good'); }catch(e){}
   }).catch(function(err){
     var msg = 'Error de conexión: ' + (err && err.message || err);
-    [st, sts].forEach(function(el){ if(el) el.textContent = msg; });
+    if(st) st.textContent = msg;
   });
 }
 
@@ -6110,10 +6094,10 @@ function renderDiagnostico(){
   _renderResultadoGlobal(d);
   _renderDesglose(d);
   _renderRecomendaciones(d);
-  _renderAlertasGlobales(d);
 }
 
-// ── p-sdmo: resumen SD-MO ──────────────────────────────────────────────────
+// ── tab SD-MO (Tablero Ejecutivo) — tarjeta IDA/tendencia, contenido
+// migrado desde el panel independiente #p-sdmo (retirado) ──────────────
 function _renderSDMONuevo(d){
   var card = document.getElementById('sdmo-card');
   if(!card) return;
@@ -6408,19 +6392,25 @@ function _renderResumenNuevo(d){
 function _numerosConsolidadosHtml(d){
   var brecha = (d.ice != null && d.ieh != null) ? (d.ice - d.ieh) : null;
   var sdmoOk = d.sdmo && d.sdmo.n_suficiente;
-  var numHtml = function(label, valor, estado, borderColor, icon, desc){
+  // Sin descHtml (DESC_ICE/DESC_IEH retirado de aquí) — a esta altura del
+  // Tablero ya se explicó qué son ICE/IEH en su propio tab; repetirlo acá
+  // era además la causa de que estas dos tarjetas midieran más que las
+  // otras 3. min-height + flex/justify-content:center: mismo patrón ya
+  // usado en .reg-card (panel derecho) para uniformar Brecha/ICE/IEH/
+  // SD-MO/IAO — contenido más alto real aquí es solo label+valor (~9px +
+  // ~20px + paddings), 72px deja margen sin la desproporción de antes.
+  var numHtml = function(label, valor, estado, borderColor, icon){
     var dot = estado ? '<span style="width:7px;height:7px;border-radius:50%;background:' + ESTADO_COLOR[estado] + ';display:inline-block;margin-right:7px"></span>' : '';
     var border = borderColor || (estado ? ESTADO_COLOR[estado] : 'var(--dk-text-3)');
     var ic = '<i class="ti ' + icon + '" style="color:var(--dk-text-2);margin-right:6px;font-size:12px"></i>';
-    var descHtml = desc ? '<div style="font-size:11px;color:var(--dk-text-2);margin-top:8px;line-height:1.5">' + desc + '</div>' : '';
-    return '<div style="padding:14px 16px;background:var(--dk-card);border-radius:8px;border-left:3px solid ' + border + '">' +
+    return '<div style="padding:14px 16px;background:var(--dk-card);border-radius:8px;border-left:3px solid ' + border + ';min-height:72px;display:flex;flex-direction:column;justify-content:center">' +
       '<div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--dk-text-2);margin-bottom:6px">' + ic + label + '</div>' +
-      '<div style="font-family:var(--f-mono);font-size:20px;font-weight:500;color:rgba(255,255,255,.7);display:flex;align-items:center">' + dot + valor + '</div>' + descHtml + '</div>';
+      '<div style="font-family:var(--f-mono);font-size:20px;font-weight:500;color:rgba(255,255,255,.7);display:flex;align-items:center">' + dot + valor + '</div></div>';
   };
   return (
       '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:12px;align-items:start">' +
-      numHtml('ICE', d.ice != null ? d.ice : '—', null, 'var(--ice)', 'ti-building-arch', DESC_ICE) +
-      numHtml('IEH', d.ieh != null ? d.ieh : '—', null, 'var(--ieh)', 'ti-heart-handshake', DESC_IEH) +
+      numHtml('ICE', d.ice != null ? d.ice : '—', null, 'var(--ice)', 'ti-building-arch') +
+      numHtml('IEH', d.ieh != null ? d.ieh : '—', null, 'var(--ieh)', 'ti-heart-handshake') +
       numHtml('Brecha', brecha != null ? (brecha >= 0 ? '+' : '') + brecha.toFixed(2) : '—', null, 'var(--dk-text-3)', 'ti-arrows-diff') +
       numHtml('SD-MO', sdmoOk ? d.sdmo.ida_prom : '—', sdmoOk ? estadoDesdeIAO(d.sdmo.ida_prom) : null, null, 'ti-heartbeat') +
       numHtml('IAO', d.iao_n_suficiente ? d.iao : '—', d.iao_n_suficiente ? estadoDesdeIAO(d.iao) : null, null, 'ti-activity') +
@@ -6790,25 +6780,27 @@ function _renderParTarjetaPares(p, idPrefix, parametros){
   '</div>';
 }
 
-// ── p-dash-area: selector de departamento + resumen filtrado (Página 3) ──
-// Nueva — no reutiliza p-areas (esa es config de KPIs, no diagnóstico,
-// confirmado). El N≥8 por departamento ya lo aplica el servidor
-// (resumen_organizacion_completo, migración 002 — un filtro angosto no
-// reconstruye una lectura casi individual), esta función solo consume lo
-// que ya viene gateado, no agrega ninguna lógica de confidencialidad
-// propia.
+// ── p-dash-area: comparación entre departamentos + resumen filtrado
+// (Página 3) ── Nueva — no reutiliza p-areas (esa es config de KPIs, no
+// diagnóstico, confirmado). El N≥8 por departamento ya lo aplica el
+// servidor (resumen_organizacion_completo, migración 002 — un filtro
+// angosto no reconstruye una lectura casi individual), esta función solo
+// consume lo que ya viene gateado, no agrega ninguna lógica de
+// confidencialidad propia.
+//
+// Sin <select> propio — las barras clicables de _dibujarBarrasDepartamentos
+// son el único selector (redundante tener los dos). Estado de selección
+// vive en _areaSeleccionada (null = toda la organización); clic en la
+// misma barra ya seleccionada vuelve a null (toggle), único mecanismo
+// para "volver a organización" ahora que no hay opción de dropdown para eso.
+var _areaSeleccionada = null;
+
 function _initPorArea(){
-  var sel = document.getElementById('area-select');
-  if(!sel || !S_ORG.id || sel.dataset.cargado) return;
-  sel.dataset.cargado = '1';
+  var wrap = document.getElementById('area-comparacion');
+  if(!wrap || !S_ORG.id || wrap.dataset.cargado) return;
+  wrap.dataset.cargado = '1';
   supa.from('areas_organizacion').select('nombre').eq('organizacion_id', S_ORG.id).order('nombre').then(function(res){
     if(res.error || !res.data) return;
-    res.data.forEach(function(a){
-      var opt = document.createElement('option');
-      opt.value = a.nombre;
-      opt.textContent = a.nombre;
-      sel.appendChild(opt);
-    });
     _cargarComparacionDepartamentos(res.data.map(function(a){ return a.nombre; }));
   });
 }
@@ -6842,7 +6834,7 @@ function _renderComparacionDepartamentos(resultados){
   wrap.innerHTML =
     '<div class="card-title" style="margin-bottom:12px">Comparación entre áreas — IAO</div>' +
     '<canvas id="area-comp-canvas" width="640" height="180" style="display:block;width:100%;height:180px;cursor:pointer"></canvas>' +
-    '<div style="font-size:11px;color:var(--dk-text-2);margin-top:6px">Clic en una barra para ver ese departamento abajo.</div>';
+    '<div style="font-size:11px;color:var(--dk-text-2);margin-top:6px">Clic en una barra para ver ese departamento abajo. Clic de nuevo para volver a toda la organización.</div>';
   _dibujarBarrasDepartamentos('area-comp-canvas', datos);
 }
 
@@ -6909,10 +6901,15 @@ function _dibujarBarrasVariables(canvasId, items){
 
 // Barras verticales — altura proporcional al IAO (0-100), color por
 // banda vía estadoDesdeIAO/ESTADO_COLOR (mismo semáforo de siempre).
-// n<8 → barra gris fija, sin inventar altura ni valor.
+// n<8 → barra corta gris neutro con "n<8" superpuesto, nunca altura 0 —
+// una línea plana dejaba un hueco visual grande entre el título y las
+// etiquetas, y esto va a pasar seguido en organizaciones pequeñas, no
+// solo en el caso de prueba. barHMin también actúa como piso para IAOs
+// reales muy bajos, mismo criterio que el Math.max(2,...) que reemplaza.
 function _dibujarBarrasDepartamentos(canvasId, datos){
   var canvas = document.getElementById(canvasId);
   if(!canvas || !canvas.getContext) return;
+  canvas._datos = datos;
   var ctx = canvas.getContext('2d');
   var w = canvas.width, h = canvas.height;
   var padBottom = 34, padTop = 10, plotH = h - padBottom - padTop;
@@ -6920,19 +6917,30 @@ function _dibujarBarrasDepartamentos(canvasId, datos){
   var n = datos.length;
   if(!n) return;
   var gap = 10, barW = Math.max(18, (w - gap * (n + 1)) / n);
+  var barHMin = Math.round(plotH * 0.16);
   canvas._barras = [];
   datos.forEach(function(dpto, i){
     var x = gap + i * (barW + gap);
-    var barH = dpto.iao != null ? Math.max(2, (dpto.iao / 100) * plotH) : 6;
+    var sinDatos = dpto.iao == null;
+    var barH = sinDatos ? barHMin : Math.max(barHMin, (dpto.iao / 100) * plotH);
     var y = padTop + (plotH - barH);
-    ctx.fillStyle = dpto.iao != null ? ESTADO_COLOR[dpto.estado] : '#26344a';
+    ctx.fillStyle = sinDatos ? '#3a4256' : ESTADO_COLOR[dpto.estado];
     ctx.fillRect(x, y, barW, barH);
+    if(dpto.nombre === _areaSeleccionada){
+      ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.5;
+      ctx.strokeRect(x + 0.75, y + 0.75, barW - 1.5, barH - 1.5);
+    }
+    if(sinDatos){
+      ctx.fillStyle = '#c3cad6';
+      ctx.font = '8px "DM Mono", monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText('n<8', x + barW / 2, y + barH / 2 + 3);
+    }
     ctx.fillStyle = '#8a94a6';
     ctx.font = '9px "DM Sans", sans-serif';
     ctx.textAlign = 'center';
     var etiqueta = dpto.nombre.length > 10 ? dpto.nombre.slice(0, 9) + '…' : dpto.nombre;
     ctx.fillText(etiqueta, x + barW / 2, h - padBottom + 14);
-    if(dpto.iao == null) ctx.fillText('n<8', x + barW / 2, h - padBottom + 26);
     canvas._barras.push({ x: x, w: barW, nombre: dpto.nombre });
   });
   canvas.onclick = function(ev){
@@ -6940,8 +6948,9 @@ function _dibujarBarrasDepartamentos(canvasId, datos){
     var clickX = (ev.clientX - rect.left) * (canvas.width / rect.width);
     var hit = canvas._barras.find(function(b){ return clickX >= b.x && clickX <= b.x + b.w; });
     if(!hit) return;
-    var sel = document.getElementById('area-select');
-    if(sel){ sel.value = hit.nombre; cargarPorArea(); }
+    _areaSeleccionada = (_areaSeleccionada === hit.nombre) ? null : hit.nombre;
+    _dibujarBarrasDepartamentos(canvasId, canvas._datos);
+    cargarPorArea();
   };
 }
 
@@ -6960,8 +6969,7 @@ function _dibujarBarrasDepartamentos(canvasId, datos){
 // solo cuando el área falla el mínimo.
 function cargarPorArea(){
   if(!S_ORG.id) return;
-  var sel = document.getElementById('area-select');
-  var depto = sel && sel.value ? sel.value : null;
+  var depto = _areaSeleccionada;
   var status = document.getElementById('area-status');
   if(status) status.textContent = 'Cargando…';
 
@@ -7021,44 +7029,53 @@ function _barraFinaHtml(valor, color, textColor){
 
 // Tarjeta de par del tab Por área — reemplaza el reuso sin adaptar de
 // _renderParTarjetaPares (esa sigue viva, solo para el tab Pares). 3
-// columnas iguales: ICE (barra área + barra org gris #8a94a6 apiladas,
-// con desviación), IEH (mismo formato, dorado), y la dona ICE/IEH ya
-// usada en Pares (_dibujarDonaIceIeh) recalculada con concepto_a/b del
-// nivel que se esté mostrando (área si tiene dato propio, organización
-// si se escaló). comparar=false cuando no hay una lectura de área propia
-// contra la cual comparar (vista "Toda la organización", o área escalada
-// — ahí d YA ES el dato de organización, no hay una segunda serie que
-// mostrarle al lado): en ese caso una sola barra, sin inventar una
-// desviación de 0 que sugeriría que sí se midió el área.
+// tarjetas INDEPENDIENTES (background propio var(--dk-card)=#141f30,
+// radio 12px, cada una su propia caja — no un solo .icard con 3
+// secciones sueltas dentro, mismo criterio que cualquier otro bloque de
+// tarjetas del Tablero): ICE (barra área + barra org gris #8a94a6
+// apiladas, con desviación), IEH (mismo formato, dorado), y la dona
+// ICE/IEH ya usada en Pares (_dibujarDonaIceIeh) recalculada con
+// concepto_a/b del nivel que se esté mostrando (área si tiene dato
+// propio, organización si se escaló). Nombre del par + badge van UNA
+// sola vez, fuera y encima de las 3 tarjetas.
+// comparar=false cuando no hay una lectura de área propia contra la cual
+// comparar (vista "Toda la organización", o área escalada — ahí d YA ES
+// el dato de organización, no hay una segunda serie que mostrarle al
+// lado): en ese caso una sola barra, sin inventar una desviación de 0
+// que sugeriría que sí se midió el área.
 function _renderParAreaTripleColumna(p, pOrg, idPrefix, comparar, sufijoTorta){
   var ficha = CATALOGO_INTERVENCION[p.par];
   var nombres = ficha ? ficha.nombre.split(' / ') : ['ICE', 'IEH'];
   var estado = estadoDesdeAmenaza(p.amenaza_par);
   var torreId = idPrefix + p.par;
+  var tarjeta = function(inner, extraStyle){
+    return '<div style="background:var(--dk-card);border-radius:12px;padding:16px 18px' + (extraStyle || '') + '">' + inner + '</div>';
+  };
 
   function columna(valor, valorOrg, color, nombre){
     var filas = '<div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--dk-text-2);margin-bottom:8px">' + nombre + '</div>' +
       _barraFinaHtml(valor, color);
-    if(!comparar || pOrg == null) return '<div>' + filas + '</div>';
+    if(!comparar || pOrg == null) return tarjeta(filas);
     filas += '<div style="margin-top:5px">' + _barraFinaHtml(valorOrg, '#8a94a6', 'var(--dk-text-2)') + '</div>';
     var delta = valor - valorOrg;
     var flecha = delta >= 0 ? '▲' : '▼';
     filas += '<div style="font-size:10px;color:var(--dk-text-2);margin-top:5px">' + flecha + ' ' + Math.abs(delta).toFixed(2) + (delta >= 0 ? ' sobre el promedio' : ' bajo el promedio') + '</div>';
-    return '<div>' + filas + '</div>';
+    return tarjeta(filas);
   }
 
   var pctRiesgo = Math.round(Math.max(0, Math.min(1, p.amenaza_par)) * 100);
-  var colTorta = '<div style="display:flex;align-items:center;gap:12px">' +
-      '<canvas id="' + torreId + '" width="48" height="48"></canvas>' +
-      '<div>' +
-        '<div style="font-family:var(--f-mono);font-size:15px;font-weight:700;color:' + ESTADO_COLOR[estado] + '">' + pctRiesgo + '% en riesgo</div>' +
-        '<div style="font-size:10px;color:var(--dk-text-2);margin-top:2px">' + sufijoTorta + '</div>' +
-      '</div>' +
-    '</div>';
+  var colTorta = tarjeta(
+    '<canvas id="' + torreId + '" width="48" height="48"></canvas>' +
+    '<div>' +
+      '<div style="font-family:var(--f-mono);font-size:15px;font-weight:700;color:' + ESTADO_COLOR[estado] + '">' + pctRiesgo + '% en riesgo</div>' +
+      '<div style="font-size:10px;color:var(--dk-text-2);margin-top:2px">' + sufijoTorta + '</div>' +
+    '</div>',
+    ';display:flex;align-items:center;gap:12px'
+  );
 
-  return '<div class="icard" style="padding:18px 20px">' +
-    '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:16px">' +
-      '<div class="icard-tag">Par ' + p.par + ' — ' + (ficha ? ficha.nombre : '') + '</div>' +
+  return '<div>' +
+    '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px">' +
+      '<div class="icard-tag" style="margin-bottom:0">Par ' + p.par + ' — ' + (ficha ? ficha.nombre : '') + '</div>' +
       _badgeEstado(estado) +
     '</div>' +
     '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:20px">' +
@@ -7180,52 +7197,21 @@ function _renderRecomendacionCard(p, atenuado){
   '</div>';
 }
 
-// ── Tab Alertas — global (de d.pares) + por área (reusa el fetch que ya
-// hace _cargarComparacionDepartamentos para la barra de Por área, sin
-// disparar un segundo N-RPC). Mismo criterio de agrupación que
-// _renderRecomendaciones (amenaza → alerta, estadoDesdeAmenaza ya
-// existente) — no inventa umbrales ni datos nuevos, solo reordena lo que
-// ya se calcula en otras partes del Workbook.
-function _renderAlertasGlobales(d){
-  var wrap = document.getElementById('alertas-globales');
-  if(!wrap) return;
-  var pares = (d.pares || []).filter(function(p){ return p.n_suficiente; });
-  var alertas = pares.filter(function(p){
-    var e = estadoDesdeAmenaza(p.amenaza_par);
-    return e === 'amenaza' || e === 'alerta';
-  });
-  alertas.sort(function(a, b){
-    var rank = { amenaza: 0, alerta: 1 };
-    return rank[estadoDesdeAmenaza(a.amenaza_par)] - rank[estadoDesdeAmenaza(b.amenaza_par)];
-  });
-  if(!alertas.length){
-    wrap.innerHTML = '<div style="font-size:13px;color:var(--dk-text-2);font-style:italic">Sin alertas activas — los 5 pares están en seguridad o sin datos suficientes.</div>';
-    return;
-  }
-  wrap.innerHTML = alertas.map(function(p){
-    var ficha = CATALOGO_INTERVENCION[p.par];
-    var estado = estadoDesdeAmenaza(p.amenaza_par);
-    return '<div class="icard" style="padding:14px 16px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">' +
-      '<div>' +
-        '<div class="icard-tag">Par ' + p.par + ' — ' + (ficha ? ficha.nombre : '') + '</div>' +
-        '<div style="font-size:11px;color:var(--dk-text-2);margin-top:2px">' + (ficha ? ficha.responsable : '') + '</div>' +
-      '</div>' +
-      '<div style="text-align:right">' +
-        _badgeEstado(estado) +
-        '<div style="font-family:var(--f-mono);font-size:11px;color:var(--dk-text-2);margin-top:4px">amenaza_par = ' + p.amenaza_par + '</div>' +
-      '</div>' +
-    '</div>';
-  }).join('');
-}
+// _renderAlertasGlobales (alertas globales por par, tab "Alertas") —
+// retirada: redundante con los badges de severidad que ya llevan las
+// tarjetas de Pares y Por área, mismo estadoDesdeAmenaza/_badgeEstado.
+// El tab "Alertas" fue reemplazado por "SD-MO" (ver #reg-sdmo) — la otra
+// mitad de este tab, SD-MO por área, sigue viva justo abajo.
 
 // resultados = [{nombre, d}] ya cargado por _cargarComparacionDepartamentos
 // para la barra comparativa de Por área — se reutiliza el mismo fetch, no
-// se agrega un RPC nuevo. Reemplaza "Alertas por área" (retirada por
-// redundante — "Alertas globales", misma pestaña, ya cubre alertas por
-// par): en vez de filtrar a áreas en alerta/amenaza por IAO, lista el IDA
-// promedio/estado SD-MO de TODAS las áreas — mismo dominio 0-100 de
-// ida_prom que usa estadoDesdeIAO en el resto del archivo (ver
-// _renderResultadoGlobal, _renderSDMONuevo).
+// se agrega un RPC nuevo. Reemplaza "Alertas por área" (retirada en su
+// momento por redundante con lo que entonces era "Alertas globales" —
+// esa a su vez ya se retiró del todo, ver comentario arriba): en vez de
+// filtrar a áreas en alerta/amenaza por IAO, lista el IDA promedio/
+// estado SD-MO de TODAS las áreas — mismo dominio 0-100 de ida_prom que
+// usa estadoDesdeIAO en el resto del archivo (ver _renderResultadoGlobal,
+// _renderSDMONuevo). Vive en el tab "SD-MO" (#reg-sdmo) del Tablero.
 function _renderSDMOPorArea(resultados){
   var wrap = document.getElementById('sdmo-area');
   if(!wrap) return;
