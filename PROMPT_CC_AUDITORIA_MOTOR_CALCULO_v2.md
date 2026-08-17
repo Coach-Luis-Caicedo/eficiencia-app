@@ -28,7 +28,7 @@ fórmula por fórmula), hoy el objetivo es más básico y más urgente: **¿qué
 tan lejos está el código actual del Workbook de esta arquitectura nueva?**
 El modelo completo cambió de raíz (nuevo acróstico, IAO reconstruido, IIE
 eliminado, CFO con 6 componentes, cuestionario de 25 preguntas nuevo,
-SD-MO rediseñado) — antes de auditar precisión, hay que saber qué sobrevive
+SDMO rediseñado) — antes de auditar precisión, hay que saber qué sobrevive
 del código actual y qué no.
 
 ## 1. Inventario de brecha — código actual vs. marco nuevo
@@ -49,7 +49,7 @@ Para cada pieza del marco, confirma en el código actual del Workbook
 - **Preguntas del cuestionario** — el código actual (`cuestionario.html`)
   tiene la estructura vieja (v3 o alguna variante posterior). Reemplazar
   íntegramente por las 25 preguntas de `CUESTIONARIO_25_PREGUNTAS_EFICIENCIA.md`.
-- **Preguntas del SD-MO** — mismo caso, reemplazar por
+- **Preguntas del SDMO** — mismo caso, reemplazar por
   `SD_MO_4_PREGUNTAS_EFICIENCIA.md` (versión bipolar).
 - **IFT / `DE-EFICIENCIA — Proyección de Impacto Financiero`** — el código
   actual depende de `ΔIIE`. Confirma si sigue ahí, y si el bug de `CR`

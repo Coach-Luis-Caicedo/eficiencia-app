@@ -3,7 +3,7 @@
 **Estado:** Versión consolidada en construcción conjunta (agosto 2026). Reemplaza
 todo documento anterior (v3 y revisiones posteriores) en las secciones donde haya
 conflicto — el criterio de vigencia es "lo más reciente decidido en esta
-conversación", no el archivo más reciente en disco. Ver sección 10 (Historial y
+conversación", no el archivo más reciente en disco. Ver sección 11 (Historial y
 vacíos) para lo que queda pendiente.
 
 ---
@@ -200,8 +200,13 @@ debe corregirse para usar este léxico, no coexistir con él.
 | La distancia entre lo declarado y lo vivido | **Brecha** | "gap analysis", "perception gap" | Sección 6 |
 | El estado de activación colectiva | **IAO** (Índice de Activación Organizacional) | "score de riesgo", "índice de clima" | Sección 4 |
 | El motor de traducción a costo real | **CFF** (Costo Financiero de la Fricción) | "CFO" (descartado — colisiona con el cargo corporativo), "impacto económico" genérico | Sección 8 |
-| El principio de no buscar culpables | **Corresponsabilidad estructural** | "accountability", "root cause analysis" | Secciones 9-10 |
+| El principio de no buscar culpables | **Corresponsabilidad sistémica** | "accountability", "root cause analysis" | Sección 11 |
 | El vínculo que sostiene el ciclo | **Círculo Virtuoso**, con **Confianza** y **Vínculo** como pasos | "trust", "psychological safety" | Capa 2 (dinámica natural), heredado de A.M.A.R. |
+| El estado colectivo energético cuando la activación defensiva se sostiene | **Tensión operativa** | "estrés organizacional", "burnout colectivo" | Sección 1 — distinto de "Amenaza" (que describe a la persona): tensión operativa describe al sistema |
+| La manifestación conductual y económica acumulada de esa tensión no regulada | **Fricción organizacional** | "ineficiencia", "pérdidas operativas" | Sección 1 — es lo que el CFF traduce a costo (sección 8) |
+| El objetivo positivo que el modelo busca generar, no solo la ausencia de amenaza | **Regulación Organizacional** | "buen clima laboral", "cultura sana" | Sección 1 — conjunto de condiciones estructurales y relacionales diseñadas intencionalmente para generar seguridad fisiológica colectiva, reconocimiento, respeto, justicia y coherencia |
+| El pulso liviano de 3x/semana del colaborador | **SDMO** — Sensor Diario de Modo Operativo (sin guion) | "SD-MO" (nombre de trabajo descartado), "pulse survey" | Sección 9 |
+| El monitor de Inversionista/Consumidor | **Sensor FPV** (Fiabilidad, Proporcionalidad, Vínculo — 6 preguntas, 2 por dimensión) | "encuesta de stakeholders" genérica | Sección 10 — cierra el hueco de los 2 actores externos del Círculo Virtuoso; confidencialidad diferenciada por actor (10.5), no hereda N≥8 para Inversionista |
 | Principio ético de fondo | **Amor Social Organizacional** (*philia* aristotélica) | "cultura organizacional positiva", "employee wellbeing" | Sección 1, Fundamento filosófico |
 
 ### Seguridad · Alerta · Amenaza — la escala de severidad completa
@@ -305,7 +310,7 @@ en esta reconstrucción — quedan como estaban en v3, marcadas explícitamente 
   tablero muestra ICE, IEH e IAO como tres lecturas separadas, ninguna puede
   esconder a la otra. Ver sección 7 para el rol reasignado a CFF como
   consumidor directo de ICE/IEH/IAO, sin pasar por un índice intermedio.
-- **SD-MO / IDA** — sensor diario (3x/semana, 4 preguntas). Auditoría completa
+- **SDMO / IDA** — sensor diario (3x/semana, 4 preguntas). Auditoría completa
   de arquitectura en sección 9 — 5 vacíos encontrados y resueltos con la
   misma disciplina metodológica del resto del documento. Texto de las 4
   preguntas — RESUELTO, ver `SD_MO_4_PREGUNTAS_EFICIENCIA.md`.
@@ -442,9 +447,9 @@ Respuesta cruda del empleado (25 ítems: 2+2+1 × 5 pares)
               amenaza absoluta y segundo_mayor de los 5 pares)
               ├─→ Tablero ejecutivo: ICE, IEH, IAO como tres lecturas
               │    separadas (IIE eliminado — ver sección 4) + alertas de
-              │    Dispersión_departamental y causa sistémica/local (sección 10)
+              │    Dispersión_departamental y causa sistémica/local (sección 11)
               │    + catálogo de intervención
-              └─→ CFF (antes "DE-EFICIENCIA", renombrado — sección 12): suma
+              └─→ CFF (antes "DE-EFICIENCIA", renombrado — sección 13): suma
                    de 4 componentes con benchmark (desenganche, rotación,
                    ausentismo, retrabajo — sección 8). Supervisión
                    innecesaria e innovación perdida (sección 8.1) se
@@ -563,7 +568,7 @@ cifra específica de Colombia/Latam para este componente, debe reemplazar el
 
 ### 8.1 Componentes adicionales sin benchmark — observación cualitativa, no suma al CFF
 
-Derivados del mapeo entre los 4 ejes rediseñados del SD-MO (sección 9) y los
+Derivados del mapeo entre los 4 ejes rediseñados del SDMO (sección 9) y los
 componentes de costo. Estos dos NO tienen benchmark, regional ni global — a
 diferencia de los 4 anteriores. Se incluyen porque el modelo necesita
 resolver cómo medirlos, no porque exista evidencia externa que los respalde.
@@ -578,7 +583,7 @@ también la parte bien fundamentada. Se muestran en el panel como
 
 > *"El sistema detecta señales de posible costo adicional no cuantificado en
 > [Supervisión innecesaria / Innovación perdida], asociado a puntajes bajos
-> en el eje [Confianza / Creatividad] del SD-MO. No se incluye en el CFF
+> en el eje [Confianza / Creatividad] del SDMO. No se incluye en el CFF
 > total por falta de benchmark validado — metodología disponible más
 > abajo para uso interno o futura calibración."*
 
@@ -591,7 +596,7 @@ que las valide y puedan graduarse a componente cuantificado del CFF.
 2. Desenganche — benchmark global (Gallup), sin validar en la región → suma al CFF
 3. Supervisión innecesaria, innovación perdida — sin benchmark alguno, proxy razonado → observación cualitativa, no suma
 
-**Supervisión innecesaria** (eje Confianza↔Temor del SD-MO — sección 9):
+**Supervisión innecesaria** (eje Confianza↔Temor del SDMO — sección 9):
 
 ```
 Costo_supervisión = N_directivos × Salario_directivo_promedio
@@ -604,7 +609,7 @@ preguntando directamente a los directivos qué porcentaje de su tiempo semanal
 dedican a revisar/aprobar trabajo que un colaborador de confianza podría
 hacer sin supervisión. Dato del cliente, no supuesto del sistema.
 
-**Innovación perdida** (eje Creatividad↔Estrés del SD-MO — sección 9):
+**Innovación perdida** (eje Creatividad↔Estrés del SDMO — sección 9):
 
 ```
 Costo_innovación_perdida = InversiónI+D_cliente × TasaIneficacia_amenaza[0.20–0.40, SIN VALIDAR]
@@ -721,7 +726,7 @@ existente del modelo, no genéricos de manual:**
    literatura de cambio organizacional lo nombra explícitamente. Una
    organización en amenaza crónica sostenida por años no se mueve al mismo
    ritmo que una con tensión reciente.
-2. **Causa sistémica no resuelta a tiempo** (sección 10.4) — si la
+2. **Causa sistémica no resuelta a tiempo** (sección 11.4) — si la
    intervención se dirige al nodo que primero mostró la alerta en vez de a
    la causa real a nivel organización, se pierden ciclos completos sin
    avance real, aunque el tablero muestre actividad.
@@ -749,7 +754,7 @@ horizonte que la Fase 2 del CFF).
 
 ---
 
-## 9. SD-MO/IDA — auditoría de arquitectura
+## 9. SDMO/IDA — auditoría de arquitectura
 
 Auditoría holística de la arquitectura del sensor diario (3x/semana, 4
 preguntas, escala 1-5). Texto de las 4 preguntas: RESUELTO, ver
@@ -757,13 +762,13 @@ preguntas, escala 1-5). Texto de las 4 preguntas: RESUELTO, ver
 polo Seguridad y polo Defensa cada uno, no unidireccional): Confianza↔Temor,
 Colaboración↔Retención, Compromiso↔Desmotivación, Creatividad↔Estrés. Esta
 estructura resuelve un vacío encontrado después de la primera versión: un
-SD-MO solo-amenaza no puede distinguir modo Seguridad genuino de
+SDMO solo-amenaza no puede distinguir modo Seguridad genuino de
 desconexión silenciosa sin amenaza activa.
 
 **Correspondencia con componentes de costo del CFF** (sección 8): los 4 ejes
 mapean casi 1 a 1 contra los 4-6 componentes del CFF — ver tabla completa en
 `SD_MO_4_PREGUNTAS_EFICIENCIA.md`. Si se sostiene con datos del piloto, el
-SD-MO se convierte en indicador líder específico por componente de costo,
+SDMO se convierte en indicador líder específico por componente de costo,
 no solo alerta genérica de amenaza.
 
 ### 9.1 Fórmula de agregación de las 4 preguntas — nunca definida, ahora resuelta
@@ -813,9 +818,9 @@ herencia sin explicación a una convención provisional con semántica clara.
 
 Mismo problema que el IAO antes de `segundo_mayor`: un promedio simple de
 IDA_i entre varias personas puede diluir una crisis concentrada en pocas —
-y aquí el defecto es más grave, porque el SD-MO existe precisamente para
+y aquí el defecto es más grave, porque el SDMO existe precisamente para
 detectar señales rápidas y localizadas. Sin una agregación que preserve la
-concentración, el SD-MO pierde su ventaja frente al cuestionario completo.
+concentración, el SDMO pierde su ventaja frente al cuestionario completo.
 
 **Corrección:** aplicar el mismo esquema de agregación que el IAO
 organizacional (sección 4) — mezcla de promedio y `segundo_mayor` entre
@@ -834,26 +839,154 @@ adicional de riesgo (ej. sumar al `Amenaza_par` correspondiente), o
 mantenerse como dato faltante sin inferencia. Tratarlo como señal es
 metodológicamente defendible pero tiene implicación ética: presionar
 indirectamente a alguien a responder por miedo a que su silencio se
-interprete como alarma iría en contra del principio de la sección 10.6
+interprete como alarma iría en contra del principio de la sección 11.6
 (comunicación explícita de que no se busca identificar a nadie).
 
-### 9.5 Conflicto real entre la Función 1 (disparador anticipado) y la confidencialidad de la sección 10
+### 9.5 Conflicto real entre la Función 1 (disparador anticipado) y la confidencialidad de la sección 11
 
-El hallazgo más serio de esta auditoría: si el SD-MO dispara una
+El hallazgo más serio de esta auditoría: si el SDMO dispara una
 reevaluación anticipada dirigida a un nodo específico por cruzar zona roja,
 **el solo hecho de recibir esa convocatoria extra informa a ese equipo que
 algo se detectó ahí** — rompe el anonimato funcional aunque los datos
 individuales sigan protegidos, incluso si nunca se revela ningún dato
-crudo. Interactúa directo con el mínimo N≥8-10 (sección 10.1, ver más abajo).
+crudo. Interactúa directo con el mínimo N≥8-10 (sección 11.1, ver más abajo).
 
 **Corrección:** si el nodo que dispara la alerta tiene N<8-10, el disparador
 de reevaluación anticipada escala automáticamente al nivel jerárquico
-superior (igual que ya escala el reporte, sección 10.1) — nunca se dirige un
+superior (igual que ya escala el reporte, sección 11.1) — nunca se dirige un
 disparador visible a un grupo por debajo del mínimo de confidencialidad.
 
 ---
 
-## 10. Confidencialidad y atribución de causa — no buscar culpables
+## 10. Sensor FPV — pulso de inversionista y consumidor
+
+**Diseño completo, no construido todavía en código** — mismo estado que
+tuvo el CFF antes de existir en el Workbook. Sin esquema de base de
+datos, sin interfaz. La fórmula, las preguntas, y las reglas de
+agregación sí están resueltas — lo que falta es implementación, no
+diseño.
+
+### 10.1 Por qué existe — el hueco que cierra
+
+El Círculo Virtuoso (sección 1, Capa 2) involucra a los 5 actores del
+ecosistema — pero el núcleo estadístico de los 5 pares (Brecha, ICE, IEH,
+IAO) solo cubre a los 3 actores internos (Colaborador, Directivo,
+Empresario). Sin una lectura de Inversionista y Consumidor, el sistema
+queda ciego exactamente en el punto donde el ciclo se cierra hacia
+afuera — un deterioro ahí podría no manifestarse en los 3 actores
+internos hasta que ya sea significativo.
+
+### 10.2 Qué es, y qué deliberadamente no es
+
+Un instrumento de medición liviana — **no** una extensión del aparato
+estadístico completo a actores externos. Escala 1 a 5, **no bipolar**
+(a diferencia del cuestionario de 25 preguntas, que sí usa un ítem
+bipolar por par — sección 5).
+
+**Deliberadamente separado del núcleo estadístico** (Brecha, IAO, CFF):
+no es un insumo para la mesa de decisión, no determina nada por sí
+mismo, no se combina con ningún otro índice — con una excepción liviana,
+ver 10.6.
+
+### 10.3 Las 6 preguntas — 2 por dimensión
+
+**Encabezado de contexto obligatorio, antes de las 6 preguntas — no es
+opcional:** las preguntas están redactadas cortas y sin sujeto explícito
+("Lo que comunica...", "Me trata como...") a propósito, por brevedad —
+pero eso significa que el formulario **debe** mostrar un encabezado fijo
+que establezca el sujeto antes de la primera pregunta, o quedan
+huérfanas de contexto:
+
+> *"Las siguientes preguntas se refieren a tu relación con
+> [nombre de la organización]."*
+
+El nombre real de la organización se resuelve del mismo `organizacion_id`
+que ya resuelve el código de invitación (sección 10.4) — nunca se le pide
+al respondiente que lo escriba.
+
+| Dimensión | Pregunta 1 | Pregunta 2 |
+|---|---|---|
+| **Fiabilidad** — ¿puedo confiar en lo que esta organización promete? | Lo que comunica coincide con lo que entrega. | Cumple lo que acuerda, en plazo y condiciones. |
+| **Proporcionalidad** — ¿lo que recibo corresponde a lo que aporto? | Lo que recibo es proporcional a lo que aporto. | Ajusta las condiciones con justicia cuando cambian las circunstancias. |
+| **Vínculo** — ¿existe una relación que va más allá de la transacción? | Me trata como una relación de largo plazo. | Seguiría eligiéndola aunque tuviera otra opción similar. |
+
+Mismas 6 preguntas para Inversionista y Consumidor — el marco genérico
+"lo que aporto/recibo" cubre ambos sin necesitar dos cuestionarios
+distintos (capital para uno, precio/lealtad para el otro). **Pendiente
+de calibración real, no de diseño:** validar la redacción con
+respondientes reales del piloto — mismo criterio que el resto del
+sistema, ninguna pregunta se da por perfecta sin probarla.
+
+### 10.4 A quién se administra, y cómo — dos mecanismos, no uno
+
+**Inversionista** — típicamente pocas personas, nombradas, conocidas
+internamente. Usa el mismo patrón que `contactos_organizacion` (sección
+5, Parte 5): invitación directa y nominal, no un link público.
+
+**Consumidor** — población potencialmente grande, no nombrada
+individualmente por la organización. Necesita un mecanismo que hoy no
+existe en el sistema: un **link de muestreo público** (un solo enlace
+por organización, sin código individual por persona) — arquitectura
+distinta a `invitaciones_individuales`, que asume una persona identificada
+de antemano. Construirlo es trabajo nuevo, no una extensión del mecanismo
+actual.
+
+### 10.5 Confidencialidad diferenciada por actor — no hereda N≥8 sin más
+
+El mínimo N≥8-10 (sección 11) existe para proteger a alguien que podría
+sufrir represalias si su opinión honesta queda identificable — ese es el
+riesgo real detrás de la confidencialidad de colaboradores.
+
+- **Inversionista no está en esa posición de vulnerabilidad** — normalmente
+  ya es conocido por el Directivo/Empresario, no hay anonimato interno que
+  proteger. **No hereda el mínimo N≥8** — puede mostrarse sin agregación
+  forzada, porque la razón de fondo del mínimo no aplica a este actor.
+- **Consumidor sí lo necesita** — población más grande, relación menos
+  personal, mismo riesgo de exposición que un colaborador. Aplica N≥8-10,
+  mismo criterio que el resto del sistema.
+
+Esto no es una relajación general de la confidencialidad — es reconocer
+que la razón detrás del mínimo (proteger al vulnerable) no es uniforme
+entre los 5 actores del ecosistema, y aplicar la regla donde el riesgo
+real existe, no por defecto en todos lados.
+
+### 10.6 Validación cruzada con el IAO — mismo patrón que ya tiene el SDMO
+
+El SDMO (sección 9) ya tiene una función de validación cruzada con el
+IAO: no se suma al cálculo, pero se compara para detectar incoherencias.
+El FPV adopta el mismo patrón, sin romper su separación del núcleo
+estadístico:
+
+- Si el IAO muestra Amenaza pero el FPV está predominantemente alto
+  (Fiabilidad/Proporcionalidad/Vínculo saludables), o al revés — se
+  marca como incoherencia a revisar por el consultor, nunca se combina
+  en un número ni se usa para ajustar el IAO.
+
+### 10.7 Periodicidad
+
+Trimestral, o alineado al mismo período semestral del cuestionario
+(`YYYY-S1`/`YYYY-S2`) — más frecuente que eso no tiene sentido dado que
+Inversionista/Consumidor no viven la organización día a día como un
+colaborador (no aplica la lógica de pulso diario del SDMO). **Provisional,
+sin dato real que lo respalde todavía** — mismo criterio que los demás
+parámetros del sistema, ajustable con el piloto.
+
+### 10.8 Esquema de datos — diseño conceptual, sin migración todavía
+
+- Tabla `respuestas_fpv`: `organizacion_id`, `tipo_actor`
+  (`'inversionista'`/`'consumidor'`), `invitacion_id` (nullable — solo
+  aplica a Inversionista, vía invitación nominal; NULL para Consumidor,
+  que llega por link público sin identidad previa), las 6 respuestas,
+  período, fecha.
+- El link público de Consumidor necesita su propio mecanismo de
+  resolución de `organizacion_id` (mismo principio que
+  `enviar_respuesta_cuestionario`: el cliente nunca ve ni controla el
+  `organizacion_id` directamente) — pendiente de diseñar la función
+  específica cuando se construya.
+
+---
+
+## 11. Confidencialidad y atribución de causa — no buscar culpables
 
 **Principio rector, derivado directamente del Fundamento neuropsicológico
 (sección 1):** un sistema que busca identificar o culpar personas activa modo
@@ -864,7 +997,7 @@ de curar, y además corrompe la validez del propio dato (el miedo a ser
 identificado genera respuestas falsas-seguras, distorsionando la medición en
 el punto más crítico del sistema).
 
-### 10.1 Niveles de agregación
+### 11.1 Niveles de agregación
 
 ```
 Individual (nunca se reporta) → Departamento/nodo (mínimo N≥8-10 para
@@ -877,7 +1010,7 @@ El mínimo aplica frente a **cualquier** rol con acceso (líder directo, RRHH,
 comité) — protege contra inferencia por contexto organizacional en general,
 no contra un rol específico.
 
-### 10.2 Custodio único, no comité con acceso directo
+### 11.2 Custodio único, no comité con acceso directo
 
 Un comité puede **designar** a quién tiene acceso confidencial, pero el
 acceso mismo lo tiene una sola persona nombrada (ej. RRHH), no el comité como
@@ -885,7 +1018,7 @@ grupo — cada persona adicional con acceso aumenta la superficie de filtración
 Queda registrado quién accede y cuándo (log de acceso), no solo como norma no
 verificable.
 
-### 10.3 El informe es siempre sistémico, nunca individual — en ningún nivel
+### 11.3 El informe es siempre sistémico, nunca individual — en ningún nivel
 
 El informe del consultor reporta deterioro del sistema, no comportamiento
 individual. Esto no es solo una regla de acceso — es una restricción sobre
@@ -897,7 +1030,7 @@ agregación N≥8-10 sigue como piso de seguridad complementario — un nodo
 pequeño sigue siendo identificable incluso con lenguaje sistémico bien
 formulado.
 
-### 10.4 El modelo busca causa, no efecto — distinción sistémica vs. local
+### 11.4 El modelo busca causa, no efecto — distinción sistémica vs. local
 
 Un nodo (departamento) con Amenaza alta en un par puede ser la **causa**
 (algo propio de su estructura/liderazgo) o el **efecto** (síntoma de una
@@ -920,16 +1053,16 @@ liderazgo local — nunca personas individuales, consistente con 7.1-7.3).
 Esto le da función diagnóstica real a la `Dispersión_departamental` (sección
 5): no solo detecta *que* hay concentración, distingue *de dónde viene*.
 
-### 10.5 Código de respondiente — persistente, pero el mapa vive fuera de EFICIENCIA
+### 11.5 Código de respondiente — persistente, pero el mapa vive fuera de EFICIENCIA
 
 Cada respondiente tiene un código persistente (no uno nuevo por respuesta —
-necesario para la Función de Tendencia del SD-MO, sección 7). El mapa
+necesario para la Función de Tendencia del SDMO, sección 7). El mapa
 código↔persona **nunca vive dentro de la base de datos de EFICIENCIA** — se
 genera y gestiona en el momento de la invitación, y solo el cliente (quien
 distribuye las invitaciones) lo conoce. Ni el consultor, ni el Workbook,
 pueden revertir el anonimato.
 
-### 10.6 Comunicación explícita del principio al respondiente
+### 11.6 Comunicación explícita del principio al respondiente
 
 El cuestionario incluye, en su introducción, una nota explícita: el proceso
 busca errores del sistema, no señala personas; las respuestas nunca se
@@ -939,7 +1072,7 @@ riesgo) directamente, antes de que conteste.
 
 ---
 
-## 11. Mecanismo de calibración — motor bayesiano heredado de PIIO, generalizado
+## 12. Mecanismo de calibración — motor bayesiano heredado de PIIO, generalizado
 
 **Hallazgo (código actual, módulo PIIO):** ya existe un mecanismo de
 shrinkage bayesiano normal-normal conjugado, funcionando y persistiendo
@@ -997,7 +1130,7 @@ no un simple cambio de nombre:**
 
 ---
 
-## 12. Historial y vacíos — qué queda pendiente
+## 13. Historial y vacíos — qué queda pendiente
 
 **No vigente / descartado explícitamente por Luis:**
 - Estructura de dimensiones IEHS/ICE de v3 y de la revisión posterior
@@ -1021,16 +1154,16 @@ no un simple cambio de nombre:**
 - Fórmula del IAO — RESUELTO (ver sección 4: Seguridad/Amenaza, piso de
   amenaza absoluta, segundo_mayor de los 5 pares). Parámetros `w_neg`,
   `umbral_piso`, `γ` pendientes de calibración con datos del piloto —
-  **mecanismo de calibración ya identificado, ver sección 11** (motor
+  **mecanismo de calibración ya identificado, ver sección 12** (motor
   bayesiano heredado de PIIO, no hay que construirlo desde cero).
 - IIE — RESUELTO por eliminación, ya no aplica revisar sus pesos.
 - **CFF — fórmula provisional, anclada en benchmark (RESUELTO para lanzamiento,
   ver detalle abajo).** Fase 2 (modelo de regresión calibrado contra costo real
   propio de EFICIENCIA) sigue pendiente — mecanismo de calibración
-  identificado (sección 11), requiere el mismo horizonte que la Fase 2 de
+  identificado (sección 12), requiere el mismo horizonte que la Fase 2 de
   los umbrales de severidad (6-12 meses de historial).
 - **PIIO — motor bayesiano de benchmarks, encontrado en el código actual,
-  RESUELTO cómo se integra** (sección 11): se generaliza como mecanismo de
+  RESUELTO cómo se integra** (sección 12): se generaliza como mecanismo de
   calibración para todos los parámetros pendientes del marco; se retira su
   traducción KPI→costo específica (absorbida por el CFF). Pendiente de
   implementación: `iie_ref`→`iao_ref` (trivial), reescritura del bloque VBE
@@ -1047,16 +1180,26 @@ no un simple cambio de nombre:**
   Pendiente: calibrar `λ` y `F_ext` con datos reales, y **re-validar o
   corregir el "<24 meses" ya publicado en el sitio**, que se basaba en el
   modelo roto.
-- Si el SD-MO/IDA hereda algo de la arquitectura nueva o permanece igual —
+- Si el SDMO/IDA hereda algo de la arquitectura nueva o permanece igual —
   RESUELTO: hereda 3 funciones nuevas respecto a v3 (disparador de
   reevaluación anticipada, validación cruzada con el IAO, señal de
   tendencia para el CFF), y su estructura propia fue rediseñada por completo
   a 4 preguntas bipolares — ver `SD_MO_4_PREGUNTAS_EFICIENCIA.md` y sección
-  8 (auditoría de arquitectura, 5 vacíos encontrados y resueltos).
+  9 (auditoría de arquitectura, 5 vacíos encontrados y resueltos).
+- **Sensor FPV — RESUELTO por completo como diseño, no construido en código**
+  (sección 10): cierra el hueco de Inversionista/Consumidor en el Círculo
+  Virtuoso. Las 6 preguntas, el mecanismo de distribución (nominal para
+  Inversionista, link público para Consumidor — este segundo mecanismo no
+  existe todavía en el sistema), la confidencialidad diferenciada por
+  actor (Inversionista no hereda N≥8, Consumidor sí), y la validación
+  cruzada con el IAO (mismo patrón que el SDMO) ya están definidos.
+  Pendiente real: implementación completa (migración, función de envío
+  para el link público, interfaz), y validar la redacción de las 6
+  preguntas con el piloto.
 - Catálogo de intervención: matriz por par × dirección de Brecha × severidad,
   construido desde cero — RESUELTO, ver `CATALOGO_INTERVENCION_EFICIENCIA.md`.
   Pendiente menor: incorporar el nivel departamental/nodo y la distinción
-  causa sistémica/local (sección 10.4) a las fichas existentes — RESUELTO, ver
+  causa sistémica/local (sección 11.4) a las fichas existentes — RESUELTO, ver
   la sección "Nivel de aplicación" en ese mismo archivo.
 - Confirmación par por par de que los dos conceptos son verdaderos polos
   opuestos, antes de redactar los ítems bipolares reales — RESUELTO (ver

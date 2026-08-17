@@ -250,7 +250,7 @@ table.dt td{color:var(--ink)}
 .icard-meta strong{color:var(--dorado);margin-right:4px}
 
 /* ── Resultado global — panel de 2 columnas (Variables/Pares/Por área/
-   SD-MO/Recomendaciones/CFF a la izquierda en tabs, 5 números fijos a
+   SDMO/Recomendaciones/CFF a la izquierda en tabs, 5 números fijos a
    la derecha, franja de ficha técnica compartida arriba de ambas). ── */
 .reg-wrap{max-width:none}
 .reg-ficha{display:flex;flex-wrap:wrap;gap:24px;padding:14px 18px;background:var(--dk-card);border:1px solid #26344a;border-radius:10px;margin-bottom:28px;font-size:13px}
@@ -267,10 +267,26 @@ table.dt td{color:var(--ink)}
 .reg-tab-btn.active{color:var(--dorado);border-bottom-color:var(--dorado)}
 .reg-tabpanel{display:none}
 .reg-tabpanel.active{display:block}
-.reg-right{position:sticky;top:20px;align-self:start}
+/* .reg-right ya no lleva el sticky directamente — con align-self:start
+   (como venía) el item de grid se encoge al alto de su propio contenido
+   (5 tarjetas cortas), y position:sticky sobre un item ya encogido no
+   tiene contra qué "pegarse": su containing block termina donde termina
+   su propio contenido, igual que el resto de la página, así que nunca
+   se ve pegado al hacer scroll. Bug conocido de sticky dentro de CSS
+   Grid cuando el item no se estira (align-self ≠ stretch) — mismo tipo
+   de causa en Chrome/Firefox, no exclusivo de este layout.
+   Fix: .reg-right se estira (stretch) al alto real de la fila del grid
+   (el de .reg-left, siempre más alto) — queda invisible/sin contenido
+   propio, solo da el espacio dentro del cual algo SÍ puede pegarse.
+   El sticky real vive en .reg-right-inner, un div nuevo por dentro que
+   sólo mide lo que miden las 5 tarjetas — ese sí tiene margen para
+   moverse contra el alto de .reg-right y quedarse fijo en top:20px
+   mientras .reg-left (mucho más alto) se desplaza debajo. */
+.reg-right{align-self:stretch}
+.reg-right-inner{position:sticky;top:20px}
 /* min-height uniforme en las 5 tarjetas (ICE/IEH/Brecha/SDMO/IAO) — sin
    esto la de Brecha (anillo 40x40) y las de ICE/IEH (solo barra+valor,
-   ~16px de fila) quedan visiblemente más bajas que SD-MO/IAO (medidor
+   ~16px de fila) quedan visiblemente más bajas que SDMO/IAO (medidor
    semicircular, svg 100x58): 28px padding + ~19px label+margen + 58px
    del medidor ≈ 105px es el contenido más alto real; 112px deja margen.
    flex column + justify-content:center centra el contenido verticalmente
@@ -279,7 +295,7 @@ table.dt td{color:var(--ink)}
 .reg-card-label{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--dk-text-2);margin-bottom:8px}
 .reg-card-row{display:flex;align-items:center;justify-content:space-between;gap:10px}
 .reg-card-val{font-family:var(--f-mono);font-size:16px;color:rgba(255,255,255,.85);flex-shrink:0}
-/* Track de las barras ICE/IEH/SD-MO del panel derecho — .rp-bar comparte
+/* Track de las barras ICE/IEH/SDMO del panel derecho — .rp-bar comparte
    fondo rgba(255,255,255,.1) con las tarjetas de letras/pares (línea 443),
    pero ahí se ve apagado contra .reg-card (mismo --dk-card que el fondo
    general): mismo criterio que la dona ICE/IEH del tab Pares (fill-opacity
@@ -968,7 +984,7 @@ supa.auth.getSession().then(function(res){
       <div class="ci-card">
         <div class="ci-tag">IAO</div>
         <div class="ci-name">Índice de Activación Organizacional</div>
-        <div class="ci-desc">Hacia dónde se orienta la energía colectiva. Se deriva del SD-MO.</div>
+        <div class="ci-desc">Hacia dónde se orienta la energía colectiva. Se deriva del SDMO.</div>
       </div>
       <div class="ci-card">
         <div class="ci-tag">CFF</div>
@@ -1162,8 +1178,8 @@ supa.auth.getSession().then(function(res){
 </div>
 
 <!-- ═══ SDMO ═══ -->
-<!-- Panel p-sdmo (Resumen SD-MO) retirado — su contenido (tarjeta IDA/
-     tendencia + detalle técnico) migró al tab "SD-MO" del Tablero
+<!-- Panel p-sdmo (Resumen SDMO) retirado — su contenido (tarjeta IDA/
+     tendencia + detalle técnico) migró al tab "SDMO" del Tablero
      Ejecutivo (#p-dash-resultado, reemplaza el tab "Alertas"), mismas
      ids #sdmo-card/#sdmo-detalle, sin tocar _renderSDMONuevo(). Pendiente
      de gráfico de tendencia de últimas 4 semanas (requiere migración
@@ -1579,10 +1595,10 @@ supa.auth.getSession().then(function(res){
     </div>
     <div class="split">
       <div class="split-left">
-        <!-- Advertencia: IAO sobreescrito por módulo Áreas cuando SD-MO también ha corrido -->
+        <!-- Advertencia: IAO sobreescrito por módulo Áreas cuando SDMO también ha corrido -->
         <div id="motor-iao-src-warn" class="alert warn" style="display:none;margin-bottom:12px">
           <span class="ai">⚠</span>
-          <div><strong>IAO proviene del módulo Áreas</strong> — El SD-MO también generó un IAO ponderado (ventana móvil λ=0.80) que fue reemplazado por el promedio simple de Áreas al calcular la dispersión. Si deseas usar el IAO dinámico del SD-MO, no recalcules Dispersión después de correr el SD-MO, o revisa ambos valores antes de avanzar.</div>
+          <div><strong>IAO proviene del módulo Áreas</strong> — El SDMO también generó un IAO ponderado (ventana móvil λ=0.80) que fue reemplazado por el promedio simple de Áreas al calcular la dispersión. Si deseas usar el IAO dinámico del SDMO, no recalcules Dispersión después de correr el SDMO, o revisa ambos valores antes de avanzar.</div>
         </div>
         <!-- Advertencia: IIO = 0 → impacto al techo teórico -->
         <div id="motor-iio-zero-warn" class="alert warn" style="display:none;margin-bottom:12px">
@@ -1664,15 +1680,15 @@ supa.auth.getSession().then(function(res){
      10 letras → tab ICE / IEH, 3 columnas iguales (#dg-letras-ice,
      #dg-letras-ieh, #dg-letras-chart; id interno del tab 'variables'); 5 pares → tab Pares
      (#dg-pares, tarjeta nueva _renderParTarjetaPares); Por área y
-     Recomendaciones migran tal cual a sus tabs; CFF es tab nuevo. SD-MO
+     Recomendaciones migran tal cual a sus tabs; CFF es tab nuevo. SDMO
      resumido migró aquí desde el panel independiente #p-sdmo (retirado)
-     al tab "SD-MO" (#reg-sdmo, reemplaza el viejo tab "Alertas"). ═══ -->
+     al tab "SDMO" (#reg-sdmo, reemplaza el viejo tab "Alertas"). ═══ -->
 <div id="p-dash-resultado" class="panel dark-panel">
   <div class="panel-inner reg-wrap">
     <div class="ph">
       <div class="ph-tag">Resultado</div>
       <div class="ph-title">Tablero Ejecutivo</div>
-      <div class="ph-desc">Resultado global siempre visible a la derecha — Variables, Pares, Por área, SD-MO, Recomendaciones y CFF en los tabs de la izquierda.</div>
+      <div class="ph-desc">Resultado global siempre visible a la derecha — Variables, Pares, Por área, SDMO, Recomendaciones y CFF en los tabs de la izquierda.</div>
     </div>
 
     <div id="dr-status" style="font-size:13px;color:var(--dk-text-2);margin-bottom:16px"></div>
@@ -1685,7 +1701,7 @@ supa.auth.getSession().then(function(res){
           <button type="button" class="reg-tab-btn active" onclick="_showRegTab('variables')">ICE / IEH</button>
           <button type="button" class="reg-tab-btn" onclick="_showRegTab('pares')">Pares</button>
           <button type="button" class="reg-tab-btn" onclick="_showRegTab('area')">Por área</button>
-          <button type="button" class="reg-tab-btn" onclick="_showRegTab('sdmo')">SD-MO</button>
+          <button type="button" class="reg-tab-btn" onclick="_showRegTab('sdmo')">SDMO</button>
           <button type="button" class="reg-tab-btn" onclick="_showRegTab('recom')">Recomendaciones</button>
           <button type="button" class="reg-tab-btn" onclick="_showRegTab('cff')">CFF</button>
         </div>
@@ -1723,16 +1739,16 @@ supa.auth.getSession().then(function(res){
              desde el panel independiente #p-sdmo (retirado, ver comentario
              donde vivía, cerca de #p-areas): misma tarjeta IDA/tendencia
              (#sdmo-card/#sdmo-detalle, _renderSDMONuevo sin tocar) + el
-             bloque "SD-MO por área" que ya vivía en este mismo tab. -->
+             bloque "SDMO por área" que ya vivía en este mismo tab. -->
         <div id="reg-sdmo" class="reg-tabpanel">
-          <div class="card-title" style="margin-bottom:12px">Resumen SD-MO</div>
+          <div class="card-title" style="margin-bottom:12px">Resumen SDMO</div>
           <div id="sdmo-card"></div>
           <details style="margin-top:12px;margin-bottom:28px">
             <summary style="cursor:pointer;font-size:12px;color:var(--dk-text-2);font-weight:700;text-transform:uppercase;letter-spacing:.06em">Ver detalle técnico</summary>
             <div id="sdmo-detalle" style="margin-top:12px;font-size:12px;font-family:'DM Mono',monospace;color:var(--dk-text-2);line-height:1.8"></div>
           </details>
 
-          <div class="card-title" style="margin-bottom:12px">SD-MO por área</div>
+          <div class="card-title" style="margin-bottom:12px">SDMO por área</div>
           <div id="sdmo-area" style="display:grid;gap:20px"></div>
         </div>
 
@@ -1753,7 +1769,12 @@ supa.auth.getSession().then(function(res){
         </div>
       </div>
 
-      <div class="reg-right" id="reg-resultado-global"></div>
+      <div class="reg-right">
+        <div class="reg-right-inner">
+          <div class="card-title" style="margin-bottom:12px">Resumen global</div>
+          <div id="reg-resultado-global"></div>
+        </div>
+      </div>
     </div>
   </div>
 </div>
@@ -2212,7 +2233,7 @@ const S={
   iie:null,ito:null,bse:null,beo:null,bso:null,
   eoe:null,pfe:null,tce:null,edp:null,    // módulo Energía
   vri:null,trec:null,prv:null,             // módulo Recuperación
-  idc:null,ifo:null,                       // SD-MO: diagnóstico causal + fricción operativa
+  idc:null,ifo:null,                       // SDMO: diagnóstico causal + fricción operativa
   iio:null,ds:null,ds_rel:null,ps_fric:null,ps:null,de:null,ft:null,dep:null,dep_display:null,impacto:null,
   iieMin:0.65,
   // ── Campos calculados dinámicamente (declarados aquí para evitar reads de undefined) ──
@@ -2645,7 +2666,7 @@ function calcSDMO(){
     return false;
   }
 
-  // ── Mapeo SD-MO PDF → IDA / IFO / IDC ──────────────────────────
+  // ── Mapeo SDMO PDF → IDA / IFO / IDC ──────────────────────────
   // sdmo[0] Q1 Tensión operativa      → IDA P1  peso 0.30  (invertir: Pc=6−P)
   // sdmo[1] Q2 Orientación de energía → IDA P2  peso 0.40  (invertir)
   // sdmo[2] Q3 Coherencia decisiones  → IDA P3  peso 0.20 + IDC  (invertir)
@@ -2694,7 +2715,7 @@ function calcSDMO(){
   const pesos=S.idaHistorial.map((_,t)=>Math.pow(lam,T-1-t));
   const W=pesos.reduce((a,b)=>a+b,0);
   S.iao=pesos.reduce((s,w,t)=>s+w*S.idaHistorial[t],0)/W;
-  S._iaoSource='sdmo'; // origen: ventana móvil SD-MO
+  S._iaoSource='sdmo'; // origen: ventana móvil SDMO
 
   // Clasificación de tensión
   const umbral=0.40;
@@ -2827,16 +2848,16 @@ function calcMotor(){
   if(S.corg===null) S.corg = 1.0;             // sin datos de áreas → sin penalización
   if(S.dorg===null) S.dorg = 0.0;             // sin dispersión medida
 
-  // Advertencia de fuente de IAO: si SD-MO corrió y luego Áreas lo sobreescribió
+  // Advertencia de fuente de IAO: si SDMO corrió y luego Áreas lo sobreescribió
   const iaoSrcWarn = document.getElementById('motor-iao-src-warn');
   if(iaoSrcWarn){
     const esProxy  = S._iaoSource === 'proxy';
     const esAreas  = S._iaoSource === 'areas' && S.idaHistorial && S.idaHistorial.length > 0;
     iaoSrcWarn.style.display = (esProxy || esAreas) ? 'flex' : 'none';
     if(esProxy){
-      iaoSrcWarn.innerHTML = '<span class="ai">⚠</span><div><strong>IAO estimado — SD-MO no ha corrido:</strong> El IAO activo es el promedio (ICE + IEHS) / 2 = ' + S.iao.toFixed(3) + '. Para mayor precisión, completa el Sensor Diario de Movimiento (SD-MO) y recalcula.</div>';
+      iaoSrcWarn.innerHTML = '<span class="ai">⚠</span><div><strong>IAO estimado — SDMO no ha corrido:</strong> El IAO activo es el promedio (ICE + IEHS) / 2 = ' + S.iao.toFixed(3) + '. Para mayor precisión, completa el Sensor Diario de Movimiento (SDMO) y recalcula.</div>';
     } else if(esAreas){
-      iaoSrcWarn.innerHTML = '<span class="ai">⚠</span><div><strong>IAO proviene del módulo Áreas</strong> — El SD-MO también generó un IAO ponderado (ventana móvil λ=0.80) que fue reemplazado por el promedio simple de Áreas al calcular la dispersión. Si deseas usar el IAO dinámico del SD-MO, no recalcules Dispersión después de correr el SD-MO, o revisa ambos valores antes de avanzar.</div>';
+      iaoSrcWarn.innerHTML = '<span class="ai">⚠</span><div><strong>IAO proviene del módulo Áreas</strong> — El SDMO también generó un IAO ponderado (ventana móvil λ=0.80) que fue reemplazado por el promedio simple de Áreas al calcular la dispersión. Si deseas usar el IAO dinámico del SDMO, no recalcules Dispersión después de correr el SDMO, o revisa ambos valores antes de avanzar.</div>';
     }
   }
 
@@ -3212,7 +3233,7 @@ function renderDash(){
   if(S.iie === null){
     // Si tenemos ice e iehs (cuestionario respondido), correr motor completo
     if(S.ice !== null && S.iehs !== null){
-      if(S.iao === null){ S.iao = (S.ice + S.iehs) / 2; _selfHealMsg = 'IAO estimado como (ICE + IEHS) / 2 = ' + S.iao.toFixed(3) + ' — completa el SD-MO para mayor precisión.'; }
+      if(S.iao === null){ S.iao = (S.ice + S.iehs) / 2; _selfHealMsg = 'IAO estimado como (ICE + IEHS) / 2 = ' + S.iao.toFixed(3) + ' — completa el SDMO para mayor precisión.'; }
       if(S.corg === null) S.corg = 1.0;
       if(S.dorg === null) S.dorg = 0.0;
       calcMotor();
@@ -3285,7 +3306,7 @@ function renderDash(){
   let prio='Equilibrio perfecto',prioDesc='Mantener monitoreo preventivo';
   if(dn>1e-6){
     const mx=Math.max(s_op,s_est,s_exp);
-    if(mx===s_op){prio='IAO — Dinámica operativa';prioDesc='Activar SD-MO intensivo y liderazgo de flujo';}
+    if(mx===s_op){prio='IAO — Dinámica operativa';prioDesc='Activar SDMO intensivo y liderazgo de flujo';}
     else if(mx===s_est){prio='ICE — Coherencia estructural';prioDesc='Revisar coherencia de decisiones y estructura de mando';}
     else{prio='IEHS — Experiencia relacional';prioDesc='Intervención en clima y vínculos interpersonales';}
   }
@@ -3383,7 +3404,7 @@ function renderDash(){
 
   const recs=[];
   if(mop==='Defensivo') recs.push({p:'🔴 URGENTE',t:'Protocolo Zona Roja',d:'IAO crítico. Intervención inmediata en liderazgo y condiciones operativas.'});
-  if(mop==='Transicional') recs.push({p:'🟡 PRIORITARIO',t:'Monitoreo reforzado + reducción de tensión',d:'Aumentar frecuencia SD-MO. Identificar y eliminar causas de tensión recurrente.'});
+  if(mop==='Transicional') recs.push({p:'🟡 PRIORITARIO',t:'Monitoreo reforzado + reducción de tensión',d:'Aumentar frecuencia SDMO. Identificar y eliminar causas de tensión recurrente.'});
   if(S.idc!==null&&S.idc<0.40) recs.push({p:'🔴 URGENTE',t:'Incoherencia estructural (IDC bajo)',d:'Intervención en ICE y liderazgo directivo. Coherencia de decisiones deteriorada.'});
   if(S.iehs<0.50) recs.push({p:'🚫 BLOQUEO',t:'IEHS bajo umbral de certificación',d:'Suspender certificación hasta superar 0.50 en experiencia relacional.'});
   if(S.ice!==null&&S.ice<0.40) recs.push({p:'🔴 URGENTE',t:'ICE crítico — Riesgo silencioso (ICE < 0.40)',d:'Coherencia estructural gravemente deteriorada: roles ambiguos, reglas rotas o compromisos no cumplidos. Aunque IAO e IEHS compensen el IIE, este nivel genera riesgo de colapso operativo a mediano plazo. Intervenir en estructura y gobernanza.'});
@@ -4696,7 +4717,7 @@ function loadCurrentLong(){
 
 /* ── Exportar / Importar sesión completa (v5.8) ──────────────────────────────
    Persiste S (estado del motor), longData (historial longitudinal) y
-   PIIO.historial (historial SD-MO mensual) en un JSON descargable.
+   PIIO.historial (historial SDMO mensual) en un JSON descargable.
    Permite continuar una sesión en otra pestaña o después de recargar la página.
    ─────────────────────────────────────────────────────────────────────────── */
 function exportarSesion(){
@@ -6043,7 +6064,7 @@ function _sinDatos(minimo){
 
 // ── Carga del diagnóstico — una sola llamada, resultados ya calculados ───
 // ── p-dash-resultado: switcher de los 6 tabs internos (Variables/Pares/
-// Por área/SD-MO/Recomendaciones/CFF) — no usa show(), ese sigue
+// Por área/SDMO/Recomendaciones/CFF) — no usa show(), ese sigue
 // gobernando la navegación entre paneles de nivel superior; esto solo
 // alterna .reg-tabpanel dentro del panel ya activo. "area" dispara la
 // misma carga que antes hacía show('p-dash-area') directamente.
@@ -6096,7 +6117,7 @@ function renderDiagnostico(){
   _renderRecomendaciones(d);
 }
 
-// ── tab SD-MO (Tablero Ejecutivo) — tarjeta IDA/tendencia, contenido
+// ── tab SDMO (Tablero Ejecutivo) — tarjeta IDA/tendencia, contenido
 // migrado desde el panel independiente #p-sdmo (retirado) ──────────────
 function _renderSDMONuevo(d){
   var card = document.getElementById('sdmo-card');
@@ -6387,7 +6408,7 @@ function _renderResumenNuevo(d){
 // sección 6.4), y esa razón de fondo sigue vigente sin excepción en
 // ningún panel. Mostrar la cifra es
 // una cosa; inventarle un semáforo sería otra, y esa sigue fuera de
-// alcance. SD-MO/IAO sí llevan severidad — ya la llevan en el resto del
+// alcance. SDMO/IAO sí llevan severidad — ya la llevan en el resto del
 // Workbook (estadoDesdeIAO), esto no es nuevo para ellos.
 function _numerosConsolidadosHtml(d){
   var brecha = (d.ice != null && d.ieh != null) ? (d.ice - d.ieh) : null;
@@ -6397,7 +6418,7 @@ function _numerosConsolidadosHtml(d){
   // era además la causa de que estas dos tarjetas midieran más que las
   // otras 3. min-height + flex/justify-content:center: mismo patrón ya
   // usado en .reg-card (panel derecho) para uniformar Brecha/ICE/IEH/
-  // SD-MO/IAO — contenido más alto real aquí es solo label+valor (~9px +
+  // SDMO/IAO — contenido más alto real aquí es solo label+valor (~9px +
   // ~20px + paddings), 72px deja margen sin la desproporción de antes.
   var numHtml = function(label, valor, estado, borderColor, icon){
     var dot = estado ? '<span style="width:7px;height:7px;border-radius:50%;background:' + ESTADO_COLOR[estado] + ';display:inline-block;margin-right:7px"></span>' : '';
@@ -6412,7 +6433,7 @@ function _numerosConsolidadosHtml(d){
       numHtml('ICE', d.ice != null ? d.ice : '—', null, 'var(--ice)', 'ti-building-arch') +
       numHtml('IEH', d.ieh != null ? d.ieh : '—', null, 'var(--ieh)', 'ti-heart-handshake') +
       numHtml('Brecha', brecha != null ? (brecha >= 0 ? '+' : '') + brecha.toFixed(2) : '—', null, 'var(--dk-text-3)', 'ti-arrows-diff') +
-      numHtml('SD-MO', sdmoOk ? d.sdmo.ida_prom : '—', sdmoOk ? estadoDesdeIAO(d.sdmo.ida_prom) : null, null, 'ti-heartbeat') +
+      numHtml('SDMO', sdmoOk ? d.sdmo.ida_prom : '—', sdmoOk ? estadoDesdeIAO(d.sdmo.ida_prom) : null, null, 'ti-heartbeat') +
       numHtml('IAO', d.iao_n_suficiente ? d.iao : '—', d.iao_n_suficiente ? estadoDesdeIAO(d.iao) : null, null, 'ti-activity') +
       '</div>'
   );
@@ -6426,15 +6447,18 @@ function _numerosConsolidadosHtml(d){
 // presentación (a diferencia de canvas fillStyle), así que aquí no hace
 // falta literal hex.
 function _svgAnilloHtml(frac, color){
-  var r = 16, c = 2 * Math.PI * r;
+  // r=14 (bajado de 16) para dejar margen al stroke-width=8 (subido de 4,
+  // el doble — el trazo anterior se leía débil comparado con el resto de
+  // indicadores del panel) sin que se recorte contra el viewBox 40x40.
+  var r = 14, c = 2 * Math.PI * r;
   var dash = Math.max(0, Math.min(1, frac || 0)) * c;
   // Track en rgba(255,255,255,.22), no var(--dk-elevated): ese tono queda
   // casi idéntico a var(--dk-card) (fondo de .reg-card) y el anillo se
   // perdía contra la tarjeta — mismo criterio que el resto de tracks del
   // panel derecho (.reg-card .rp-bar) y la dona ICE/IEH del tab Pares.
   return '<svg width="40" height="40" viewBox="0 0 40 40" style="flex-shrink:0">' +
-    '<circle cx="20" cy="20" r="' + r + '" fill="none" style="stroke:rgba(255,255,255,.22)" stroke-width="4"></circle>' +
-    '<circle cx="20" cy="20" r="' + r + '" fill="none" style="stroke:' + color + '" stroke-width="4" stroke-dasharray="' + dash.toFixed(1) + ' ' + c.toFixed(1) + '" stroke-linecap="round" transform="rotate(-90 20 20)"></circle>' +
+    '<circle cx="20" cy="20" r="' + r + '" fill="none" style="stroke:rgba(255,255,255,.22)" stroke-width="8"></circle>' +
+    '<circle cx="20" cy="20" r="' + r + '" fill="none" style="stroke:' + color + '" stroke-width="8" stroke-dasharray="' + dash.toFixed(1) + ' ' + c.toFixed(1) + '" stroke-linecap="round" transform="rotate(-90 20 20)"></circle>' +
   '</svg>';
 }
 
@@ -6443,7 +6467,7 @@ function _svgAnilloHtml(frac, color){
 // se muestra SIN color de severidad — decisión confirmada con Luis: el
 // código ya documenta (ver _numerosConsolidadosHtml/DESC_ICE más abajo)
 // que ICE/IEH no tienen umbral validado, así que inventarle un semáforo
-// aquí contradiría esa decisión ya tomada. SD-MO usa ida_prom en su
+// aquí contradiría esa decisión ya tomada. SDMO usa ida_prom en su
 // escala real 0-1 (mismo dominio que IAO), no una escala 1-10 — no existe
 // tal escala en los datos (confirmado en 007_funciones_alta_organizacion.sql).
 function _renderResultadoGlobal(d){
@@ -6477,7 +6501,7 @@ function _renderResultadoGlobal(d){
       '<div class="reg-card-label">Brecha</div>' +
       '<div class="reg-card-row">' +
         '<div style="font-family:var(--f-mono);font-size:18px;color:rgba(255,255,255,.85)">' + flecha + ' ' + (brecha >= 0 ? '+' : '') + brecha.toFixed(2) + '</div>' +
-        _svgAnilloHtml(Math.abs(brecha), 'var(--dk-text-2)') +
+        _svgAnilloHtml(Math.abs(brecha), '#f5f0e8') +
       '</div>' +
     '</div>';
   }
@@ -6486,7 +6510,7 @@ function _renderResultadoGlobal(d){
   var sdmoEstado = sdmoOk ? estadoDesdeIAO(d.sdmo.ida_prom) : null;
   var sdmoHtml = sdmoOk ?
     '<div class="reg-card">' +
-      '<div class="reg-card-label">SD-MO</div>' +
+      '<div class="reg-card-label">SDMO</div>' +
       '<div class="reg-card-row">' +
         // ida_prom viene en escala 0-100 (IDA_i = 100×[...], SD_MO_4_PREGUNTAS_
         // EFICIENCIA.md; mismo dominio que IAO — CHECK ida_i BETWEEN 0 AND 100,
@@ -6496,7 +6520,7 @@ function _renderResultadoGlobal(d){
         '<div class="reg-card-val">' + d.sdmo.ida_prom + '</div>' +
       '</div>' +
     '</div>'
-    : '<div class="reg-card"><div class="reg-card-label">SD-MO</div>' + _sinDatos(8) + '</div>';
+    : '<div class="reg-card"><div class="reg-card-label">SDMO</div>' + _sinDatos(8) + '</div>';
 
   var iaoOk = d.iao_n_suficiente;
   var iaoEstado = iaoOk ? estadoDesdeIAO(d.iao) : null;
@@ -6833,7 +6857,7 @@ function _renderComparacionDepartamentos(resultados){
   });
   wrap.innerHTML =
     '<div class="card-title" style="margin-bottom:12px">Comparación entre áreas — IAO</div>' +
-    '<canvas id="area-comp-canvas" width="640" height="180" style="display:block;width:100%;height:180px;cursor:pointer"></canvas>' +
+    '<canvas id="area-comp-canvas" width="640" height="130" style="display:block;width:100%;height:130px;cursor:pointer"></canvas>' +
     '<div style="font-size:11px;color:var(--dk-text-2);margin-top:6px">Clic en una barra para ver ese departamento abajo. Clic de nuevo para volver a toda la organización.</div>';
   _dibujarBarrasDepartamentos('area-comp-canvas', datos);
 }
@@ -6899,25 +6923,47 @@ function _dibujarBarrasVariables(canvasId, items){
   });
 }
 
+// Parte un nombre de área en hasta 2 líneas cuando no cabe completo en
+// barW, en vez de truncar con "…" — busca el punto de corte (por
+// espacio) que deja las dos líneas más parejas en ancho. Nombre de una
+// sola palabra que igual no cabe: se deja tal cual, sin partir letras.
+function _envolverEtiqueta(ctx, texto, maxWidth, font){
+  ctx.font = font;
+  if(ctx.measureText(texto).width <= maxWidth) return [texto];
+  var palabras = texto.split(' ');
+  if(palabras.length < 2) return [texto];
+  var mejor = 1, mejorDiff = Infinity;
+  for(var i = 1; i < palabras.length; i++){
+    var l1 = palabras.slice(0, i).join(' '), l2 = palabras.slice(i).join(' ');
+    var diff = Math.abs(ctx.measureText(l1).width - ctx.measureText(l2).width);
+    if(diff < mejorDiff){ mejorDiff = diff; mejor = i; }
+  }
+  return [palabras.slice(0, mejor).join(' '), palabras.slice(mejor).join(' ')];
+}
+
 // Barras verticales — altura proporcional al IAO (0-100), color por
 // banda vía estadoDesdeIAO/ESTADO_COLOR (mismo semáforo de siempre).
-// n<8 → barra corta gris neutro con "n<8" superpuesto, nunca altura 0 —
-// una línea plana dejaba un hueco visual grande entre el título y las
-// etiquetas, y esto va a pasar seguido en organizaciones pequeñas, no
-// solo en el caso de prueba. barHMin también actúa como piso para IAOs
-// reales muy bajos, mismo criterio que el Math.max(2,...) que reemplaza.
+// n<8 → barra corta gris neutro con "n<8" superpuesto, nunca altura 0.
+// Canvas más bajo (130, antes 180) — sin ejes ni marcas de escala en
+// este gráfico, no hace falta tanto alto de plotH para comparar barras
+// entre sí; la altura anterior venía heredada de cuando se esperaban
+// barras reales llenando ese espacio y dejaba un hueco vacío grande con
+// los datos de prueba (todas n<8). padBottom sube un poco (de 34 a 40)
+// para dar lugar a nombres de área en 2 líneas (_envolverEtiqueta) en
+// vez de truncarlos con "…".
 function _dibujarBarrasDepartamentos(canvasId, datos){
   var canvas = document.getElementById(canvasId);
   if(!canvas || !canvas.getContext) return;
   canvas._datos = datos;
   var ctx = canvas.getContext('2d');
   var w = canvas.width, h = canvas.height;
-  var padBottom = 34, padTop = 10, plotH = h - padBottom - padTop;
+  var padBottom = 40, padTop = 8, plotH = h - padBottom - padTop;
   ctx.clearRect(0, 0, w, h);
   var n = datos.length;
   if(!n) return;
   var gap = 10, barW = Math.max(18, (w - gap * (n + 1)) / n);
-  var barHMin = Math.round(plotH * 0.16);
+  var barHMin = Math.round(plotH * 0.22);
+  var labelFont = '9px "DM Sans", sans-serif';
   canvas._barras = [];
   datos.forEach(function(dpto, i){
     var x = gap + i * (barW + gap);
@@ -6937,10 +6983,12 @@ function _dibujarBarrasDepartamentos(canvasId, datos){
       ctx.fillText('n<8', x + barW / 2, y + barH / 2 + 3);
     }
     ctx.fillStyle = '#8a94a6';
-    ctx.font = '9px "DM Sans", sans-serif';
     ctx.textAlign = 'center';
-    var etiqueta = dpto.nombre.length > 10 ? dpto.nombre.slice(0, 9) + '…' : dpto.nombre;
-    ctx.fillText(etiqueta, x + barW / 2, h - padBottom + 14);
+    var lineas = _envolverEtiqueta(ctx, dpto.nombre, barW - 2, labelFont);
+    ctx.font = labelFont;
+    lineas.forEach(function(linea, li){
+      ctx.fillText(linea, x + barW / 2, h - padBottom + 14 + li * 11);
+    });
     canvas._barras.push({ x: x, w: barW, nombre: dpto.nombre });
   });
   canvas.onclick = function(ev){
@@ -7089,7 +7137,7 @@ function _renderParAreaTripleColumna(p, pOrg, idPrefix, comparar, sufijoTorta){
 function _renderPorArea(d, dOrg, escalada, dDeptoReal){
   // Contexto de n — sin esto, un IAO de n=8 (justo en el mínimo) se leería
   // con la misma confianza que uno de n=40, sin ninguna señal de que son
-  // estadísticamente muy distintos. Cuestionario y SD-MO son instrumentos
+  // estadísticamente muy distintos. Cuestionario y SDMO son instrumentos
   // separados con su propio n cada uno — NO necesariamente coinciden en
   // un departamento (una persona puede responder uno y no el otro), así
   // que se muestran por separado, nunca como un solo número que implique
@@ -7108,7 +7156,7 @@ function _renderPorArea(d, dOrg, escalada, dDeptoReal){
   if(nWrap){
     var nCuest = (dParaN.pares && dParaN.pares.length) ? dParaN.pares[0].n : null;
     var nSdmo = dParaN.sdmo ? dParaN.sdmo.n : null;
-    nWrap.textContent = 'n=' + (nCuest != null ? nCuest : '—') + ' (cuestionario) · n=' + (nSdmo != null ? nSdmo : '—') + ' (SD-MO)';
+    nWrap.textContent = 'n=' + (nCuest != null ? nCuest : '—') + ' (cuestionario) · n=' + (nSdmo != null ? nSdmo : '—') + ' (SDMO)';
   }
 
   var notaWrap = document.getElementById('area-nota-escalada');
@@ -7200,8 +7248,8 @@ function _renderRecomendacionCard(p, atenuado){
 // _renderAlertasGlobales (alertas globales por par, tab "Alertas") —
 // retirada: redundante con los badges de severidad que ya llevan las
 // tarjetas de Pares y Por área, mismo estadoDesdeAmenaza/_badgeEstado.
-// El tab "Alertas" fue reemplazado por "SD-MO" (ver #reg-sdmo) — la otra
-// mitad de este tab, SD-MO por área, sigue viva justo abajo.
+// El tab "Alertas" fue reemplazado por "SDMO" (ver #reg-sdmo) — la otra
+// mitad de este tab, SDMO por área, sigue viva justo abajo.
 
 // resultados = [{nombre, d}] ya cargado por _cargarComparacionDepartamentos
 // para la barra comparativa de Por área — se reutiliza el mismo fetch, no
@@ -7209,9 +7257,9 @@ function _renderRecomendacionCard(p, atenuado){
 // momento por redundante con lo que entonces era "Alertas globales" —
 // esa a su vez ya se retiró del todo, ver comentario arriba): en vez de
 // filtrar a áreas en alerta/amenaza por IAO, lista el IDA promedio/
-// estado SD-MO de TODAS las áreas — mismo dominio 0-100 de ida_prom que
+// estado SDMO de TODAS las áreas — mismo dominio 0-100 de ida_prom que
 // usa estadoDesdeIAO en el resto del archivo (ver _renderResultadoGlobal,
-// _renderSDMONuevo). Vive en el tab "SD-MO" (#reg-sdmo) del Tablero.
+// _renderSDMONuevo). Vive en el tab "SDMO" (#reg-sdmo) del Tablero.
 function _renderSDMOPorArea(resultados){
   var wrap = document.getElementById('sdmo-area');
   if(!wrap) return;

@@ -482,7 +482,7 @@ body{background:var(--paper)}
 <div class="page-hero"><div class="container">
   <span class="badge badge-dark" style="margin-bottom:14px">Acceso restringido</span>
   <h1>Herramientas EFICIENCIA</h1>
-  <p>Workbook analítico · Cuestionario ICE/IEH · Sensor Diario SD-MO</p>
+  <p>Workbook analítico · Cuestionario ICE/IEH · Sensor Diario SDMO</p>
 </div></div>
 
 <section class="section-sm"><div class="container"><div class="tools-grid">
@@ -493,7 +493,7 @@ body{background:var(--paper)}
       <div class="tool-meta"><h3>Workbook analítico</h3><p>Motor EFICIENCIA v5.10.1 · Uso: consultor</p></div>
     </div>
     <div class="tool-body">
-      <p>Panel ejecutivo completo. Importa los JSON del cuestionario y el SD-MO, genera el tablero de deterioro, impacto económico y plan de intervención.</p>
+      <p>Panel ejecutivo completo. Importa los JSON del cuestionario y el SDMO, genera el tablero de deterioro, impacto económico y plan de intervención.</p>
       <div class="tool-specs"><span class="spec-pill">ICE · IEH · IAO · CFO</span><span class="spec-pill">Motor v5.10.1</span><span class="spec-pill">Solo consultor</span></div>
     </div>
     <div class="tool-footer">
@@ -521,14 +521,14 @@ body{background:var(--paper)}
   <div class="tool-card fade-up">
     <div class="tool-header">
       <div class="tool-icon tool-icon-sdmo"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#A07D0F" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></div>
-      <div class="tool-meta"><h3>Sensor Diario SD-MO</h3><p>Monitoreo operativo · Uso: empleados</p></div>
+      <div class="tool-meta"><h3>Sensor Diario SDMO</h3><p>Monitoreo operativo · Uso: empleados</p></div>
     </div>
     <div class="tool-body">
       <p>4 preguntas bipolares (Confianza↔Temor, Colaboración↔Retención, Compromiso↔Desmotivación, Creatividad↔Estrés) 3 veces por semana capturan el estado regulatorio en tiempo real.</p>
       <div class="tool-specs"><span class="spec-pill">4 preguntas</span><span class="spec-pill">~30 segundos</span><span class="spec-pill">3× / semana</span><span class="spec-pill">4 ejes bipolares</span></div>
     </div>
     <div class="tool-footer">
-      <a href="sdmo.html" class="btn btn-dark" target="_blank">Abrir SD-MO</a>
+      <a href="sdmo.html" class="btn btn-dark" target="_blank">Abrir SDMO</a>
       <a href="#enlace-empleado" class="btn btn-outline btn-sm">Ingresar código</a>
       <a href="#flujo" class="btn btn-outline btn-sm">Instrucciones</a>
     </div>
@@ -542,8 +542,8 @@ body{background:var(--paper)}
     <h2 style="margin-top:10px">Cómo usar los instrumentos</h2>
   </div>
   <div class="flow-grid">
-    <div class="flow-step fade-up"><div class="flow-num">1</div><h4>Generar código</h4><p>El consultor genera un código de invitación individual por empleado. El mismo código sirve para el Cuestionario y el SD-MO.</p></div>
-    <div class="flow-step fade-up"><div class="flow-num">2</div><h4>Empleado responde</h4><p>Ingresa su código en el launcher o llega directo por su enlace, y responde (~5 min el cuestionario, ~30 seg el SD-MO).</p></div>
+    <div class="flow-step fade-up"><div class="flow-num">1</div><h4>Generar código</h4><p>El consultor genera un código de invitación individual por empleado. El mismo código sirve para el Cuestionario y el SDMO.</p></div>
+    <div class="flow-step fade-up"><div class="flow-num">2</div><h4>Empleado responde</h4><p>Ingresa su código en el launcher o llega directo por su enlace, y responde (~5 min el cuestionario, ~30 seg el SDMO).</p></div>
     <div class="flow-step fade-up"><div class="flow-num">3</div><h4>Envío directo</h4><p>Las respuestas se envían al completar — sin exportar ni reenviar ningún archivo por correo.</p></div>
   </div>
 </div></section>
@@ -552,7 +552,7 @@ body{background:var(--paper)}
   <div class="section-header fade-up" style="margin-bottom:28px">
     <span class="badge badge-azul">Para empleados</span>
     <h2 style="margin-top:10px">Ingresa tu código de invitación</h2>
-    <p>Usa el código individual que te compartió tu consultor de EFICIENCIA. Es el mismo código para el Cuestionario y el SD-MO.</p>
+    <p>Usa el código individual que te compartió tu consultor de EFICIENCIA. Es el mismo código para el Cuestionario y el SDMO.</p>
   </div>
   <div class="card fade-up" style="padding:32px">
     <div id="codigo-form">
@@ -563,7 +563,7 @@ body{background:var(--paper)}
       <p style="margin-bottom:16px;color:var(--ink-m)">Código detectado. Usa estos enlaces:</p>
       <div style="display:flex;flex-direction:column;gap:10px">
         <a href="#" id="link-cuestionario" class="btn btn-dark" target="_blank">Abrir Cuestionario</a>
-        <a href="#" id="link-sdmo" class="btn btn-dark" target="_blank">Abrir SD-MO</a>
+        <a href="#" id="link-sdmo" class="btn btn-dark" target="_blank">Abrir SDMO</a>
       </div>
       <p style="margin-top:16px;font-size:13px;color:var(--ink-s)">¿No es tu código? <a href="#" id="cambiar-codigo" style="color:var(--azul-l)">Ingresa otro</a>.</p>
     </div>
@@ -575,9 +575,9 @@ body{background:var(--paper)}
   <h2>Instrucciones para el consultor</h2>
   <p style="color:rgba(255,255,255,.55);margin-bottom:40px;font-size:15px">Referencia de uso para cada instrumento.</p>
   <div class="inst-grid">
-    <div class="inst-card fade-up"><h4>Cuestionario ICE/IEH</h4><ol><li>Genera un <strong>código de invitación individual</strong> por empleado</li><li>Comparte el código, o el enlace directo con el código incluido</li><li>El empleado responde y <strong>envía directamente</strong> — sin JSON</li><li>Las 25 preguntas (5 pares) quedan asociadas a su organización</li><li>Un mismo código sirve también para el SD-MO</li></ol></div>
-    <div class="inst-card fade-up"><h4>Sensor Diario SD-MO</h4><ol><li>Comparte el mismo código de invitación, 3 veces por semana</li><li>Cada jornada son 4 preguntas bipolares (~30 seg)</li><li>Se envía directamente al completar — sin JSON</li><li>Queda asociada a la organización con la fecha de esa jornada</li><li>Más jornadas registradas dan una señal más estable del IAO</li></ol></div>
-    <div class="inst-card fade-up"><h4>Workbook — motor analítico</h4><ol><li>Abre el Workbook en este dispositivo</li><li>Importa los consolidados del cuestionario y SD-MO</li><li>Configura el PIIO con los KPIs operativos</li><li>Ingresa N empleados y CIE</li><li>El tablero calcula los índices del sistema, impacto económico y plan de intervención</li></ol></div>
+    <div class="inst-card fade-up"><h4>Cuestionario ICE/IEH</h4><ol><li>Genera un <strong>código de invitación individual</strong> por empleado</li><li>Comparte el código, o el enlace directo con el código incluido</li><li>El empleado responde y <strong>envía directamente</strong> — sin JSON</li><li>Las 25 preguntas (5 pares) quedan asociadas a su organización</li><li>Un mismo código sirve también para el SDMO</li></ol></div>
+    <div class="inst-card fade-up"><h4>Sensor Diario SDMO</h4><ol><li>Comparte el mismo código de invitación, 3 veces por semana</li><li>Cada jornada son 4 preguntas bipolares (~30 seg)</li><li>Se envía directamente al completar — sin JSON</li><li>Queda asociada a la organización con la fecha de esa jornada</li><li>Más jornadas registradas dan una señal más estable del IAO</li></ol></div>
+    <div class="inst-card fade-up"><h4>Workbook — motor analítico</h4><ol><li>Abre el Workbook en este dispositivo</li><li>Importa los consolidados del cuestionario y SDMO</li><li>Configura el PIIO con los KPIs operativos</li><li>Ingresa N empleados y CIE</li><li>El tablero calcula los índices del sistema, impacto económico y plan de intervención</li></ol></div>
     <div class="inst-card fade-up"><h4>Privacidad y datos</h4><ol><li>Las respuestas se envían de forma <strong>directa y cifrada</strong>, asociadas solo a un código de invitación — nunca a un nombre</li><li>El sistema nunca reporta resultados a nivel individual</li><li>Los reportes agregados requieren un mínimo de respondentes por grupo</li><li>El acceso del consultor está limitado a las organizaciones vinculadas a su cuenta</li><li>Informa a respondentes antes de aplicar (habeas data)</li></ol></div>
   </div>
 </div></section>
@@ -589,7 +589,7 @@ body{background:var(--paper)}
       <p>Arquitectura de regulación organizacional con base neurobiología y resultados medibles.</p>
       <p style="margin-top:8px;font-size:12px">&#169; 2026 &middot; Luis Caicedo Sevillano</p>
     </div>
-    <div class="footer-col"><h5>Herramientas</h5><ul><li><a href="workbook.html">Workbook</a></li><li><a href="cuestionario.html">Cuestionario</a></li><li><a href="sdmo.html">SD-MO</a></li></ul></div>
+    <div class="footer-col"><h5>Herramientas</h5><ul><li><a href="workbook.html">Workbook</a></li><li><a href="cuestionario.html">Cuestionario</a></li><li><a href="sdmo.html">SDMO</a></li></ul></div>
     <!-- TODO: actualizar los 3 links a eficiencia-site a dominio propio cuando eficiencia.co esté conectado --><div class="footer-col"><h5>Sitio</h5><ul><li><a href="https://eficiencia-site.coach-luiscaicedo.workers.dev/">Inicio</a></li><li><a href="https://eficiencia-site.coach-luiscaicedo.workers.dev/blog/">Blog</a></li><li><a href="https://eficiencia-site.coach-luiscaicedo.workers.dev/campus/">Campus</a></li></ul></div>
     <div class="footer-col"><h5>Soporte</h5><ul><li><a href="#flujo">Flujo de uso</a></li><li><a href="#enlace-empleado">Ingresar código</a></li><li><a href="mailto:hola@eficiencia.co">hola@eficiencia.co</a></li></ul></div>
   </div>
