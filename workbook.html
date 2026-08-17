@@ -5980,6 +5980,41 @@ var ESTADO_COLOR = { seguridad: '#4a9d6e', alerta: '#f2542d', amenaza: '#b3261e'
 var DESC_ICE = 'Cómo la organización diseña y declara sus condiciones — estructura, intención, impacto, nexo, integración.';
 var DESC_IEH = 'Cómo el colaborador vive y percibe esas mismas condiciones.';
 
+// Descripciones fijas por par (fila 1 de _renderParTarjetaPares) — mismo
+// criterio que DESC_ICE/DESC_IEH: fuente única, texto fijo por par
+// (1-5), independiente de la organización.
+var DESC_PAR = {
+  1: 'Estructura: cómo está configurado el sistema. Fortaleza: si la persona lo percibe como un espacio que le brinda seguridad y confianza.',
+  2: 'Intención: la visión y valores que la organización declara. Coherencia: consistencia entre lo que hace y lo que declara.',
+  3: 'Impacto: cómo el sistema afecta la vida de la persona. Equilibrio: percepción de la persona sobre cuán justo es ese impacto.',
+  4: 'Nexo: el vínculo entre la organización y la persona. Confianza: cómo la persona percibe ese vínculo con la organización.',
+  5: 'Integración: la inteligencia con que la organización maneja sus relaciones. Actitud: respuesta de la persona al significado que le da a la relación con la empresa.'
+};
+
+// Explica cuál de los dos términos de Amenaza_par domina (marco, fórmula
+// de amenaza_par) — aproximación a nivel de PAR: usa brecha_final y
+// concepto_b_prom, los agregados que ya devuelve el servidor por par, con
+// la misma fórmula y los mismos parámetros provisionales (w_neg,
+// umbral_piso) que el servidor aplica por INDIVIDUO antes de agregar con
+// γ/segundo_mayor (resumen_organizacion_completo, migración 002). No es
+// una descomposición literal del amenaza_par final mostrado — ese
+// desglose por individuo no se expone al cliente (confidencialidad) — es
+// la mejor aproximación disponible con lo que sí se expone, y usa
+// d.parametros_usados en vez de constantes propias para que el texto se
+// recalibre solo cuando esos parámetros cambien en el servidor.
+function _explicacionAmenazaPar(p, parametros, nombres){
+  var wNeg = (parametros && parametros.w_neg != null) ? parametros.w_neg : 0.5;
+  var umbralPiso = (parametros && parametros.umbral_piso != null) ? parametros.umbral_piso : 0.5;
+  var brecha = p.brecha_final;
+  var incongruencia = Math.max(brecha, 0) * 1 + Math.max(-brecha, 0) * wNeg;
+  var absoluta = Math.max(0, umbralPiso - p.concepto_b_prom);
+  var pct = Math.round(Math.max(0, Math.min(1, p.amenaza_par)) * 100);
+  if(incongruencia >= absoluta){
+    return 'Este ' + pct + '% viene principalmente de la brecha entre ' + nombres[0] + ' y ' + nombres[1] + '.';
+  }
+  return 'Este ' + pct + '% viene principalmente de qué tan bajo está ' + nombres[1] + ' frente al mínimo saludable, no de la diferencia con ' + nombres[0] + '.';
+}
+
 function _badgeEstado(estado){
   if(!estado) return '';
   return '<span style="display:flex;align-items:center;gap:6px;color:' + ESTADO_COLOR[estado] +
@@ -6512,19 +6547,20 @@ function _dibujarDonaIceIeh(canvasId, distIce, distIeh, wedgeColor){
   ctx.clearRect(0, 0, w, h);
 
   // Tinte de hemisferio — izquierda ICE (celeste), derecha IEH (dorado),
-  // opacidad ~0.18. Literal, no var(): canvas fillStyle no resuelve
-  // custom properties CSS. #5a95e0 = --ice, #d99a3d = --ieh.
+  // opacidad 0.4 (subida desde 0.18 — a esa opacidad se veía apagado y
+  // ambiguo, casi gris, contra el fondo oscuro). Literal, no var(): canvas
+  // fillStyle no resuelve custom properties CSS. #5a95e0 = --ice, #d99a3d = --ieh.
   ctx.beginPath();
   ctx.moveTo(cx, cy);
   ctx.arc(cx, cy, r, Math.PI / 2, Math.PI * 1.5);
   ctx.closePath();
-  ctx.fillStyle = 'rgba(90,149,224,.18)';
+  ctx.fillStyle = 'rgba(90,149,224,.4)';
   ctx.fill();
   ctx.beginPath();
   ctx.moveTo(cx, cy);
   ctx.arc(cx, cy, r, -Math.PI / 2, Math.PI / 2);
   ctx.closePath();
-  ctx.fillStyle = 'rgba(217,154,61,.18)';
+  ctx.fillStyle = 'rgba(217,154,61,.4)';
   ctx.fill();
 
   var left = Math.max(0, Math.min(1, distIce || 0)) * Math.PI;
@@ -6601,7 +6637,7 @@ function _renderDesglose(d){
 
   var paresWrap = document.getElementById('dg-pares');
   if(paresWrap){
-    paresWrap.innerHTML = pares.map(function(p){ return _renderParTarjetaPares(p, 'par-torta-'); }).join('');
+    paresWrap.innerHTML = pares.map(function(p){ return _renderParTarjetaPares(p, 'par-torta-', d.parametros_usados); }).join('');
     pares.forEach(function(p){
       if(!p.n_suficiente) return;
       var estado = estadoDesdeAmenaza(p.amenaza_par);
@@ -6645,7 +6681,7 @@ function _barraVerticalHtml(pct, valor, color, label){
 // brecha (positiva=▲ problema de comunicación, negativa=▼ fortaleza
 // informal frágil) usa el mismo criterio que ya distingue
 // positiva/negativa en _renderRecomendacionCard (brecha_final >= 0).
-function _renderParTarjetaPares(p, idPrefix){
+function _renderParTarjetaPares(p, idPrefix, parametros){
   idPrefix = idPrefix || 'par-torta-';
   var ficha = CATALOGO_INTERVENCION[p.par];
   var nombres = ficha ? ficha.nombre.split(' / ') : ['ICE', 'IEH'];
@@ -6661,6 +6697,9 @@ function _renderParTarjetaPares(p, idPrefix){
   var flecha = brechaPos ? '▲' : '▼';
   var pctRiesgo = Math.round(Math.max(0, Math.min(1, p.amenaza_par)) * 100);
   var torreId = idPrefix + p.par;
+  var descPar = DESC_PAR[p.par] || '';
+  var descRiesgo = _explicacionAmenazaPar(p, parametros, nombres);
+  var descStyle = 'flex:1;align-self:center;padding-left:14px;border-left:1px solid #1c2740;font-size:10px;color:#8a94a6;opacity:0.7;line-height:1.4';
   return '<div class="icard" style="padding:18px 20px">' +
     '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:16px">' +
       '<div class="icard-tag">Par ' + p.par + ' — ' + (ficha ? ficha.nombre : '') + '</div>' +
@@ -6669,7 +6708,8 @@ function _renderParTarjetaPares(p, idPrefix){
     '<div style="display:flex;align-items:flex-end;gap:20px">' +
       _barraVerticalHtml(aPct, p.concepto_a_prom, 'var(--ice)', nombres[0]) +
       _barraVerticalHtml(bPct, p.concepto_b_prom, 'var(--ieh)', nombres[1]) +
-      '<div style="flex:1;text-align:right">' +
+      '<div style="' + descStyle + '">' + descPar + '</div>' +
+      '<div style="text-align:right;white-space:nowrap">' +
         '<div style="font-family:var(--f-mono);font-size:20px;font-weight:700;color:' + ESTADO_COLOR[estado] + '">' + flecha + ' ' + p.brecha_final + '</div>' +
         '<div style="font-size:9px;color:var(--dk-text-2);text-transform:uppercase;letter-spacing:.06em;margin-top:2px">Brecha</div>' +
       '</div>' +
@@ -6681,6 +6721,7 @@ function _renderParTarjetaPares(p, idPrefix){
         '<div style="font-family:var(--f-mono);font-size:16px;font-weight:700;color:' + ESTADO_COLOR[estado] + '">' + pctRiesgo + '% en riesgo</div>' +
         '<div style="font-size:11px;color:var(--dk-text-2);margin-top:2px">nivel: ' + estado + '</div>' +
       '</div>' +
+      '<div style="' + descStyle + '">' + descRiesgo + '</div>' +
     '</div>' +
   '</div>';
 }
@@ -6882,7 +6923,7 @@ function _renderPorArea(d){
   var paresWrap = document.getElementById('area-pares');
   if(paresWrap){
     var pares = d.pares || [];
-    paresWrap.innerHTML = pares.map(function(p){ return _renderParTarjetaPares(p, 'area-torta-'); }).join('');
+    paresWrap.innerHTML = pares.map(function(p){ return _renderParTarjetaPares(p, 'area-torta-', d.parametros_usados); }).join('');
     pares.forEach(function(p){
       if(!p.n_suficiente) return;
       var estado = estadoDesdeAmenaza(p.amenaza_par);
