@@ -6405,9 +6405,11 @@ function _numerosConsolidadosHtml(d){
   );
 }
 
-// Anillo SVG pequeño — distinto a la torta completa (_dibujarTortaFraccion,
-// canvas): este es un anillo real (hueco en el centro), usado solo para
-// Brecha en el panel derecho. SVG sí resuelve var() en sus atributos de
+// Anillo SVG pequeño — distinto al medidor semicircular (_svgMedidorSemi
+// circular, más abajo): este es un anillo completo (hueco en el centro,
+// sin bandas de severidad), usado solo para Brecha en el panel derecho —
+// Brecha no tiene umbral validado, así que no adopta el formato de
+// medidor con bandas fijas. SVG sí resuelve var() en sus atributos de
 // presentación (a diferencia de canvas fillStyle), así que aquí no hace
 // falta literal hex.
 function _svgAnilloHtml(frac, color){
@@ -6473,7 +6475,11 @@ function _renderResultadoGlobal(d){
     '<div class="reg-card">' +
       '<div class="reg-card-label">SD-MO</div>' +
       '<div class="reg-card-row">' +
-        '<div class="rp-bar" style="flex:1"><div class="rp-fill" style="width:' + Math.max(0, Math.min(100, d.sdmo.ida_prom * 100)) + '%;background:' + ESTADO_COLOR[sdmoEstado] + '"></div></div>' +
+        // ida_prom viene en escala 0-100 (IDA_i = 100×[...], SD_MO_4_PREGUNTAS_
+        // EFICIENCIA.md; mismo dominio que IAO — CHECK ida_i BETWEEN 0 AND 100,
+        // 001_eficiencia_schema_inicial.sql:145) — /100 para la fracción 0-1
+        // del medidor, igual que estadoDesdeIAO ya hace internamente.
+        _svgMedidorSemicircular(d.sdmo.ida_prom / 100, sdmoEstado) +
         '<div class="reg-card-val">' + d.sdmo.ida_prom + '</div>' +
       '</div>' +
     '</div>'
@@ -6485,49 +6491,51 @@ function _renderResultadoGlobal(d){
     '<div class="reg-card">' +
       '<div class="reg-card-label">IAO</div>' +
       '<div class="reg-card-row">' +
-        '<canvas id="reg-iao-torta" width="48" height="48"></canvas>' +
+        _svgMedidorSemicircular(d.iao / 100, iaoEstado) +
         '<div style="font-family:var(--f-mono);font-size:18px;font-weight:700;color:' + ESTADO_COLOR[iaoEstado] + '">' + d.iao + '%</div>' +
       '</div>' +
     '</div>'
     : '<div class="reg-card"><div class="reg-card-label">IAO</div>' + _sinDatos(8) + '</div>';
 
   wrap.innerHTML = iceHtml + iehHtml + brechaHtml + sdmoHtml + iaoHtml;
-
-  if(iaoOk){
-    // Literal, no var(): canvas fillStyle no resuelve custom properties CSS.
-    // rgba(255,255,255,.22) — track neutro (antes '#1c2740'/--dk-elevated,
-    // casi idéntico a var(--dk-card) de fondo de .reg-card y por eso se
-    // perdía; mismo criterio que el resto de tracks del panel derecho).
-    _dibujarTortaFraccion('reg-iao-torta', 'rgba(255,255,255,.22)', ESTADO_COLOR[iaoEstado], d.iao / 100);
-  }
 }
 
-// Torta completa (círculo entero, sin agujero central — no es una dona):
-// un track de base + una sola cuña de tamaño = fraccion (0-1). trackColor
-// queda como parámetro (no hardcodeado) para que un uso futuro con otro
-// rol (ej. --par-sensor, "marca de sensor por par") pueda distinguirse a
-// simple vista del track neutro que usa IAO hoy.
-function _dibujarTortaFraccion(canvasId, trackColor, wedgeColor, fraccion){
-  var canvas = document.getElementById(canvasId);
-  if(!canvas || !canvas.getContext) return;
-  var ctx = canvas.getContext('2d');
-  var w = canvas.width, h = canvas.height;
-  var cx = w / 2, cy = h / 2, r = Math.min(w, h) / 2 - 2;
-  ctx.clearRect(0, 0, w, h);
-  ctx.beginPath();
-  ctx.arc(cx, cy, r, 0, Math.PI * 2);
-  ctx.fillStyle = trackColor;
-  ctx.fill();
-  var frac = Math.max(0, Math.min(1, fraccion || 0));
-  if(frac <= 0) return;
-  var start = -Math.PI / 2;
-  var end = start + frac * Math.PI * 2;
-  ctx.beginPath();
-  ctx.moveTo(cx, cy);
-  ctx.arc(cx, cy, r, start, end);
-  ctx.closePath();
-  ctx.fillStyle = wedgeColor;
-  ctx.fill();
+// Medidor semicircular (arco 180°, dominio 0-1) — bandas de severidad
+// FIJAS en los umbrales de siempre (V_UMBRAL_ALERTA/AMENAZA, la misma
+// vara que estadoDesdeAmenaza/estadoDesdeIAO usan para todo lo demás),
+// más una aguja en la posición real del valor. Reemplaza la torta IAO y
+// la barra SDMO del panel derecho — ICE/IEH/Brecha NO comparten esta
+// escala de activación/severidad (no tienen umbral validado, ver
+// DESC_ICE/DESC_IEH y el comentario de Brecha más abajo) y se quedan
+// como barra/anillo, sin adoptar este formato.
+// SVG, no canvas — resuelve var() en los atributos de presentación
+// (igual que _svgAnilloHtml), y es más simple de recortar a un arco de
+// 180° con <path A ...> que con canvas arc().
+function _svgMedidorSemicircular(valor, estado){
+  var w = 100, h = 58, cx = 50, cy = 54, r = 42, needleR = 30, strokeW = 9;
+  var angleFor = function(frac){ return Math.PI - Math.max(0, Math.min(1, frac)) * Math.PI; };
+  var pt = function(frac, radius){
+    var a = angleFor(frac);
+    return { x: cx + radius * Math.cos(a), y: cy - radius * Math.sin(a) };
+  };
+  var arcPath = function(f0, f1, radius){
+    var p0 = pt(f0, radius), p1 = pt(f1, radius);
+    var largeArc = (f1 - f0) > 0.5 ? 1 : 0;
+    return 'M ' + p0.x.toFixed(2) + ' ' + p0.y.toFixed(2) +
+      ' A ' + radius + ' ' + radius + ' 0 ' + largeArc + ' 1 ' + p1.x.toFixed(2) + ' ' + p1.y.toFixed(2);
+  };
+  var bandas =
+    '<path d="' + arcPath(0, V_UMBRAL_ALERTA, r) + '" fill="none" stroke="#4a9d6e" stroke-width="' + strokeW + '"></path>' +
+    '<path d="' + arcPath(V_UMBRAL_ALERTA, V_UMBRAL_AMENAZA, r) + '" fill="none" stroke="#f2542d" stroke-width="' + strokeW + '"></path>' +
+    '<path d="' + arcPath(V_UMBRAL_AMENAZA, 1, r) + '" fill="none" stroke="#b3261e" stroke-width="' + strokeW + '"></path>';
+  var frac = Math.max(0, Math.min(1, valor || 0));
+  var color = estado ? ESTADO_COLOR[estado] : 'var(--dk-text-2)';
+  var tip = pt(frac, needleR);
+  var aguja =
+    '<line x1="' + cx + '" y1="' + cy + '" x2="' + tip.x.toFixed(2) + '" y2="' + tip.y.toFixed(2) + '" stroke="' + color + '" stroke-width="2.5" stroke-linecap="round"></line>' +
+    '<circle cx="' + tip.x.toFixed(2) + '" cy="' + tip.y.toFixed(2) + '" r="3" fill="' + color + '"></circle>' +
+    '<circle cx="' + cx + '" cy="' + cy + '" r="3" fill="' + color + '"></circle>';
+  return '<svg width="' + w + '" height="' + h + '" viewBox="0 0 ' + w + ' ' + h + '" style="flex-shrink:0">' + bandas + aguja + '</svg>';
 }
 
 // Dona ICE/IEH — círculo completo, hemisferio izquierdo con tinte celeste
