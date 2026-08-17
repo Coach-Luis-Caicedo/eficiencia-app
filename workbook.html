@@ -1733,12 +1733,13 @@ supa.auth.getSession().then(function(res){
             <select class="fi" id="area-select" onchange="cargarPorArea()"><option value="">Toda la organización</option></select>
           </div>
           <div id="area-status" style="font-size:13px;color:var(--dk-text-2);margin-bottom:20px"></div>
+          <div id="area-nota-escalada"></div>
 
           <div class="card-title" style="margin-bottom:12px">Números consolidados</div>
           <div id="area-n" style="font-family:var(--f-mono);font-size:11.5px;color:var(--dk-text-2);margin-bottom:10px"></div>
           <div id="area-numeros" style="margin-bottom:28px"></div>
 
-          <div class="card-title" style="margin-bottom:12px">Los 5 pares — brecha</div>
+          <div class="card-title" style="margin-bottom:12px">Los 5 pares — por área vs. organización</div>
           <div id="area-pares" style="display:grid;gap:20px"></div>
         </div>
 
@@ -6944,25 +6945,131 @@ function _dibujarBarrasDepartamentos(canvasId, datos){
   };
 }
 
+// Estructura de areas_organizacion es plana (id, organizacion_id, nombre)
+// — sin parent_area_id/division/nivel, confirmado contra el esquema real
+// (migración 006) antes de escribir esto, no asumido desde el lenguaje de
+// la sección 11.1 del marco. No existe nivel jerárquico intermedio al que
+// escalar, así que un área bajo N≥8-10 va DIRECTO a organización (la
+// segunda rama que el propio marco 11.1 ya contempla: "...o se reporta
+// solo a nivel organización"), nunca se oculta sin explicar.
+//
+// Con área seleccionada se piden siempre los dos niveles en paralelo: el
+// de organización no es solo el fallback de confidencialidad, también es
+// el término de comparación (barra gris) de las columnas ICE/IEH cuando
+// el área SÍ tiene dato propio — así que hace falta en ambos casos, no
+// solo cuando el área falla el mínimo.
 function cargarPorArea(){
   if(!S_ORG.id) return;
   var sel = document.getElementById('area-select');
   var depto = sel && sel.value ? sel.value : null;
   var status = document.getElementById('area-status');
   if(status) status.textContent = 'Cargando…';
-  supa.rpc('resumen_organizacion_completo', { p_organizacion_id: S_ORG.id, p_departamento: depto }).then(function(res){
-    if(res.error){
-      if(status) status.textContent = 'Error al cargar: ' + res.error.message;
-      return;
-    }
+
+  if(!depto){
+    supa.rpc('resumen_organizacion_completo', { p_organizacion_id: S_ORG.id }).then(function(res){
+      if(res.error){ if(status) status.textContent = 'Error al cargar: ' + res.error.message; return; }
+      if(status) status.textContent = '';
+      _renderPorArea(res.data, null, false, res.data);
+    }).catch(function(err){
+      if(status) status.textContent = 'Error de conexión: ' + (err && err.message || err);
+    });
+    return;
+  }
+
+  Promise.all([
+    supa.rpc('resumen_organizacion_completo', { p_organizacion_id: S_ORG.id, p_departamento: depto }),
+    supa.rpc('resumen_organizacion_completo', { p_organizacion_id: S_ORG.id })
+  ]).then(function(resArr){
+    var resDepto = resArr[0], resOrg = resArr[1];
+    if(resDepto.error){ if(status) status.textContent = 'Error al cargar: ' + resDepto.error.message; return; }
+    if(resOrg.error){ if(status) status.textContent = 'Error al cargar comparación: ' + resOrg.error.message; return; }
     if(status) status.textContent = '';
-    _renderPorArea(res.data);
+    // Los 5 pares comparten n (mismo supuesto que _renderPorArea ya
+    // documenta) — basta revisar el primero para saber si el área entera
+    // alcanzó el mínimo de confidencialidad.
+    var deptoSuf = !!(resDepto.data && resDepto.data.pares && resDepto.data.pares.length && resDepto.data.pares[0].n_suficiente);
+    _renderPorArea(deptoSuf ? resDepto.data : resOrg.data, resOrg.data, !deptoSuf, resDepto.data);
   }).catch(function(err){
     if(status) status.textContent = 'Error de conexión: ' + (err && err.message || err);
   });
 }
 
-function _renderPorArea(d){
+// Nota de escalada — visible una sola vez, arriba del bloque de pares,
+// cuando el área seleccionada no alcanza N≥8-10 y se reemplazó por el
+// dato de organización. Nunca se oculta el bloque sin esta explicación,
+// y el umbral no se relaja aunque la participación general sea alta — es
+// un piso de confidencialidad, no de confiabilidad estadística.
+function _notaEscaladaHtml(){
+  return '<div style="display:flex;gap:10px;align-items:flex-start;background:#2a2013;border:1px solid #6b5220;border-radius:var(--r);padding:12px 16px;margin-bottom:20px">' +
+    '<span style="font-size:15px;flex-shrink:0;line-height:1.3">⚠</span>' +
+    '<div style="color:var(--sev-alerta);font-size:12.5px;line-height:1.5">Esta área no alcanza el mínimo de confidencialidad (N≥8-10) — se muestra el dato organizacional en su lugar.</div>' +
+  '</div>';
+}
+
+// Barra fina + valor — una fila de la columna ICE/IEH de _renderParAreaTripleColumna.
+// gris = comparación (org), color = lectura propia (área, o la única
+// lectura disponible cuando no hay comparación).
+function _barraFinaHtml(valor, color, textColor){
+  var pct = Math.max(0, Math.min(100, (valor || 0) * 100));
+  return '<div style="display:flex;align-items:center;gap:8px">' +
+    '<div style="flex:1;height:6px;border-radius:3px;background:var(--dk-elevated);overflow:hidden">' +
+      '<div style="width:' + pct + '%;height:100%;background:' + color + '"></div>' +
+    '</div>' +
+    '<div style="font-family:var(--f-mono);font-size:12px;color:' + (textColor || 'rgba(255,255,255,.7)') + ';min-width:32px;text-align:right">' + (valor != null ? valor.toFixed(2) : '—') + '</div>' +
+  '</div>';
+}
+
+// Tarjeta de par del tab Por área — reemplaza el reuso sin adaptar de
+// _renderParTarjetaPares (esa sigue viva, solo para el tab Pares). 3
+// columnas iguales: ICE (barra área + barra org gris #8a94a6 apiladas,
+// con desviación), IEH (mismo formato, dorado), y la dona ICE/IEH ya
+// usada en Pares (_dibujarDonaIceIeh) recalculada con concepto_a/b del
+// nivel que se esté mostrando (área si tiene dato propio, organización
+// si se escaló). comparar=false cuando no hay una lectura de área propia
+// contra la cual comparar (vista "Toda la organización", o área escalada
+// — ahí d YA ES el dato de organización, no hay una segunda serie que
+// mostrarle al lado): en ese caso una sola barra, sin inventar una
+// desviación de 0 que sugeriría que sí se midió el área.
+function _renderParAreaTripleColumna(p, pOrg, idPrefix, comparar, sufijoTorta){
+  var ficha = CATALOGO_INTERVENCION[p.par];
+  var nombres = ficha ? ficha.nombre.split(' / ') : ['ICE', 'IEH'];
+  var estado = estadoDesdeAmenaza(p.amenaza_par);
+  var torreId = idPrefix + p.par;
+
+  function columna(valor, valorOrg, color, nombre){
+    var filas = '<div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--dk-text-2);margin-bottom:8px">' + nombre + '</div>' +
+      _barraFinaHtml(valor, color);
+    if(!comparar || pOrg == null) return '<div>' + filas + '</div>';
+    filas += '<div style="margin-top:5px">' + _barraFinaHtml(valorOrg, '#8a94a6', 'var(--dk-text-2)') + '</div>';
+    var delta = valor - valorOrg;
+    var flecha = delta >= 0 ? '▲' : '▼';
+    filas += '<div style="font-size:10px;color:var(--dk-text-2);margin-top:5px">' + flecha + ' ' + Math.abs(delta).toFixed(2) + (delta >= 0 ? ' sobre el promedio' : ' bajo el promedio') + '</div>';
+    return '<div>' + filas + '</div>';
+  }
+
+  var pctRiesgo = Math.round(Math.max(0, Math.min(1, p.amenaza_par)) * 100);
+  var colTorta = '<div style="display:flex;align-items:center;gap:12px">' +
+      '<canvas id="' + torreId + '" width="48" height="48"></canvas>' +
+      '<div>' +
+        '<div style="font-family:var(--f-mono);font-size:15px;font-weight:700;color:' + ESTADO_COLOR[estado] + '">' + pctRiesgo + '% en riesgo</div>' +
+        '<div style="font-size:10px;color:var(--dk-text-2);margin-top:2px">' + sufijoTorta + '</div>' +
+      '</div>' +
+    '</div>';
+
+  return '<div class="icard" style="padding:18px 20px">' +
+    '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:16px">' +
+      '<div class="icard-tag">Par ' + p.par + ' — ' + (ficha ? ficha.nombre : '') + '</div>' +
+      _badgeEstado(estado) +
+    '</div>' +
+    '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:20px">' +
+      columna(p.concepto_a_prom, pOrg ? pOrg.concepto_a_prom : null, 'var(--ice)', nombres[0]) +
+      columna(p.concepto_b_prom, pOrg ? pOrg.concepto_b_prom : null, 'var(--ieh)', nombres[1]) +
+      colTorta +
+    '</div>' +
+  '</div>';
+}
+
+function _renderPorArea(d, dOrg, escalada, dDeptoReal){
   // Contexto de n — sin esto, un IAO de n=8 (justo en el mínimo) se leería
   // con la misma confianza que uno de n=40, sin ninguna señal de que son
   // estadísticamente muy distintos. Cuestionario y SD-MO son instrumentos
@@ -6973,12 +7080,22 @@ function _renderPorArea(d){
   // d.pares[0].n — los 5 pares comparten n porque
   // enviar_respuesta_cuestionario siempre inserta los 5 juntos (mismo
   // supuesto ya documentado en individual_iao, migración 002).
+  //
+  // dDeptoReal siempre es la respuesta real del área seleccionada (no el
+  // reemplazo de organización) — cuando se escala, el n que se muestra
+  // aquí sigue siendo el n verdadero del área (ej. "n=3"), la razón
+  // concreta por la que se escaló, no el n de organización que ya no
+  // dice nada sobre ese departamento.
+  var dParaN = dDeptoReal || d;
   var nWrap = document.getElementById('area-n');
   if(nWrap){
-    var nCuest = (d.pares && d.pares.length) ? d.pares[0].n : null;
-    var nSdmo = d.sdmo ? d.sdmo.n : null;
+    var nCuest = (dParaN.pares && dParaN.pares.length) ? dParaN.pares[0].n : null;
+    var nSdmo = dParaN.sdmo ? dParaN.sdmo.n : null;
     nWrap.textContent = 'n=' + (nCuest != null ? nCuest : '—') + ' (cuestionario) · n=' + (nSdmo != null ? nSdmo : '—') + ' (SD-MO)';
   }
+
+  var notaWrap = document.getElementById('area-nota-escalada');
+  if(notaWrap) notaWrap.innerHTML = escalada ? _notaEscaladaHtml() : '';
 
   var numWrap = document.getElementById('area-numeros');
   if(numWrap) numWrap.innerHTML = _numerosConsolidadosHtml(d);
@@ -6986,7 +7103,20 @@ function _renderPorArea(d){
   var paresWrap = document.getElementById('area-pares');
   if(paresWrap){
     var pares = d.pares || [];
-    paresWrap.innerHTML = pares.map(function(p){ return _renderParTarjetaPares(p, 'area-torta-', d.parametros_usados); }).join('');
+    var paresOrg = {};
+    if(dOrg && dOrg.pares) dOrg.pares.forEach(function(p){ paresOrg[p.par] = p; });
+    // Solo compara área-vs-org cuando d es realmente el dato del área
+    // (no el reemplazo por escalada) — si se escaló, d ya ES organización,
+    // no hay una segunda serie propia del área que ponerle al lado.
+    var comparar = !!dOrg && !escalada;
+    var sufijo = escalada ? 'a nivel organización — el área no alcanza N≥8-10' : (dOrg ? 'en esta área' : 'a nivel organización');
+    paresWrap.innerHTML = pares.map(function(p){
+      if(!p.n_suficiente){
+        var ficha = CATALOGO_INTERVENCION[p.par];
+        return '<div class="icard" style="padding:18px 20px"><div class="icard-tag">Par ' + p.par + ' — ' + (ficha ? ficha.nombre : '') + '</div>' + _sinDatos(8) + '</div>';
+      }
+      return _renderParAreaTripleColumna(p, paresOrg[p.par], 'area-torta-', comparar, sufijo);
+    }).join('');
     pares.forEach(function(p){
       if(!p.n_suficiente) return;
       var estado = estadoDesdeAmenaza(p.amenaza_par);
