@@ -262,7 +262,14 @@ table.dt td{color:var(--ink)}
 .reg-tabpanel{display:none}
 .reg-tabpanel.active{display:block}
 .reg-right{position:sticky;top:20px;align-self:start}
-.reg-card{background:var(--dk-card);border-radius:8px;padding:14px 16px;margin-bottom:12px}
+/* min-height uniforme en las 5 tarjetas (ICE/IEH/Brecha/SDMO/IAO) — sin
+   esto la de Brecha (anillo 40x40) y las de ICE/IEH (solo barra+valor,
+   ~16px de fila) quedan visiblemente más bajas que SD-MO/IAO (medidor
+   semicircular, svg 100x58): 28px padding + ~19px label+margen + 58px
+   del medidor ≈ 105px es el contenido más alto real; 112px deja margen.
+   flex column + justify-content:center centra el contenido verticalmente
+   en vez de pegarlo arriba en las tarjetas más cortas. */
+.reg-card{background:var(--dk-card);border-radius:8px;padding:14px 16px;margin-bottom:12px;min-height:112px;display:flex;flex-direction:column;justify-content:center}
 .reg-card-label{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--dk-text-2);margin-bottom:8px}
 .reg-card-row{display:flex;align-items:center;justify-content:space-between;gap:10px}
 .reg-card-val{font-family:var(--f-mono);font-size:16px;color:rgba(255,255,255,.85);flex-shrink:0}
@@ -273,16 +280,14 @@ table.dt td{color:var(--ink)}
    0.18→0.4, se veía ambigua contra el fondo oscuro) — override solo
    dentro de .reg-card, no toca el resto de tarjetas. */
 .reg-card .rp-bar{background:rgba(255,255,255,.22)}
-/* grid-template-columns: 1fr 1fr hacía que la columna del gráfico (tope
-   real ~420px, max-width) se estirara a la mitad de reg-left (ilimitado,
-   .reg-wrap quita el max-width del panel) dejando un vacío entre su
-   borde derecho y .reg-right. max-content la encoge a su contenido real
-   — el sobrante lo absorbe la columna de tarjetas (1fr), no un hueco.
-   align-items:end (no start): las tarjetas y el gráfico deben compartir
-   línea base inferior, no superior — con alturas que dependen de datos
-   reales (ítems con/sin "sin datos"), fijar un alto de canvas que empate
-   "hoy" se desalinearía de nuevo con otro dataset; end se autoajusta. */
-.reg-variables-cols{display:grid;grid-template-columns:1fr max-content;gap:24px;align-items:end}
+/* 3 columnas iguales — ICE (dg-letras-ice), IEH (dg-letras-ieh), gráfica
+   (dg-letras-chart) — ya no 2×5 intercaladas. gap:20px consistente con
+   el gap interno de cada columna de tarjetas. align-items:end (no
+   start): las columnas deben compartir línea base inferior, no
+   superior — con alturas que dependen de datos reales (ítems con/sin
+   "sin datos"), fijar un alto que empate "hoy" se desalinearía de nuevo
+   con otro dataset; end se autoajusta sin importar el dataset. */
+.reg-variables-cols{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;align-items:end}
 
 /* ── Alerts ── */
 .alert{border-radius:var(--r);padding:11px 14px;font-size:12.5px;margin-bottom:11px;display:flex;gap:9px;align-items:flex-start}
@@ -1673,7 +1678,8 @@ supa.auth.getSession().then(function(res){
      no perdido): ficha técnica → franja compartida #dr-ficha; ICE/IEH/
      Brecha/SDMO/IAO → panel derecho fijo #reg-resultado-global
      (_renderResultadoGlobal); dona+ruedas → arriba del tab Pares;
-     10 letras → tab ICE / IEH (#dg-letras, id interno 'variables'); 5 pares → tab Pares
+     10 letras → tab ICE / IEH, 3 columnas iguales (#dg-letras-ice,
+     #dg-letras-ieh, #dg-letras-chart; id interno del tab 'variables'); 5 pares → tab Pares
      (#dg-pares, tarjeta nueva _renderParTarjetaPares); Por área y
      Recomendaciones migran tal cual a sus tabs; Alertas y CFF son tabs
      nuevos. SD-MO resumido sigue vivo sin cambios en #p-sdmo. ═══ -->
@@ -1702,7 +1708,8 @@ supa.auth.getSession().then(function(res){
 
         <div id="reg-variables" class="reg-tabpanel active">
           <div class="reg-variables-cols">
-            <div id="dg-letras" style="display:grid;grid-template-columns:repeat(2,1fr);gap:20px"></div>
+            <div id="dg-letras-ice" style="display:grid;gap:20px"></div>
+            <div id="dg-letras-ieh" style="display:grid;gap:20px"></div>
             <div id="dg-letras-chart"></div>
           </div>
         </div>
@@ -6628,17 +6635,25 @@ function _renderDesglose(d){
   var porPar = {};
   pares.forEach(function(p){ porPar[p.par] = p; });
 
-  var letrasWrap = document.getElementById('dg-letras');
+  var letrasIceWrap = document.getElementById('dg-letras-ice');
+  var letrasIehWrap = document.getElementById('dg-letras-ieh');
   var variablesArr = []; // {letra, valor, rol} — fuente única, reusada por la
                           // gráfica de barras (dg-letras-chart) más abajo, no
                           // se recalcula valor por separado para el gráfico.
-  if(letrasWrap){
-    var items = '';
+                          // Se llena en el orden original de LETRAS_EFICIENCIA
+                          // (intercalado por par) — el split ICE/IEH es solo
+                          // para las columnas de tarjetas, la gráfica no
+                          // cambia su orden de barras.
+  if(letrasIceWrap || letrasIehWrap){
+    var itemsIce = '', itemsIeh = '';
     // Letras = concepto_a_prom/concepto_b_prom, mismo tipo de promedio
     // descriptivo que ICE/IEH (agregado más fino, misma naturaleza) —
     // cifra neutra, sin severidad, mismo criterio que el Resumen. Cada
     // una de las 10 es su propia tarjeta — vista individual aprobada,
-    // no agrupada de a dos por par.
+    // no agrupada de a dos por par. Columnas ICE/IEH separadas (no 2×5
+    // intercaladas): LETRAS_EFICIENCIA ya trae el orden correcto por rol
+    // (E,I,I,N,I para ICE; F,C,E,C,A para IEH), solo se reparte la
+    // tarjeta según l.rol en vez de acumularlas todas en un único wrap.
     LETRAS_EFICIENCIA.forEach(function(l){
       var p = porPar[l.par];
       var ficha = CATALOGO_INTERVENCION[l.par];
@@ -6649,7 +6664,7 @@ function _renderDesglose(d){
       var valor = l.rol === 'ice' ? (sufic ? p.concepto_a_prom : null) : (sufic ? p.concepto_b_prom : null);
       var pct = valor != null ? Math.max(0, Math.min(100, valor * 100)) : 0;
       variablesArr.push({ letra: l.letra, valor: valor, rol: l.rol });
-      items +=
+      var card =
         '<div class="icard" style="padding:14px 16px;display:flex;align-items:center;gap:14px">' +
           '<div style="font-family:\'Montserrat\',sans-serif;font-weight:800;font-size:26px;color:' + color + ';width:32px;text-align:center;flex-shrink:0">' + l.letra + '</div>' +
           '<div style="flex:1;min-width:0">' +
@@ -6660,21 +6675,20 @@ function _renderDesglose(d){
               : _sinDatos(8)) +
           '</div>' +
         '</div>';
+      if(l.rol === 'ice') itemsIce += card; else itemsIeh += card;
     });
-    letrasWrap.innerHTML = items;
+    if(letrasIceWrap) letrasIceWrap.innerHTML = itemsIce;
+    if(letrasIehWrap) letrasIehWrap.innerHTML = itemsIeh;
   }
 
   var chartWrap = document.getElementById('dg-letras-chart');
   if(chartWrap){
-    // width:100% + height:auto con aspecto fijo (420:240) crece sin límite
-    // en este panel — .reg-wrap quita el max-width del layout (línea 255)
-    // para el 2-columnas del Tablero, así que en pantallas anchas la
-    // columna del gráfico se ensancha mucho y, al mantener el aspecto, la
-    // altura crecía con ella hasta dominar visualmente sobre la columna de
-    // 10 tarjetas de al lado (altura fija). max-width la limita a su
-    // resolución intrínseca — no crece más allá de eso, solo se encoge en
-    // columnas angostas.
-    chartWrap.innerHTML = '<canvas id="dg-letras-chart-canvas" width="420" height="240" style="width:100%;max-width:420px;height:auto;display:block"></canvas>';
+    // Columna propia de las 3 iguales (reg-variables-cols) — ya no compite
+    // por ancho con 2 columnas de tarjetas juntas, así que se ajusta al
+    // 100% real de su columna sin tope de max-width; las barras salen más
+    // angostas que antes porque la columna en sí es más angosta (1/3 en
+    // vez de mitad/max-content).
+    chartWrap.innerHTML = '<canvas id="dg-letras-chart-canvas" width="420" height="240" style="width:100%;height:auto;display:block"></canvas>';
     _dibujarBarrasVariables('dg-letras-chart-canvas', variablesArr);
   }
 
