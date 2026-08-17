@@ -273,7 +273,16 @@ table.dt td{color:var(--ink)}
    0.18→0.4, se veía ambigua contra el fondo oscuro) — override solo
    dentro de .reg-card, no toca el resto de tarjetas. */
 .reg-card .rp-bar{background:rgba(255,255,255,.22)}
-.reg-variables-cols{display:grid;grid-template-columns:1fr 1fr;gap:24px;align-items:start}
+/* grid-template-columns: 1fr 1fr hacía que la columna del gráfico (tope
+   real ~420px, max-width) se estirara a la mitad de reg-left (ilimitado,
+   .reg-wrap quita el max-width del panel) dejando un vacío entre su
+   borde derecho y .reg-right. max-content la encoge a su contenido real
+   — el sobrante lo absorbe la columna de tarjetas (1fr), no un hueco.
+   align-items:end (no start): las tarjetas y el gráfico deben compartir
+   línea base inferior, no superior — con alturas que dependen de datos
+   reales (ítems con/sin "sin datos"), fijar un alto de canvas que empate
+   "hoy" se desalinearía de nuevo con otro dataset; end se autoajusta. */
+.reg-variables-cols{display:grid;grid-template-columns:1fr max-content;gap:24px;align-items:end}
 
 /* ── Alerts ── */
 .alert{border-radius:var(--r);padding:11px 14px;font-size:12.5px;margin-bottom:11px;display:flex;gap:9px;align-items:flex-start}
@@ -1694,7 +1703,7 @@ supa.auth.getSession().then(function(res){
         <div id="reg-variables" class="reg-tabpanel active">
           <div class="reg-variables-cols">
             <div id="dg-letras" style="display:grid;grid-template-columns:repeat(2,1fr);gap:20px"></div>
-            <div id="dg-letras-chart" style="align-self:start"></div>
+            <div id="dg-letras-chart"></div>
           </div>
         </div>
 
