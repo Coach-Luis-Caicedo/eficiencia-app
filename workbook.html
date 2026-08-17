@@ -254,7 +254,13 @@ table.dt td{color:var(--ink)}
    la derecha, franja de ficha técnica compartida arriba de ambas). ── */
 .reg-wrap{max-width:none}
 .reg-ficha{display:flex;flex-wrap:wrap;gap:24px;padding:14px 18px;background:var(--dk-card);border:1px solid #26344a;border-radius:10px;margin-bottom:28px;font-size:13px}
-.reg-columns{display:grid;grid-template-columns:1fr 320px;gap:24px;align-items:start}
+/* 3fr 1fr (75%/25% proporcional), no 1fr 320px fijo — mismo criterio en
+   los 6 tabs, .reg-right nunca debe medir distinto según el tab activo.
+   Con esto, dentro del tab ICE/IEH cada uno de los 4 bloques visuales
+   (ICE/IEH/gráfica en reg-left al 75%, más el panel en reg-right al
+   25%) queda en ~25% del ancho total — reg-left ya reparte su 75% en 3
+   columnas iguales (.reg-variables-cols). */
+.reg-columns{display:grid;grid-template-columns:3fr 1fr;gap:24px;align-items:start}
 .reg-tabs{display:flex;gap:4px;border-bottom:1px solid #26344a;margin-bottom:20px;flex-wrap:wrap}
 .reg-tab-btn{padding:9px 14px;font-size:12px;font-weight:600;color:var(--dk-text-2);background:none;border:none;border-bottom:2px solid transparent;cursor:pointer;transition:all var(--tr)}
 .reg-tab-btn:hover{color:var(--dk-text)}
