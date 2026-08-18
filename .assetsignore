@@ -1,0 +1,9 @@
+.git/
+.claude/
+.wrangler/
+_referencia/
+supabase/
+node_modules/
+files.zip
+*.docx
+*.pptx
