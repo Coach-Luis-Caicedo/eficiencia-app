@@ -1,7 +1,7 @@
-# SD-MO — Las 4 preguntas del sensor diario (IDA)
+# SDMO — Las 4 preguntas del sensor diario (IDA)
 
 Complementa a `DOCUMENTO_MARCO_SISTEMA_EFICIENCIA.md`, sección 9 (auditoría de
-arquitectura del SD-MO/IDA). Versión final: **4 ejes bipolares**, reemplaza
+arquitectura del SDMO/IDA). Versión final: **4 ejes bipolares**, reemplaza
 las dos versiones unidireccionales anteriores (ver Historial de versiones al
 final).
 
@@ -16,7 +16,7 @@ presencia vacía, desmotivación, estrés)— cerrando ese vacío sin agregar un
 quinta pregunta.
 
 El cuestionario de 25 preguntas mide percepción reflexiva sobre la relación
-con la organización (ICE/IEH/Brecha, por par). El SD-MO mide **estado
+con la organización (ICE/IEH/Brecha, por par). El SDMO mide **estado
 sentido del día**, algo que se responde en segundos, sin análisis — por eso
 no se desagrega por par (sección 9.3 del marco: nunca debe hacerlo, perdería
 la velocidad que es su única ventaja).
@@ -64,14 +64,14 @@ sostiene bien en el piloto.
 Hallazgo no buscado a propósito, encontrado al cruzar los 4 ejes contra los
 componentes del CFF — casi 1 a 1:
 
-| Eje SD-MO | Componente CFF |
+| Eje SDMO | Componente CFF |
 |---|---|
 | Confianza ↔ Temor | Rotación (+ Supervisión innecesaria, sección 8.1) |
 | Colaboración ↔ Retención | Retrabajo |
 | Compromiso ↔ Presencia vacía/Desmotivación | Desenganche |
 | Creatividad ↔ Estrés laboral | Ausentismo (+ Innovación perdida, sección 8.1) |
 
-Si esta correspondencia se sostiene con datos reales del piloto, el SD-MO
+Si esta correspondencia se sostiene con datos reales del piloto, el SDMO
 deja de ser solo un pulso genérico de amenaza — se convierte en indicador
 líder específico por componente de costo (ej. "tu costo de ausentismo está
 subiendo porque el eje Creatividad/Estrés lleva tres semanas cayendo").
