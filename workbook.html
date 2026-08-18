@@ -6649,20 +6649,21 @@ function _dibujarDonaIceIeh(canvasId, distIce, distIeh, wedgeColor){
   ctx.clearRect(0, 0, w, h);
 
   // Tinte de hemisferio — izquierda ICE (celeste), derecha IEH (dorado),
-  // opacidad 0.4 (subida desde 0.18 — a esa opacidad se veía apagado y
-  // ambiguo, casi gris, contra el fondo oscuro). Literal, no var(): canvas
+  // opacidad 0.7 (subida desde 0.4 — medido con inspector en vivo: 0.4
+  // sobre el fondo #141f30 mezcla a #304E76/#635035, demasiado apagado
+  // para leerse como los colores de marca). Literal, no var(): canvas
   // fillStyle no resuelve custom properties CSS. #5a95e0 = --ice, #d99a3d = --ieh.
   ctx.beginPath();
   ctx.moveTo(cx, cy);
   ctx.arc(cx, cy, r, Math.PI / 2, Math.PI * 1.5);
   ctx.closePath();
-  ctx.fillStyle = 'rgba(90,149,224,.4)';
+  ctx.fillStyle = 'rgba(90,149,224,.7)';
   ctx.fill();
   ctx.beginPath();
   ctx.moveTo(cx, cy);
   ctx.arc(cx, cy, r, -Math.PI / 2, Math.PI / 2);
   ctx.closePath();
-  ctx.fillStyle = 'rgba(217,154,61,.4)';
+  ctx.fillStyle = 'rgba(217,154,61,.7)';
   ctx.fill();
 
   var left = Math.max(0, Math.min(1, distIce || 0)) * Math.PI;
