@@ -1,1 +1,358 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>EFICIENCIA &#8212; Sensor FPV</title>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@600;700;800&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<style>
+:root{
+  --azul:#0D2340; --azul-m:#1B3A5C; --azul-l:#2563A8; --azul-bg:#D6E4F7;
+  --dorado:#C9A227; --dorado-lt:#FEF8E3;
+  --paper:#F0EEF8; --paper-w:#E4E1F4; --rule:#C9C4E8;
+  --ink:#0D1B2A; --ink-m:#3D5A73; --ink-s:#7A97AD;
+  --r:10px; --shadow:0 2px 12px rgba(13,27,42,.08);
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{font-family:'DM Sans',sans-serif;background:var(--paper);color:var(--ink);font-size:15px;line-height:1.6;min-height:100vh}
+
+.site-header{background:var(--azul);padding:0;position:sticky;top:0;z-index:100}
+.header-inner{max-width:720px;margin:0 auto;display:flex;align-items:center;gap:16px;padding:14px 24px}
+.brand-mark{font-family:'Montserrat',sans-serif;font-weight:800;font-size:18px;line-height:1}
+.efi{color:var(--dorado)}.ciencia{color:#fff}
+.header-progress{flex:1;margin-left:8px}
+.prog-label{font-size:11px;color:rgba(255,255,255,.42);margin-bottom:5px;display:flex;justify-content:space-between}
+.prog-bar{height:4px;background:rgba(255,255,255,.12);border-radius:2px}
+.prog-fill{height:100%;background:var(--dorado);border-radius:2px;transition:width .4s ease}
+
+.wrap{max-width:720px;margin:0 auto;padding:0 20px}
+.intro-card{background:var(--azul);color:#fff;border-radius:16px;padding:26px 30px;margin:28px 0 20px;position:relative;overflow:hidden}
+.intro-card::before{content:'';position:absolute;top:-40px;right:-40px;width:160px;height:160px;border-radius:50%;background:radial-gradient(circle,rgba(201,162,39,.22) 0%,transparent 70%)}
+.intro-title{font-family:'Montserrat',sans-serif;font-size:22px;font-weight:700;margin-bottom:6px}
+.intro-desc{font-size:13px;color:rgba(255,255,255,.62);line-height:1.7;max-width:460px}
+.meta-pills{display:flex;gap:12px;margin-top:14px;flex-wrap:wrap}
+.meta-pill{background:rgba(255,255,255,.09);border:1px solid rgba(255,255,255,.15);border-radius:20px;padding:4px 12px;font-size:11px;color:rgba(255,255,255,.72)}
+
+/* Encabezado de contexto obligatorio (marco 10.3) — no es una nota al
+   margen, es el sujeto de las 6 preguntas que siguen, todas redactadas
+   sin sujeto explícito a propósito. */
+.ctx-card{background:var(--azul-bg);border:1px solid #b0cde8;border-radius:var(--r);padding:16px 20px;margin-bottom:20px;font-size:14px;color:var(--azul-l);line-height:1.6}
+.ctx-card strong{color:var(--azul)}
+
+.dim-hdr{display:flex;align-items:center;gap:10px;margin:26px 0 10px;padding:9px 14px;border-radius:8px;background:var(--azul-bg);border-left:3px solid var(--azul-l)}
+.dim-title{font-family:'Montserrat',sans-serif;font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--azul-l)}
+.dim-sub{font-size:11px;color:var(--ink-s);margin-left:auto}
+
+.q-card{background:#fff;border:1px solid var(--rule);border-radius:var(--r);padding:18px 22px;margin-bottom:8px;box-shadow:var(--shadow);transition:border-left-color .2s}
+.q-card.answered{border-left:3px solid var(--azul-l)}
+.q-hdr{display:flex;align-items:center;gap:8px;margin-bottom:10px}
+.q-n{font-family:'DM Mono',monospace;font-size:11px;font-weight:500;color:var(--ink-s)}
+.q-txt{font-size:15px;font-weight:500;color:var(--ink);margin-bottom:13px;line-height:1.5}
+.esc-row{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.esc-anc{font-size:11px;color:var(--ink-s)}
+.lik-wrap{display:flex;gap:6px}
+.lik-lbl{cursor:pointer}
+.lik-lbl input{display:none}
+.lik-btn{display:flex;align-items:center;justify-content:center;width:44px;height:44px;border-radius:8px;
+  border:1.5px solid var(--rule);background:#fff;font-family:'DM Mono',monospace;font-size:14px;
+  font-weight:700;color:var(--ink-m);cursor:pointer;transition:all .15s;user-select:none}
+.lik-lbl input:checked + .lik-btn{background:var(--azul);border-color:var(--azul);color:#fff;box-shadow:0 2px 8px rgba(13,35,64,.25)}
+.lik-btn:hover{border-color:var(--azul-l);color:var(--azul-l)}
+
+.btn{padding:12px 28px;border-radius:8px;border:none;cursor:pointer;font-family:'Montserrat',sans-serif;font-weight:700;font-size:13px;transition:all .2s;letter-spacing:.04em;text-transform:uppercase}
+.btn-gold{background:var(--dorado);color:var(--azul)}
+.btn-gold:hover{background:#ddb22e;box-shadow:0 6px 20px rgba(201,162,39,.4);transform:translateY(-2px)}
+.btn-ghost{background:rgba(255,255,255,.1);color:#fff;border:1px solid rgba(255,255,255,.2)}
+.btn-ghost:hover{background:rgba(255,255,255,.18)}
+
+.submit-wrap{max-width:720px;margin:0 auto;padding:0 20px 60px}
+.submit-card{background:var(--azul);border-radius:16px;padding:26px 30px;text-align:center;color:#fff}
+.submit-card h3{font-family:'Montserrat',sans-serif;font-size:20px;font-weight:700;margin-bottom:8px}
+.submit-card p{font-size:14px;color:rgba(255,255,255,.6);margin-bottom:20px}
+.incomplete-warn{background:rgba(201,162,39,.18);border:1px solid rgba(201,162,39,.4);border-radius:8px;
+  padding:11px 14px;margin-bottom:14px;font-size:13px;color:var(--dorado);display:none}
+
+.float-counter{position:fixed;bottom:24px;right:24px;background:var(--azul);color:#fff;border-radius:50px;
+  padding:10px 18px;font-family:'Montserrat',sans-serif;font-size:13px;font-weight:700;
+  box-shadow:0 4px 20px rgba(13,35,64,.35);z-index:200}
+
+.done-overlay{display:none;position:fixed;inset:0;background:var(--azul);z-index:600;align-items:center;justify-content:center;flex-direction:column;text-align:center;padding:40px}
+.done-overlay.show{display:flex}
+.done-icon{font-size:50px;color:var(--dorado);margin-bottom:18px}
+.done-title{font-family:'Montserrat',sans-serif;font-size:26px;color:var(--dorado);font-weight:800;margin-bottom:10px}
+.done-sub{font-size:14px;color:rgba(255,255,255,.65);max-width:440px;line-height:1.7;margin-bottom:26px}
+.done-actions{display:flex;gap:10px;flex-wrap:wrap;justify-content:center}
+</style>
+</head>
+<body>
+
+<header class="site-header">
+  <div class="header-inner">
+    <div class="brand-mark"><span class="efi">EFI</span><span class="ciencia">CIENCIA</span></div>
+    <div class="header-progress">
+      <div class="prog-label"><span>Preguntas respondidas</span><span id="prog-text">0 / 6</span></div>
+      <div class="prog-bar"><div class="prog-fill" id="prog-fill" style="width:0%"></div></div>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+  <div class="intro-card">
+    <div class="intro-title">Sensor FPV</div>
+    <div class="intro-desc">6 preguntas cortas sobre tu relación con esta organización. No hay respuestas correctas — marca lo que mejor refleje tu experiencia real.</div>
+    <div class="meta-pills">
+      <span class="meta-pill">6 preguntas</span>
+      <span class="meta-pill">&#8776; 1 minuto</span>
+    </div>
+  </div>
+
+  <div class="ctx-card" id="ctx-card">
+    Las siguientes preguntas se refieren a tu relación con <strong id="ctx-org">esta organización</strong>.
+  </div>
+</div>
+
+<div class="wrap">
+
+  <div class="dim-hdr"><span class="dim-title">Fiabilidad</span><span class="dim-sub">&#191;puedo confiar en lo que promete?</span></div>
+
+  <div class="q-card" id="qcard-1">
+    <div class="q-hdr"><span class="q-n">Q1</span></div>
+    <div class="q-txt">Lo que comunica coincide con lo que entrega.</div>
+    <div class="esc-row">
+      <span class="esc-anc">Nada de acuerdo</span>
+      <div class="lik-wrap">
+        <label class="lik-lbl"><input type="radio" name="q1" value="1" onchange="answer(1,1)"><span class="lik-btn">1</span></label>
+        <label class="lik-lbl"><input type="radio" name="q1" value="2" onchange="answer(1,2)"><span class="lik-btn">2</span></label>
+        <label class="lik-lbl"><input type="radio" name="q1" value="3" onchange="answer(1,3)"><span class="lik-btn">3</span></label>
+        <label class="lik-lbl"><input type="radio" name="q1" value="4" onchange="answer(1,4)"><span class="lik-btn">4</span></label>
+        <label class="lik-lbl"><input type="radio" name="q1" value="5" onchange="answer(1,5)"><span class="lik-btn">5</span></label>
+      </div>
+      <span class="esc-anc">Totalmente de acuerdo</span>
+    </div>
+  </div>
+
+  <div class="q-card" id="qcard-2">
+    <div class="q-hdr"><span class="q-n">Q2</span></div>
+    <div class="q-txt">Cumple lo que acuerda, en plazo y condiciones.</div>
+    <div class="esc-row">
+      <span class="esc-anc">Nada de acuerdo</span>
+      <div class="lik-wrap">
+        <label class="lik-lbl"><input type="radio" name="q2" value="1" onchange="answer(2,1)"><span class="lik-btn">1</span></label>
+        <label class="lik-lbl"><input type="radio" name="q2" value="2" onchange="answer(2,2)"><span class="lik-btn">2</span></label>
+        <label class="lik-lbl"><input type="radio" name="q2" value="3" onchange="answer(2,3)"><span class="lik-btn">3</span></label>
+        <label class="lik-lbl"><input type="radio" name="q2" value="4" onchange="answer(2,4)"><span class="lik-btn">4</span></label>
+        <label class="lik-lbl"><input type="radio" name="q2" value="5" onchange="answer(2,5)"><span class="lik-btn">5</span></label>
+      </div>
+      <span class="esc-anc">Totalmente de acuerdo</span>
+    </div>
+  </div>
+
+  <div class="dim-hdr"><span class="dim-title">Proporcionalidad</span><span class="dim-sub">&#191;lo que recibo corresponde a lo que aporto?</span></div>
+
+  <div class="q-card" id="qcard-3">
+    <div class="q-hdr"><span class="q-n">Q3</span></div>
+    <div class="q-txt">Lo que recibo es proporcional a lo que aporto.</div>
+    <div class="esc-row">
+      <span class="esc-anc">Nada de acuerdo</span>
+      <div class="lik-wrap">
+        <label class="lik-lbl"><input type="radio" name="q3" value="1" onchange="answer(3,1)"><span class="lik-btn">1</span></label>
+        <label class="lik-lbl"><input type="radio" name="q3" value="2" onchange="answer(3,2)"><span class="lik-btn">2</span></label>
+        <label class="lik-lbl"><input type="radio" name="q3" value="3" onchange="answer(3,3)"><span class="lik-btn">3</span></label>
+        <label class="lik-lbl"><input type="radio" name="q3" value="4" onchange="answer(3,4)"><span class="lik-btn">4</span></label>
+        <label class="lik-lbl"><input type="radio" name="q3" value="5" onchange="answer(3,5)"><span class="lik-btn">5</span></label>
+      </div>
+      <span class="esc-anc">Totalmente de acuerdo</span>
+    </div>
+  </div>
+
+  <div class="q-card" id="qcard-4">
+    <div class="q-hdr"><span class="q-n">Q4</span></div>
+    <div class="q-txt">Ajusta las condiciones con justicia cuando cambian las circunstancias.</div>
+    <div class="esc-row">
+      <span class="esc-anc">Nada de acuerdo</span>
+      <div class="lik-wrap">
+        <label class="lik-lbl"><input type="radio" name="q4" value="1" onchange="answer(4,1)"><span class="lik-btn">1</span></label>
+        <label class="lik-lbl"><input type="radio" name="q4" value="2" onchange="answer(4,2)"><span class="lik-btn">2</span></label>
+        <label class="lik-lbl"><input type="radio" name="q4" value="3" onchange="answer(4,3)"><span class="lik-btn">3</span></label>
+        <label class="lik-lbl"><input type="radio" name="q4" value="4" onchange="answer(4,4)"><span class="lik-btn">4</span></label>
+        <label class="lik-lbl"><input type="radio" name="q4" value="5" onchange="answer(4,5)"><span class="lik-btn">5</span></label>
+      </div>
+      <span class="esc-anc">Totalmente de acuerdo</span>
+    </div>
+  </div>
+
+  <div class="dim-hdr"><span class="dim-title">Vínculo</span><span class="dim-sub">&#191;existe una relación más allá de la transacción?</span></div>
+
+  <div class="q-card" id="qcard-5">
+    <div class="q-hdr"><span class="q-n">Q5</span></div>
+    <div class="q-txt">Me trata como una relación de largo plazo.</div>
+    <div class="esc-row">
+      <span class="esc-anc">Nada de acuerdo</span>
+      <div class="lik-wrap">
+        <label class="lik-lbl"><input type="radio" name="q5" value="1" onchange="answer(5,1)"><span class="lik-btn">1</span></label>
+        <label class="lik-lbl"><input type="radio" name="q5" value="2" onchange="answer(5,2)"><span class="lik-btn">2</span></label>
+        <label class="lik-lbl"><input type="radio" name="q5" value="3" onchange="answer(5,3)"><span class="lik-btn">3</span></label>
+        <label class="lik-lbl"><input type="radio" name="q5" value="4" onchange="answer(5,4)"><span class="lik-btn">4</span></label>
+        <label class="lik-lbl"><input type="radio" name="q5" value="5" onchange="answer(5,5)"><span class="lik-btn">5</span></label>
+      </div>
+      <span class="esc-anc">Totalmente de acuerdo</span>
+    </div>
+  </div>
+
+  <div class="q-card" id="qcard-6">
+    <div class="q-hdr"><span class="q-n">Q6</span></div>
+    <div class="q-txt">Seguiría eligiéndola aunque tuviera otra opción similar.</div>
+    <div class="esc-row">
+      <span class="esc-anc">Nada de acuerdo</span>
+      <div class="lik-wrap">
+        <label class="lik-lbl"><input type="radio" name="q6" value="1" onchange="answer(6,1)"><span class="lik-btn">1</span></label>
+        <label class="lik-lbl"><input type="radio" name="q6" value="2" onchange="answer(6,2)"><span class="lik-btn">2</span></label>
+        <label class="lik-lbl"><input type="radio" name="q6" value="3" onchange="answer(6,3)"><span class="lik-btn">3</span></label>
+        <label class="lik-lbl"><input type="radio" name="q6" value="4" onchange="answer(6,4)"><span class="lik-btn">4</span></label>
+        <label class="lik-lbl"><input type="radio" name="q6" value="5" onchange="answer(6,5)"><span class="lik-btn">5</span></label>
+      </div>
+      <span class="esc-anc">Totalmente de acuerdo</span>
+    </div>
+  </div>
+
+</div>
+
+<div class="submit-wrap" style="margin-top:20px">
+  <div class="submit-card">
+    <h3>&#191;Terminaste?</h3>
+    <p>Cuando hayas respondido las 6 preguntas, envía tu respuesta al servidor.</p>
+    <div class="incomplete-warn" id="incomplete-warn">
+      Aún hay <strong id="missing-count">0</strong> de 6 preguntas sin responder. Debes responderlas todas antes de enviar.
+    </div>
+    <button class="btn btn-gold" onclick="exportar()">&#10003; Enviar respuesta</button>
+  </div>
+</div>
+
+<div class="float-counter" id="float-counter">0 / 6</div>
+
+<div class="done-overlay" id="done-overlay">
+  <div class="done-icon">&#10003;</div>
+  <div class="done-title">Respuesta enviada</div>
+  <div class="done-sub" id="done-msg">Gracias — tu respuesta quedó registrada.</div>
+  <div class="done-actions">
+    <button class="btn btn-ghost" onclick="document.getElementById('done-overlay').classList.remove('show')">Continuar</button>
+  </div>
+</div>
+
+<!-- Bloqueo si no hay código de invitación FPV válido (URL ?codigo=...) -->
+<div class="done-overlay" id="sin-codigo-overlay">
+  <div class="done-icon">&#9888;</div>
+  <div class="done-title">Enlace no válido</div>
+  <div class="done-sub">Este formulario requiere el enlace que te compartió la organización. Si lo perdiste, pídele al consultor de EFICIENCIA que te lo reenvíe.</div>
+</div>
+
+<script>
+var answers = {};
+var answered = 0;
+
+function answer(qn, val) {
+  var was = (answers[qn] !== undefined);
+  answers[qn] = val;
+  if (!was) { answered++; updateProgress(); }
+  document.getElementById('qcard-' + qn).classList.add('answered');
+}
+
+function updateProgress() {
+  var pct = answered / 6;
+  document.getElementById('prog-fill').style.width = (pct * 100) + '%';
+  document.getElementById('prog-text').textContent = answered + ' / 6';
+  document.getElementById('float-counter').textContent = answered + ' / 6';
+}
+
+function exportar() {
+  // Mismo patrón que cuestionario.html: bloquea el envío mientras falten
+  // preguntas — a diferencia del texto heredado de cuestionario.html
+  // ("puedes exportar de todas formas", que no coincide con su propio
+  // comportamiento real), aquí el aviso y el bloqueo dicen lo mismo.
+  var missing = 6 - answered;
+  if (missing > 0) {
+    document.getElementById('missing-count').textContent = missing;
+    document.getElementById('incomplete-warn').style.display = 'block';
+    return;
+  }
+  document.getElementById('incomplete-warn').style.display = 'none';
+
+  if (!CODIGO_FPV) {
+    document.getElementById('sin-codigo-overlay').classList.add('show');
+    return;
+  }
+
+  function mostrarOk() {
+    document.getElementById('done-overlay').classList.add('show');
+  }
+  function mostrarError(detalle) {
+    var msg = document.getElementById('done-msg');
+    if (msg) msg.textContent = 'No se pudo enviar. ' + (detalle || 'Verifica tu internet e intenta de nuevo.');
+    document.getElementById('done-overlay').classList.add('show');
+  }
+
+  supa.rpc('enviar_respuesta_fpv', {
+    p_codigo: CODIGO_FPV,
+    p_fiabilidad_1: answers[1],
+    p_fiabilidad_2: answers[2],
+    p_proporcionalidad_1: answers[3],
+    p_proporcionalidad_2: answers[4],
+    p_vinculo_1: answers[5],
+    p_vinculo_2: answers[6]
+  }).then(function(res){
+    if (res.error) {
+      if (/código de invitación/.test(res.error.message || '')) {
+        document.getElementById('sin-codigo-overlay').classList.add('show');
+        return;
+      }
+      mostrarError(res.error.message);
+      return;
+    }
+    mostrarOk();
+  }).catch(function(err){
+    mostrarError(err && err.message);
+  });
+}
+</script>
+
+<script>
+// Proyecto Supabase de EFICIENCIA — mismo proyecto que cuestionario.html/sdmo.html.
+var SUPA_URL = 'https://kapxcjehfaasttwfnnzq.supabase.co';
+var SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImthcHhjamVoZmFhc3R0d2ZubnpxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODYxMzQ1NjYsImV4cCI6MjEwMTcxMDU2Nn0.s0NC1ILswMQHPf-rsY1kvGSn0LpBSckNdlw2TvzMXws';
+var supa = supabase.createClient(SUPA_URL, SUPA_KEY);
+
+(function(){
+  var params = new URLSearchParams(window.location.search);
+  var codigoUrl = params.get('codigo');
+  if (codigoUrl) {
     // Clave de localStorage separada de 'efi_codigo' (cuestionario/SDMO) —
+    // un código de FPV es de otro actor (Inversionista/Consumidor), nunca
+    // debe confundirse con el código individual de un colaborador.
+    localStorage.setItem('efi_codigo_fpv', codigoUrl);
+  }
+  window.CODIGO_FPV = codigoUrl || localStorage.getItem('efi_codigo_fpv') || null;
+  if (!window.CODIGO_FPV) {
+    document.getElementById('sin-codigo-overlay').classList.add('show');
+  } else {
+    cargarNombreOrg();
+  }
+})();
+
+// Encabezado de contexto obligatorio (marco 10.3) — el nombre real se
+// resuelve del código, nunca se le pide al respondiente que lo escriba.
+function cargarNombreOrg() {
+  supa.rpc('organizacion_nombre_por_codigo_fpv', { p_codigo: CODIGO_FPV }).then(function(res) {
+    if (res.error || !res.data) {
+      document.getElementById('sin-codigo-overlay').classList.add('show');
+      return;
+    }
+    document.getElementById('ctx-org').textContent = res.data;
+  }).catch(function(){
+    document.getElementById('sin-codigo-overlay').classList.add('show');
+  });
+}
+</script>
+</body>
+</html>
