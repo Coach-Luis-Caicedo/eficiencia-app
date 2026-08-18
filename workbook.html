@@ -6086,7 +6086,11 @@ function _explicacionAmenazaPar(p, nombres){
   if(p.causa_dominante === 'mixta'){
     return 'la brecha entre ' + nombres[0] + ' y ' + nombres[1] + ' y el piso mínimo de ' + nombres[1] + ' pesan de forma similar.';
   }
-  return '';
+  // causa_dominante ausente o con un valor que no es ninguno de los 3
+  // esperados — señal visible de que el servidor no está devolviendo lo
+  // que este código espera (RPC desactualizado, columna renombrada,
+  // etc.), en vez de dejar la cláusula en blanco sin explicación.
+  return 'causa no disponible (dato del servidor incompleto).';
 }
 
 function _badgeEstado(estado){
