@@ -1097,6 +1097,9 @@ accidentalidad):
 
 - α, γ (sección 6.2)
 - w_neg, umbral_piso (sección 4, fórmula del IAO)
+- causa_margen (sección 4, desglose por par — clasificación 'mixta' de
+  causa_dominante, migración 010 de Supabase; mismo tratamiento que
+  w_neg/umbral_piso, no un valor validado)
 - Umbrales de severidad verde/ámbar/rojo (sección 6.4)
 - δ (sección 9.1), umbral rojo del IDA (sección 9.2)
 - λ, F_ext (sección 8.2, 7.3)

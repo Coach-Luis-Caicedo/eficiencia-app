@@ -6060,34 +6060,33 @@ function _etiquetaDeclaradoVivido(tipo){
 }
 
 // Explica cuál de los dos términos de Amenaza_par domina (marco, fórmula
-// de amenaza_par) — aproximación a nivel de PAR: usa brecha_final y
-// concepto_b_prom, los agregados que ya devuelve el servidor por par, con
-// la misma fórmula y los mismos parámetros provisionales (w_neg,
-// umbral_piso) que el servidor aplica por INDIVIDUO antes de agregar con
-// γ/segundo_mayor (resumen_organizacion_completo, migración 002). No es
-// una descomposición literal del amenaza_par final mostrado — ese
-// desglose por individuo no se expone al cliente (confidencialidad) — es
-// la mejor aproximación disponible con lo que sí se expone, y usa
-// d.parametros_usados en vez de constantes propias para que el texto se
-// recalibre solo cuando esos parámetros cambien en el servidor.
+// de amenaza_par). Lee causa_dominante directo de p (resumen_organizacion_
+// completo, migración 010) — el servidor la calcula por INDIVIDUO y
+// agrega con el mismo esquema γ/segundo_mayor que ya protege amenaza_par,
+// gateada por el mismo n_suficiente. Antes esto se aproximaba client-side
+// recalculando la fórmula sobre brecha_final/concepto_b_prom (promedios
+// de organización) — GREATEST(avg(x),avg(y)) ≠ avg(GREATEST(x,y))
+// (desigualdad de Jensen), así que esa aproximación podía atribuir la
+// causa equivocada. Ya no hay reconstrucción en el cliente.
 //
 // Devuelve solo la CLÁUSULA (sin el prefijo "{pct}% en riesgo:") — cada
 // llamador antepone el porcentaje a su manera: Pares lo funde en una sola
 // oración de fila única, Por área lo deja como número grande aparte
 // (ya lo tenía) y agrega esta cláusula como línea nueva debajo, sin
 // duplicar el porcentaje. Compartida entre _renderParTarjetaPares (tab
-// Pares) y _renderParAreaTripleColumna (tab Por área) — mismo cálculo de
-// atribución de causa en los dos lugares, texto idéntico.
-function _explicacionAmenazaPar(p, parametros, nombres){
-  var wNeg = (parametros && parametros.w_neg != null) ? parametros.w_neg : 0.5;
-  var umbralPiso = (parametros && parametros.umbral_piso != null) ? parametros.umbral_piso : 0.5;
-  var brecha = p.brecha_final;
-  var incongruencia = Math.max(brecha, 0) * 1 + Math.max(-brecha, 0) * wNeg;
-  var absoluta = Math.max(0, umbralPiso - p.concepto_b_prom);
-  if(incongruencia >= absoluta){
+// Pares) y _renderParAreaTripleColumna (tab Por área) — mismo texto en
+// los dos lugares.
+function _explicacionAmenazaPar(p, nombres){
+  if(p.causa_dominante === 'piso'){
+    return nombres[1] + ' está por debajo del mínimo saludable, más que la brecha con ' + nombres[0] + '.';
+  }
+  if(p.causa_dominante === 'incongruencia'){
     return 'la brecha entre ' + nombres[0] + ' y ' + nombres[1] + ' pesa más que el piso mínimo.';
   }
-  return nombres[1] + ' está por debajo del mínimo saludable, más que la brecha con ' + nombres[0] + '.';
+  if(p.causa_dominante === 'mixta'){
+    return 'la brecha entre ' + nombres[0] + ' y ' + nombres[1] + ' y el piso mínimo de ' + nombres[1] + ' pesan de forma similar.';
+  }
+  return '';
 }
 
 function _badgeEstado(estado){
@@ -6755,7 +6754,7 @@ function _renderDesglose(d){
 
   var paresWrap = document.getElementById('dg-pares');
   if(paresWrap){
-    paresWrap.innerHTML = pares.map(function(p){ return _renderParTarjetaPares(p, 'par-torta-', d.parametros_usados); }).join('');
+    paresWrap.innerHTML = pares.map(function(p){ return _renderParTarjetaPares(p, 'par-torta-'); }).join('');
     pares.forEach(function(p){
       if(!p.n_suficiente) return;
       var estado = estadoDesdeAmenaza(p.amenaza_par);
@@ -6784,7 +6783,7 @@ function _barraVerticalHtml(pct, valor, color, label){
 // ('par-torta-' / 'area-torta-', aunque Por área ya no usa esta función
 // — tiene su propio componente, _renderParAreaTripleColumna — ambos
 // comparten _explicacionAmenazaPar para el texto de riesgo).
-function _renderParTarjetaPares(p, idPrefix, parametros){
+function _renderParTarjetaPares(p, idPrefix){
   idPrefix = idPrefix || 'par-torta-';
   var ficha = CATALOGO_INTERVENCION[p.par];
   var nombres = ficha ? ficha.nombre.split(' / ') : ['ICE', 'IEH'];
@@ -6801,7 +6800,7 @@ function _renderParTarjetaPares(p, idPrefix, parametros){
   var pctRiesgo = Math.round(Math.max(0, Math.min(1, p.amenaza_par)) * 100);
   var torreId = idPrefix + p.par;
   var descCondensado = _descParCondensadoHtml(p.par);
-  var textoRiesgo = '<strong>' + pctRiesgo + '% en riesgo</strong>: ' + _explicacionAmenazaPar(p, parametros, nombres);
+  var textoRiesgo = '<strong>' + pctRiesgo + '% en riesgo</strong>: ' + _explicacionAmenazaPar(p, nombres);
   return '<div class="icard" style="padding:16px 20px">' +
     '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:14px">' +
       '<div class="icard-tag">Par ' + p.par + ' — ' + (ficha ? ficha.nombre : '') + '</div>' +
@@ -7083,7 +7082,7 @@ function _barraFinaHtml(valor, color, textColor){
 // el dato de organización, no hay una segunda serie que mostrarle al
 // lado): en ese caso una sola barra, sin inventar una desviación de 0
 // que sugeriría que sí se midió el área.
-function _renderParAreaTripleColumna(p, pOrg, idPrefix, comparar, sufijoTorta, parametros){
+function _renderParAreaTripleColumna(p, pOrg, idPrefix, comparar, sufijoTorta){
   var ficha = CATALOGO_INTERVENCION[p.par];
   var nombres = ficha ? ficha.nombre.split(' / ') : ['ICE', 'IEH'];
   var estado = estadoDesdeAmenaza(p.amenaza_par);
@@ -7108,7 +7107,7 @@ function _renderParAreaTripleColumna(p, pOrg, idPrefix, comparar, sufijoTorta, p
   // compartida) — reemplaza el texto genérico que había antes acá. El
   // porcentaje se muestra aparte (número grande, ya existía), la cláusula
   // no lo repite.
-  var clausulaRiesgo = _explicacionAmenazaPar(p, parametros, nombres);
+  var clausulaRiesgo = _explicacionAmenazaPar(p, nombres);
   var colTorta = tarjeta(
     '<canvas id="' + torreId + '" width="48" height="48" style="flex-shrink:0"></canvas>' +
     '<div>' +
@@ -7178,7 +7177,7 @@ function _renderPorArea(d, dOrg, escalada, dDeptoReal){
         var ficha = CATALOGO_INTERVENCION[p.par];
         return '<div class="icard" style="padding:18px 20px"><div class="icard-tag">Par ' + p.par + ' — ' + (ficha ? ficha.nombre : '') + '</div>' + _sinDatos(8) + '</div>';
       }
-      return _renderParAreaTripleColumna(p, paresOrg[p.par], 'area-torta-', comparar, sufijo, d.parametros_usados);
+      return _renderParAreaTripleColumna(p, paresOrg[p.par], 'area-torta-', comparar, sufijo);
     }).join('');
     pares.forEach(function(p){
       if(!p.n_suficiente) return;
