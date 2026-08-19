@@ -525,31 +525,125 @@ Costo_desenganche = N × Salario_promedio × 0.26 × (IAO_org/100)
 Costo_rotación = N × TasaRotaciónBase_cliente × (1 + s_rot × IAO_org/100)
                    × Salario_promedio_afectado × Multiplicador_rol[0.25–0.75]
 
-Costo_ausentismo = N × Salario_promedio × TasaAusentismoBase[0.010–0.019]
-                   × (1 + s_aus × IAO_org/100)
+Costo_ausentismo = N × Salario_promedio × TasaAusentismo × (1 + s_aus × IAO_org/100)
 
-Costo_retrabajo = CostoOperativoTotal_cliente × TasaRetrabajoBase[0.05–0.15]
+  TasaAusentismo, en orden de prioridad:
+    1. dias_ausencia_base / dias_laborales_año        si el cliente aportó dias_ausencia_base
+    2. TasaAusentismoBase_pais[país del cliente]       benchmark REAL de respaldo, específico por país
+    3. TasaAusentismoBase_generico[0.010–0.019]        solo si el país del cliente no tiene
+                                                        todavía un TasaAusentismoBase_pais propio
+
+  TasaAusentismoBase_pais['colombia'] = 9.4 / dias_laborales_año ≈ 0.039
+    (9.4 días de ausencia/trabajador/año, EALI 2024 — CESLA-ANDI;
+     INVESTIGACION_DATOS_CALIBRACION_CFF.md, sección 1)
+
+Costo_retrabajo = CostoOperativoTotal_cliente × TasaRetrabajo
                    × (1 + s_ret × IAO_org/100)
                    [SOLO si la organización tiene componente productivo/
                     operativo medible — omitir en organizaciones puramente
                     de servicios sin esta métrica disponible]
+
+  TasaRetrabajo:
+    = TasaRetrabajoReal_cliente / 100    si el cliente aportó tasa_retrabajo_real
+    = TasaRetrabajoBase[0.05–0.15]       en caso contrario (benchmark de manufactura, respaldo)
 
 Validación: (Costo_ausentismo + Costo_rotación) ≈ orden de magnitud de
 4.7% × Nómina_total (ANDI 2024) — si diverge sustancialmente, revisar
 supuestos antes de reportar el CFF al cliente.
 ```
 
-- `N`, `Salario_promedio`, `TasaRotaciónBase_cliente`, `CostoOperativoTotal_cliente`:
-  datos reales aportados por el cliente — nunca supuestos por el sistema.
+- `N`, `Salario_promedio`, `TasaRotaciónBase_cliente`, `CostoOperativoTotal_cliente`,
+  `dias_ausencia_base`: datos reales aportados por el cliente — nunca
+  supuestos por el sistema.
+- **`Salario_promedio` = costo total mensual del empleador por empleado, no
+  salario base.** Decisión tomada 2026-08-19: incluye salario base +
+  carga prestacional completa (cesantías, intereses a cesantías, prima de
+  servicios, vacaciones, aportes a salud/pensión/ARL a cargo del
+  empleador, caja de compensación) — no dos campos separados (salario
+  base + % de carga) porque pedirle al cliente que calcule el porcentaje
+  él mismo agrega fricción sin necesidad; un solo campo, con la etiqueta y
+  el texto de ayuda del formulario aclarando qué incluir, es más simple
+  para el consultor y para el cliente. El factor prestacional real que
+  traduce salario base → costo total, por país, está en investigación
+  (`INVESTIGACION_FACTOR_PRESTACIONAL_LATAM.md`) — pensado como ayuda
+  opcional de referencia para quien solo conoce el salario base, no como
+  una conversión automática obligatoria; la decisión de construir esa
+  ayuda queda pendiente hasta ver los datos reales.
 - `Multiplicador_rol` (0.25–0.75): benchmark ACRIP/Adecco/Michael Page
   Colombia; el cliente indica composición de roles afectados. Rango
   significativamente más bajo que el benchmark estadounidense (0.5–2.0) —
   refleja diferencias reales de estructura salarial y costo de reemplazo
   entre mercados, no un error de conversión de moneda.
-- `TasaAusentismoBase` (1.04%-1.87% de nómina): usar el extremo inferior en
-  organizaciones estables, el superior en contextos de crisis sostenida o
-  post-pandemia.
-- `TasaRetrabajoBase` (5%-15%): benchmark de manufactura — usar solo cuando
+- **`dias_ausencia_base` tiene prioridad sobre `TasaAusentismoBase`** —
+  mismo criterio ya aplicado a `TasaRotaciónBase_cliente` (dato real del
+  cliente por encima de cualquier benchmark) y ya anticipado en el propio
+  esquema (migración 005 de `supabase/migrations/`: *"`tasa_rotacion_base` y
+  `dias_ausencia_base` guardan el dato REAL de la organización cuando el
+  consultor lo tiene — el benchmark sectorial sigue siendo el valor de
+  referencia/fallback cuando esto no se conoce, no se reemplaza por
+  esto"*). Decisión tomada 2026-08-19: cuando `dias_ausencia_base` está
+  presente, se convierte a tasa dividiendo entre `dias_laborales_año`
+  (`TasaAusentismoReal = dias_ausencia_base / dias_laborales_año`) y esa
+  tasa reemplaza a `TasaAusentismoBase` en la fórmula — el benchmark
+  ANDI/EALI queda como respaldo solo cuando el campo llega vacío, no como
+  un promedio que se mezcla con el dato real.
+- `dias_laborales_año` — **constante nueva, todavía sin definir en ningún
+  otro punto del sistema** (confirmado por búsqueda en todo el repo: no
+  existe hoy ninguna constante de días laborales/hábiles). Valor
+  provisional propuesto para Colombia: **≈242 días** (5 días/semana × 52
+  semanas = 260 días potenciales, menos los 18 festivos oficiales del
+  calendario colombiano — uno de los más altos de la región). Este número
+  es un cálculo razonado, no un benchmark con fuente citable verificada —
+  mismo tratamiento que `s_rot`/`s_aus`/`s_ret`: usar mientras no exista
+  algo mejor, sujeto a reemplazo si aparece una fuente oficial (Mintrabajo,
+  calendario laboral DIAN/Ministerio) con el número exacto. **Depende del
+  país** (`organizaciones.pais`, migración 011): el conteo de festivos y la
+  duración legal de la semana laboral varían por país — con la Fase 2 de
+  países ya investigada para el costo legal de desvinculación
+  (`INVESTIGACION_COSTO_LEGAL_DESVINCULACION_LATAM.md`), esta constante
+  necesita su propia entrada por país cuando se implemente, no un solo
+  valor global. Hoy el sistema solo soporta `pais='colombia'`, así que un
+  único valor (242, o el que se confirme) basta por ahora.
+- **`TasaAusentismoBase_pais` reemplaza al rango genérico como benchmark de
+  respaldo — decisión tomada 2026-08-19.** Para Colombia, deja de usarse el
+  rango internacional 1.04%-1.87% de nómina como respaldo por defecto — se
+  usa el dato real ya investigado de EALI 2024 (9.4 días de
+  ausencia/trabajador/año, CESLA-ANDI), convertido a tasa con
+  `dias_laborales_año` (sección anterior): **9.4 / 242 ≈ 3.9%**. Es
+  sustancialmente más alto que el rango genérico — cae más cerca de lo que
+  ese rango llamaba "crisis" (3.4%-5.78%) que de "años normales"
+  (1.04%-1.87%) — pero es un dato real colombiano, no una categorización
+  cualitativa de qué tan grave es la situación del cliente. Reemplaza al
+  rango genérico precisamente porque es más específico, no porque el rango
+  genérico estuviera mal calculado.
+- **Este benchmark de respaldo es específico por país, no un valor global
+  compartido.** `TasaAusentismoBase_pais` es un diccionario/tabla por país,
+  no una constante única — hoy solo tiene la entrada `'colombia'`. Cuando
+  se agreguen los países de la Fase 2
+  (`INVESTIGACION_COSTO_LEGAL_DESVINCULACION_LATAM.md`: México, Perú,
+  Chile, Argentina, Ecuador, Venezuela, Costa Rica, Panamá, Guatemala),
+  cada uno necesita su propio dato real de respaldo, investigado con el
+  mismo rigor que el de Colombia (fuente citable tipo EALI/ANDI local,
+  documentada con año y qué mide exactamente) — no se puede copiar el
+  9.4/242 de Colombia a otro país. Si para algún país no se encuentra un
+  dato real confiable, **se mantiene el rango genérico internacional
+  `TasaAusentismoBase_generico[0.010–0.019]` solo para ese país**, señalado
+  explícitamente como respaldo de última instancia sin especificidad
+  regional — no como si fuera equivalente en calidad al dato real de
+  Colombia.
+- `TasaAusentismoBase_generico` (1.04%-1.87% de nómina): benchmark
+  internacional sin especificidad regional, usado únicamente cuando el
+  país del cliente todavía no tiene su propio `TasaAusentismoBase_pais`
+  investigado. Ya no es el respaldo por defecto de Colombia.
+- **`tasa_retrabajo_real` tiene prioridad sobre `TasaRetrabajoBase`** —
+  decisión tomada 2026-08-19, mismo patrón ya aplicado a rotación
+  (`TasaRotaciónBase_cliente`) y a ausentismo (`dias_ausencia_base`,
+  sección anterior): dato real del cliente por encima de cualquier
+  benchmark. Campo nuevo (migración 012 de `supabase/migrations/`), sin
+  columna previa en el esquema — no existía ningún dato real de retrabajo
+  capturado hasta esta migración.
+- `TasaRetrabajoBase` (5%-15%, benchmark de respaldo cuando no hay
+  `tasa_retrabajo_real`): benchmark de manufactura — usar solo cuando
   aplique al perfil de la organización cliente.
 - `s_rot`, `s_aus`, `s_ret` (sensibilidad al IAO): **sin validar contra
   ningún benchmark**, regional o global — ningún estudio externo relaciona el
