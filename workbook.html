@@ -1876,27 +1876,27 @@ supa.auth.getSession().then(function(res){
       <div class="card-title">Insumos base</div>
       <div class="fgrid">
         <div class="fg">
+          <label class="fl">País</label>
+          <select class="fi" id="ff-pais">
+            <option value="">Seleccionar país...</option>
+            <option value="colombia">🇨🇴 Colombia</option>
+          </select>
+          <div style="font-size:10px;color:var(--dk-text-2);margin-top:2px" id="ff-pais-help">Fijado en el alta de la organización — no editable aquí.</div>
+        </div>
+        <div class="fg">
           <label class="fl">Salario promedio — costo total mensual (COP)</label>
-          <input type="number" class="fi" id="ff-salario" step="100000" min="0" placeholder="Ej. 3500000">
+          <input type="number" class="fi" id="ff-salario" step="100000" min="0" placeholder="Ej. 3500000" oninput="_ffEstiloCampo('ff-salario',false)">
           <div style="font-size:10px;color:var(--dk-text-2);margin-top:2px">Incluye salario base + carga prestacional (cesantías, prima, vacaciones, salud, pensión, ARL, caja de compensación) — no solo el salario base.</div>
         </div>
         <div class="fg">
           <label class="fl">Tasa de rotación base (%)</label>
-          <input type="number" class="fi" id="ff-rotacion" step="0.5" min="0" max="100" placeholder="Ej. 22" oninput="_ffCompararRotacion()">
+          <input type="number" class="fi" id="ff-rotacion" step="0.5" min="0" max="100" placeholder="Ej. 22" oninput="_ffCompararRotacion();_ffEstiloCampo('ff-rotacion',false)">
           <div id="ff-rotacion-cmp" style="margin-top:6px"></div>
         </div>
         <div class="fg">
           <label class="fl">Días de ausencia base (días/año)</label>
-          <input type="number" class="fi" id="ff-ausencia" step="0.5" min="0" placeholder="Ej. 8" oninput="_ffCompararAusencia()">
+          <input type="number" class="fi" id="ff-ausencia" step="0.5" min="0" placeholder="Ej. 8" oninput="_ffCompararAusencia();_ffEstiloCampo('ff-ausencia',false)">
           <div id="ff-ausencia-cmp" style="margin-top:6px"></div>
-        </div>
-        <div class="fg">
-          <label class="fl">País</label>
-          <select class="fi" id="ff-pais">
-            <option value="">Seleccionar país...</option>
-            <option value="colombia">Colombia</option>
-          </select>
-          <div style="font-size:10px;color:var(--dk-text-2);margin-top:2px" id="ff-pais-help">Fijado en el alta de la organización — no editable aquí.</div>
         </div>
       </div>
     </div>
@@ -1906,22 +1906,22 @@ supa.auth.getSession().then(function(res){
       <div class="fgrid">
         <div class="fg">
           <label class="fl">Costo operativo total (COP/año)</label>
-          <input type="number" class="fi" id="ff-costo-operativo" step="1000000" min="0" placeholder="Sin dato" style="border-style:dashed" oninput="this.style.borderStyle=this.value?'solid':'dashed'">
+          <input type="number" class="fi" id="ff-costo-operativo" step="1000000" min="0" placeholder="Sin dato" style="border:1px dashed #26344a" oninput="_ffEstiloCampo('ff-costo-operativo',true)">
           <div style="font-size:10px;color:var(--dk-text-2);margin-top:2px">Sin este dato, Costo_retrabajo no se incluye en el CFF (marco, sección 8) — no se estima con benchmark.</div>
         </div>
         <div class="fg">
           <label class="fl">Costo de intervención (COP)</label>
-          <input type="number" class="fi" id="ff-costo-intervencion" step="1000000" min="0" placeholder="Sin dato" style="border-style:dashed" oninput="this.style.borderStyle=this.value?'solid':'dashed'">
+          <input type="number" class="fi" id="ff-costo-intervencion" step="1000000" min="0" placeholder="Sin dato" style="border:1px dashed #26344a" oninput="_ffEstiloCampo('ff-costo-intervencion',true)">
           <div style="font-size:10px;color:var(--dk-text-2);margin-top:2px">Sin este dato, el IFT no puede proyectar tiempo de recuperación (marco, sección 8.2).</div>
         </div>
         <div class="fg">
           <label class="fl">EBITDA (COP/año)</label>
-          <input type="number" class="fi" id="ff-ebitda" step="1000000" placeholder="Sin dato" style="border-style:dashed" oninput="this.style.borderStyle=this.value?'solid':'dashed'">
+          <input type="number" class="fi" id="ff-ebitda" step="1000000" placeholder="Sin dato" style="border:1px dashed #26344a" oninput="_ffEstiloCampo('ff-ebitda',true)">
           <div style="font-size:10px;color:var(--dk-text-2);margin-top:2px">Puede ser negativo (pérdida operativa) — no está limitado a valores positivos.</div>
         </div>
         <div class="fg">
           <label class="fl">Tasa de retrabajo real (%)</label>
-          <input type="number" class="fi" id="ff-retrabajo" step="0.5" min="0" max="100" placeholder="Sin dato" style="border-style:dashed" oninput="this.style.borderStyle=this.value?'solid':'dashed'">
+          <input type="number" class="fi" id="ff-retrabajo" step="0.5" min="0" max="100" placeholder="Sin dato" style="border:1px dashed #26344a" oninput="_ffEstiloCampo('ff-retrabajo',true)">
           <div style="font-size:10px;color:var(--dk-text-2);margin-top:2px">Sin este dato, se usa el benchmark de manufactura (5%-15%) en su lugar.</div>
         </div>
       </div>
@@ -6380,6 +6380,30 @@ function _dibujarRadarFPV(canvasId, fiabilidad, proporcionalidad, vinculo){
   });
 }
 
+// Chip de dato crudo — reemplaza la línea monoespaciada "n = X ·
+// fiabilidad = Y · ..." por etiquetas individuales, mismo lenguaje
+// visual que Ficha financiera (valor destacado sobre fondo propio, no
+// texto plano corrido). Aplica igual a Inversionista y Consumidor.
+function _fpvChipHtml(label, valor){
+  return '<div style="background:#0a1420;border-radius:6px;padding:6px 10px">' +
+    '<div style="font-size:9px;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.06em">' + label + '</div>' +
+    '<div style="font-size:12px;font-weight:500;color:#fff;margin-top:2px">' + valor + '</div></div>';
+}
+function _fpvChipsHtml(n, fiabilidad, proporcionalidad, vinculo){
+  return '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px">' +
+    _fpvChipHtml('n', n) + _fpvChipHtml('Fiabilidad', fiabilidad) +
+    _fpvChipHtml('Proporcionalidad', proporcionalidad) + _fpvChipHtml('Vínculo', vinculo) +
+    '</div>';
+}
+
+// Caja de "datos insuficientes" con el mismo borde punteado que los
+// campos vacíos de Ficha financiera — ocupa el espacio donde iría el
+// radar (180×150), mensaje centrado dentro en vez de texto suelto.
+function _fpvSinDatosBoxHtml(mensajeHtml){
+  return '<div style="border:1px dashed #26344a;border-radius:8px;width:180px;height:150px;margin:8px auto 0;display:flex;align-items:center;justify-content:center;text-align:center;padding:14px;box-sizing:border-box">' +
+    mensajeHtml + '</div>';
+}
+
 function _renderFPVNuevo(d){
   // IAO de referencia — gated en d.iao_banda (ya aplica el N≥8 del marco
   // 9.1 en el servidor); estadoDesdeIAO/_badgeEstado son los MISMOS que
@@ -6390,7 +6414,7 @@ function _renderFPVNuevo(d){
       iaoWrap.innerHTML =
         '<div class="icard" style="padding:20px"><div style="display:flex;align-items:center;gap:10px"><div class="icard-tag">IAO</div>' +
         _badgeEstado(estadoDesdeIAO(d.iao)) + '</div>' +
-        '<div style="font-size:13px;color:rgba(255,255,255,.68);margin-top:6px">Modo predominante activado en la organización (n=' + d.iao_n + ') — referencia para comparar con el FPV.</div></div>';
+        '<div style="font-size:22px;font-weight:500;color:rgba(255,255,255,.68);margin-top:6px">Modo predominante activado en la organización (n=' + d.iao_n + ') — referencia para comparar con el FPV.</div></div>';
     } else {
       iaoWrap.innerHTML = '<div class="icard" style="padding:20px"><div class="icard-tag">IAO</div>' + _sinDatos(8) + '</div>';
     }
@@ -6413,15 +6437,15 @@ function _renderFPVNuevo(d){
       // Nunca el mensaje de confidencialidad para Inversionista (marco 10.5)
       // — n=0 es "todavía no hay respuestas", no un umbral sin alcanzar.
       invWrap.innerHTML = '<div class="icard" style="padding:20px"><div class="icard-tag">Inversionista</div>' +
-        '<div style="font-size:13px;color:rgba(255,255,255,.6);font-style:italic;margin-top:6px">Todavía no hay respuestas registradas.</div></div>';
+        _fpvSinDatosBoxHtml('<div style="font-size:13px;color:rgba(255,255,255,.6);font-style:italic">Todavía no hay respuestas registradas.</div>') +
+        '</div>';
     } else {
       invWrap.innerHTML = '<div class="icard" style="padding:20px">' +
         '<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px"><div class="icard-tag">Inversionista</div>' +
         (inv.banda ? _badgeEstado(_estadoDesdeBandaFPV(inv.banda)) : '') + '</div>' +
         '<canvas id="fpv-radar-inv" width="180" height="150" style="display:block;margin:0 auto"></canvas>' +
-        '<div style="font-family:\'DM Mono\',monospace;font-size:12.5px;color:rgba(255,255,255,.68);line-height:1.8;margin-top:8px">' +
-        'n = ' + inv.n + ' · fiabilidad = ' + inv.fiabilidad + ' · proporcionalidad = ' + inv.proporcionalidad + ' · vínculo = ' + inv.vinculo +
-        '</div></div>';
+        _fpvChipsHtml(inv.n, inv.fiabilidad, inv.proporcionalidad, inv.vinculo) +
+        '</div>';
       _dibujarRadarFPV('fpv-radar-inv', inv.fiabilidad, inv.proporcionalidad, inv.vinculo);
     }
   }
@@ -6430,16 +6454,16 @@ function _renderFPVNuevo(d){
   if(conWrap){
     var con = d.consumidor || {};
     if(!con.n_suficiente){
-      conWrap.innerHTML = '<div class="icard" style="padding:20px"><div class="icard-tag">Consumidor</div>' + _sinDatos(8) +
-        '<div style="font-size:11px;color:rgba(255,255,255,.5);margin-top:6px">n=' + (con.n || 0) + '</div></div>';
+      conWrap.innerHTML = '<div class="icard" style="padding:20px"><div class="icard-tag">Consumidor</div>' +
+        _fpvSinDatosBoxHtml(_sinDatos(8)) +
+        '<div style="font-size:11px;color:rgba(255,255,255,.5);margin-top:6px;text-align:center">n=' + (con.n || 0) + '</div></div>';
     } else {
       conWrap.innerHTML = '<div class="icard" style="padding:20px">' +
         '<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px"><div class="icard-tag">Consumidor</div>' +
         (con.banda ? _badgeEstado(_estadoDesdeBandaFPV(con.banda)) : '') + '</div>' +
         '<canvas id="fpv-radar-con" width="180" height="150" style="display:block;margin:0 auto"></canvas>' +
-        '<div style="font-family:\'DM Mono\',monospace;font-size:12.5px;color:rgba(255,255,255,.68);line-height:1.8;margin-top:8px">' +
-        'n = ' + con.n + ' · fiabilidad = ' + con.fiabilidad + ' · proporcionalidad = ' + con.proporcionalidad + ' · vínculo = ' + con.vinculo +
-        '</div></div>';
+        _fpvChipsHtml(con.n, con.fiabilidad, con.proporcionalidad, con.vinculo) +
+        '</div>';
       _dibujarRadarFPV('fpv-radar-con', con.fiabilidad, con.proporcionalidad, con.vinculo);
     }
   }
@@ -6556,10 +6580,13 @@ function cargarFichaFinanciera(){
       document.getElementById('ff-costo-intervencion').value = d.costo_intervencion != null ? d.costo_intervencion : '';
       document.getElementById('ff-ebitda').value = d.ebitda != null ? d.ebitda : '';
       document.getElementById('ff-retrabajo').value = d.tasa_retrabajo_real != null ? d.tasa_retrabajo_real : '';
-      ['ff-costo-operativo','ff-costo-intervencion','ff-ebitda','ff-retrabajo'].forEach(function(id){
-        var el = document.getElementById(id);
-        el.style.borderStyle = el.value ? 'solid' : 'dashed';
-      });
+      _ffEstiloCampo('ff-salario', false);
+      _ffEstiloCampo('ff-rotacion', false);
+      _ffEstiloCampo('ff-ausencia', false);
+      _ffEstiloCampo('ff-costo-operativo', true);
+      _ffEstiloCampo('ff-costo-intervencion', true);
+      _ffEstiloCampo('ff-ebitda', true);
+      _ffEstiloCampo('ff-retrabajo', true);
       // País: deshabilitado solo cuando ya tiene valor — una organización
       // creada antes de la migración 011 puede llegar aquí con pais=NULL,
       // y este panel es el mecanismo de backfill (migración 011,
@@ -6576,6 +6603,19 @@ function cargarFichaFinanciera(){
     }).catch(function(err){
       status.textContent = 'Error de conexión: ' + (err && err.message || err);
     });
+}
+
+// Tratamiento visual acordado con Luis: campo lleno se muestra en número
+// grande (22px/500) en vez de tamaño estándar de input; los 4 campos
+// financieros opcionales quedan con borde punteado hasta llenarse — pura
+// señal visual, no toca validación ni el payload que se envía al RPC.
+function _ffEstiloCampo(id, opcional){
+  var el = document.getElementById(id);
+  if(!el) return;
+  var lleno = el.value !== '' && el.value != null;
+  el.style.fontSize = lleno ? '22px' : '';
+  el.style.fontWeight = lleno ? '500' : '';
+  if(opcional) el.style.border = lleno ? '1.5px solid #26344a' : '1px dashed #26344a';
 }
 
 // Completitud por componente del CFF — mapea directo a los 4 términos de
