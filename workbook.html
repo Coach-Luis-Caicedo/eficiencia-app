@@ -1794,7 +1794,8 @@ supa.auth.getSession().then(function(res){
             <span style="font-size:17px;flex-shrink:0;line-height:1.3">⚠</span>
             <div style="color:var(--sev-alerta);font-weight:700;font-size:13.5px;line-height:1.6">La energía perdida en estos puntos no se pierde sola — se traduce en costo real (CFF).</div>
           </div>
-          <div style="font-size:13px;color:var(--dk-text-2);font-style:italic">CFF — próximamente. Fórmula resuelta (marco, sección 8), implementación pendiente.</div>
+          <div id="cff-status" style="font-size:13px;color:var(--dk-text-2);margin-bottom:16px"></div>
+          <div id="cff-content"></div>
         </div>
       </div>
 
@@ -1869,66 +1870,75 @@ supa.auth.getSession().then(function(res){
 
     <div id="ff-status" style="font-size:13px;color:var(--dk-text-2);margin-bottom:16px"></div>
 
-    <div class="card-title" style="margin-bottom:10px">Completitud por componente del CFF</div>
-    <div id="ff-completitud" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;margin-bottom:24px"></div>
+    <div style="background:#0a1420;border-radius:10px;padding:14px 16px;margin-bottom:14px">
+      <div style="font-size:10px;color:#8a94a6;text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px">Completitud por componente del CFF</div>
+      <div id="ff-completitud" style="display:flex;gap:16px;flex-wrap:wrap"></div>
+    </div>
 
-    <div class="card">
-      <div class="card-title">Insumos base</div>
-      <div class="fgrid">
-        <div class="fg">
-          <label class="fl">País</label>
-          <select class="fi" id="ff-pais">
-            <option value="">Seleccionar país...</option>
-            <option value="colombia">🇨🇴 Colombia</option>
-          </select>
-          <div style="font-size:10px;color:var(--dk-text-2);margin-top:2px" id="ff-pais-help">Fijado en el alta de la organización — no editable aquí.</div>
-        </div>
-        <div class="fg">
-          <label class="fl">Salario promedio — costo total mensual (COP)</label>
-          <input type="number" class="fi" id="ff-salario" step="100000" min="0" placeholder="Ej. 3500000" oninput="_ffEstiloCampo('ff-salario',false)">
-          <div style="font-size:10px;color:var(--dk-text-2);margin-top:2px">Incluye salario base + carga prestacional (cesantías, prima, vacaciones, salud, pensión, ARL, caja de compensación) — no solo el salario base.</div>
-        </div>
-        <div class="fg">
-          <label class="fl">Tasa de rotación base (%)</label>
-          <input type="number" class="fi" id="ff-rotacion" step="0.5" min="0" max="100" placeholder="Ej. 22" oninput="_ffCompararRotacion();_ffEstiloCampo('ff-rotacion',false)">
-          <div id="ff-rotacion-cmp" style="margin-top:6px"></div>
-        </div>
-        <div class="fg">
-          <label class="fl">Días de ausencia base (días/año)</label>
-          <input type="number" class="fi" id="ff-ausencia" step="0.5" min="0" placeholder="Ej. 8" oninput="_ffCompararAusencia();_ffEstiloCampo('ff-ausencia',false)">
-          <div id="ff-ausencia-cmp" style="margin-top:6px"></div>
-        </div>
+    <div style="background:#0a1420;border-radius:10px;padding:12px 16px;display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+      <div style="display:flex;align-items:center;gap:10px">
+        <span style="font-size:11px;color:#8a94a6">País</span>
+        <select id="ff-pais" style="font-size:16px;font-weight:500;color:#f5f0e8;background:none;border:none;appearance:none;-webkit-appearance:none;padding:0;cursor:pointer">
+          <option value="">Seleccionar país...</option>
+          <option value="colombia">🇨🇴 Colombia</option>
+        </select>
+      </div>
+      <div id="ff-pais-help" style="font-size:10px;color:#8a94a6">fijo al crear la organización</div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
+      <div style="background:#0a1420;border-radius:10px;padding:14px 16px">
+        <label style="font-size:11px;color:#8a94a6;display:block;margin-bottom:6px">Salario promedio <span style="opacity:.7">(costo total mensual, COP)</span></label>
+        <input type="number" id="ff-salario" step="100000" min="0" placeholder="Ej. 3500000" style="width:100%;background:none;border:none;color:#8a94a6;font-size:22px;padding:0;outline:none;font-family:inherit" oninput="_ffRenderInsumo('ff-salario','ff-salario-ayuda',22,'Incluye salario base + carga prestacional (cesantías, prima, vacaciones, salud, pensión, ARL, caja de compensación) — no solo el salario base.','Sin este dato, Desenganche no puede calcularse.')">
+        <div id="ff-salario-ayuda" style="margin-top:8px"></div>
+      </div>
+      <div style="background:#0a1420;border-radius:10px;padding:14px 16px">
+        <label style="font-size:11px;color:#8a94a6;display:block;margin-bottom:6px">Tasa de rotación base <span style="opacity:.7">(%)</span></label>
+        <input type="number" id="ff-rotacion" step="0.5" min="0" max="100" placeholder="Ej. 22" style="width:100%;background:none;border:none;color:#8a94a6;font-size:22px;padding:0;outline:none;font-family:inherit" oninput="_ffRenderInsumo('ff-rotacion','ff-rotacion-ayuda',22,'Se usa directamente en Costo_rotación (marco, sección 8).','Sin este dato, Costo_rotación no puede calcularse.')">
+        <div id="ff-rotacion-ayuda" style="margin-top:8px"></div>
+      </div>
+      <div style="background:#0a1420;border-radius:10px;padding:14px 16px">
+        <label style="font-size:11px;color:#8a94a6;display:block;margin-bottom:6px">Composición de roles afectados <span style="opacity:.7">(por la rotación)</span></label>
+        <select id="ff-multiplicador-rol" style="width:100%;background:none;border:none;color:#8a94a6;font-size:22px;padding:0;outline:none;font-family:inherit;appearance:none;-webkit-appearance:none;cursor:pointer" onchange="_ffRenderInsumo('ff-multiplicador-rol','ff-multiplicador-rol-ayuda',22,'Se usa directamente en Costo_rotación (marco, sección 8).','Sin este dato, Costo_rotación no puede calcularse.')">
+          <option value="">Seleccionar...</option>
+          <option value="0.3">Operativo</option>
+          <option value="0.5">Medio</option>
+          <option value="0.7">Directivo</option>
+        </select>
+        <div id="ff-multiplicador-rol-ayuda" style="margin-top:8px"></div>
+      </div>
+      <div style="background:#0a1420;border-radius:10px;padding:14px 16px">
+        <label style="font-size:11px;color:#8a94a6;display:block;margin-bottom:6px">Días de ausencia base <span style="opacity:.7">(días/año)</span></label>
+        <input type="number" id="ff-ausencia" step="0.5" min="0" placeholder="Ej. 8" style="width:100%;background:none;border:none;color:#8a94a6;font-size:22px;padding:0;outline:none;font-family:inherit" oninput="_ffEstiloValor('ff-ausencia',22);_ffRenderAusenciaBarra()">
+        <div id="ff-ausencia-ayuda" style="margin-top:8px"></div>
       </div>
     </div>
 
-    <div class="card" style="margin-top:14px">
-      <div class="card-title">Financieros (opcionales)</div>
-      <div class="fgrid">
-        <div class="fg">
-          <label class="fl">Costo operativo total (COP/año)</label>
-          <input type="number" class="fi" id="ff-costo-operativo" step="1000000" min="0" placeholder="Sin dato" style="border:1px dashed #26344a" oninput="_ffEstiloCampo('ff-costo-operativo',true)">
-          <div style="font-size:10px;color:var(--dk-text-2);margin-top:2px">Sin este dato, Costo_retrabajo no se incluye en el CFF (marco, sección 8) — no se estima con benchmark.</div>
-        </div>
-        <div class="fg">
-          <label class="fl">Costo de intervención (COP)</label>
-          <input type="number" class="fi" id="ff-costo-intervencion" step="1000000" min="0" placeholder="Sin dato" style="border:1px dashed #26344a" oninput="_ffEstiloCampo('ff-costo-intervencion',true)">
-          <div style="font-size:10px;color:var(--dk-text-2);margin-top:2px">Sin este dato, el IFT no puede proyectar tiempo de recuperación (marco, sección 8.2).</div>
-        </div>
-        <div class="fg">
-          <label class="fl">EBITDA (COP/año)</label>
-          <input type="number" class="fi" id="ff-ebitda" step="1000000" placeholder="Sin dato" style="border:1px dashed #26344a" oninput="_ffEstiloCampo('ff-ebitda',true)">
-          <div style="font-size:10px;color:var(--dk-text-2);margin-top:2px">Puede ser negativo (pérdida operativa) — no está limitado a valores positivos.</div>
-        </div>
-        <div class="fg">
-          <label class="fl">Tasa de retrabajo real (%)</label>
-          <input type="number" class="fi" id="ff-retrabajo" step="0.5" min="0" max="100" placeholder="Sin dato" style="border:1px dashed #26344a" oninput="_ffEstiloCampo('ff-retrabajo',true)">
-          <div style="font-size:10px;color:var(--dk-text-2);margin-top:2px">Sin este dato, se usa el benchmark de manufactura (5%-15%) en su lugar.</div>
-        </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:20px">
+      <div id="ff-card-costo-operativo" style="background:#0a1420;border-radius:10px;padding:14px 16px;border:1px dashed #26344a">
+        <label style="font-size:11px;color:#8a94a6;display:block;margin-bottom:6px">Costo operativo total <span style="opacity:.7">(COP/año)</span></label>
+        <input type="number" id="ff-costo-operativo" step="1000000" min="0" placeholder="Sin dato" style="width:100%;background:none;border:none;color:#8a94a6;font-size:18px;padding:0;outline:none;font-family:inherit" oninput="_ffRenderFinanciero('ff-costo-operativo','ff-card-costo-operativo','ff-costo-operativo-ayuda','Necesario para calcular Costo_retrabajo (marco, sección 8).','Sin este dato, Costo_retrabajo no se incluye en el CFF.')">
+        <div id="ff-costo-operativo-ayuda" style="margin-top:8px"></div>
+      </div>
+      <div id="ff-card-costo-intervencion" style="background:#0a1420;border-radius:10px;padding:14px 16px;border:1px dashed #26344a">
+        <label style="font-size:11px;color:#8a94a6;display:block;margin-bottom:6px">Costo de intervención <span style="opacity:.7">(COP)</span></label>
+        <input type="number" id="ff-costo-intervencion" step="1000000" min="0" placeholder="Sin dato" style="width:100%;background:none;border:none;color:#8a94a6;font-size:18px;padding:0;outline:none;font-family:inherit" oninput="_ffEstiloFinanciero('ff-costo-intervencion','ff-card-costo-intervencion',18)">
+        <div style="font-size:10px;color:#8a94a6;line-height:1.4;margin-top:8px">Sin este dato, el IFT no puede proyectar tiempo de recuperación (marco, sección 8.2).</div>
+      </div>
+      <div id="ff-card-ebitda" style="background:#0a1420;border-radius:10px;padding:14px 16px;border:1px dashed #26344a">
+        <label style="font-size:11px;color:#8a94a6;display:block;margin-bottom:6px">EBITDA <span style="opacity:.7">(COP/año)</span></label>
+        <input type="number" id="ff-ebitda" step="1000000" placeholder="Sin dato" style="width:100%;background:none;border:none;color:#8a94a6;font-size:18px;padding:0;outline:none;font-family:inherit" oninput="_ffEstiloFinanciero('ff-ebitda','ff-card-ebitda',18)">
+        <div style="font-size:10px;color:#8a94a6;line-height:1.4;margin-top:8px">Puede ser negativo (pérdida operativa) — no está limitado a valores positivos.</div>
+      </div>
+      <div id="ff-card-retrabajo" style="background:#0a1420;border-radius:10px;padding:14px 16px;border:1px dashed #26344a">
+        <label style="font-size:11px;color:#8a94a6;display:block;margin-bottom:6px">Tasa de retrabajo real <span style="opacity:.7">(%)</span></label>
+        <input type="number" id="ff-retrabajo" step="0.5" min="0" max="100" placeholder="Sin dato" style="width:100%;background:none;border:none;color:#8a94a6;font-size:18px;padding:0;outline:none;font-family:inherit" oninput="_ffEstiloFinanciero('ff-retrabajo','ff-card-retrabajo',18)">
+        <div style="font-size:10px;color:#8a94a6;line-height:1.4;margin-top:8px">Sin este dato, se usa el benchmark de manufactura (5%-15%) en su lugar.</div>
       </div>
     </div>
 
     <div class="btn-row">
-      <button class="btn btn-primary" id="ff-guardar-btn" onclick="guardarFichaFinanciera()">Guardar cambios</button>
+      <button id="ff-guardar-btn" onclick="guardarFichaFinanciera()" style="background:#5a95e0;border:none;border-radius:8px;padding:10px 18px;color:#0a1420;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit">Guardar cambios</button>
     </div>
   </div>
 </div>
@@ -6210,6 +6220,7 @@ function _showRegTab(tab){
     if((b.getAttribute('onclick') || '').indexOf("'" + tab + "'") !== -1) b.classList.add('active');
   });
   if(tab === 'area'){ _initPorArea(); cargarPorArea(); }
+  if(tab === 'cff'){ cargarCFF(); }
 }
 
 function cargarDiagnostico(){
@@ -6566,7 +6577,7 @@ function cargarFichaFinanciera(){
   var status = document.getElementById('ff-status');
   status.textContent = 'Cargando…';
   supa.from('organizaciones')
-    .select('pais,salario_promedio,tasa_rotacion_base,dias_ausencia_base,costo_operativo_total,costo_intervencion,ebitda,tasa_retrabajo_real')
+    .select('pais,salario_promedio,tasa_rotacion_base,dias_ausencia_base,costo_operativo_total,costo_intervencion,ebitda,tasa_retrabajo_real,multiplicador_rol')
     .eq('id', S_ORG.id)
     .single()
     .then(function(res){
@@ -6580,13 +6591,26 @@ function cargarFichaFinanciera(){
       document.getElementById('ff-costo-intervencion').value = d.costo_intervencion != null ? d.costo_intervencion : '';
       document.getElementById('ff-ebitda').value = d.ebitda != null ? d.ebitda : '';
       document.getElementById('ff-retrabajo').value = d.tasa_retrabajo_real != null ? d.tasa_retrabajo_real : '';
-      _ffEstiloCampo('ff-salario', false);
-      _ffEstiloCampo('ff-rotacion', false);
-      _ffEstiloCampo('ff-ausencia', false);
-      _ffEstiloCampo('ff-costo-operativo', true);
-      _ffEstiloCampo('ff-costo-intervencion', true);
-      _ffEstiloCampo('ff-ebitda', true);
-      _ffEstiloCampo('ff-retrabajo', true);
+
+      _ffRenderInsumo('ff-salario', 'ff-salario-ayuda', 22,
+        'Incluye salario base + carga prestacional (cesantías, prima, vacaciones, salud, pensión, ARL, caja de compensación) — no solo el salario base.',
+        'Sin este dato, Desenganche no puede calcularse.');
+      _ffRenderInsumo('ff-rotacion', 'ff-rotacion-ayuda', 22,
+        'Se usa directamente en Costo_rotación (marco, sección 8).',
+        'Sin este dato, Costo_rotación no puede calcularse.');
+      document.getElementById('ff-multiplicador-rol').value = d.multiplicador_rol != null ? String(d.multiplicador_rol) : '';
+      _ffRenderInsumo('ff-multiplicador-rol', 'ff-multiplicador-rol-ayuda', 22,
+        'Se usa directamente en Costo_rotación (marco, sección 8).',
+        'Sin este dato, Costo_rotación no puede calcularse.');
+      _ffEstiloValor('ff-ausencia', 22);
+      _ffRenderAusenciaBarra();
+      _ffRenderFinanciero('ff-costo-operativo', 'ff-card-costo-operativo', 'ff-costo-operativo-ayuda',
+        'Necesario para calcular Costo_retrabajo (marco, sección 8).',
+        'Sin este dato, Costo_retrabajo no se incluye en el CFF.');
+      _ffEstiloFinanciero('ff-costo-intervencion', 'ff-card-costo-intervencion', 18);
+      _ffEstiloFinanciero('ff-ebitda', 'ff-card-ebitda', 18);
+      _ffEstiloFinanciero('ff-retrabajo', 'ff-card-retrabajo', 18);
+
       // País: deshabilitado solo cuando ya tiene valor — una organización
       // creada antes de la migración 011 puede llegar aquí con pais=NULL,
       // y este panel es el mecanismo de backfill (migración 011,
@@ -6595,113 +6619,137 @@ function cargarFichaFinanciera(){
       paisSel.value = d.pais || '';
       paisSel.disabled = !!d.pais;
       document.getElementById('ff-pais-help').textContent = d.pais
-        ? 'Fijado en el alta de la organización — no editable aquí.'
-        : 'Esta organización no tiene país registrado (creada antes de esa validación) — selecciónalo para completarlo.';
+        ? 'fijo al crear la organización'
+        : 'sin registrar — selecciónalo para completarlo';
+
       _ffRenderCompletitud(d);
-      _ffCompararRotacion();
-      _ffCompararAusencia();
     }).catch(function(err){
       status.textContent = 'Error de conexión: ' + (err && err.message || err);
     });
 }
 
-// Tratamiento visual acordado con Luis: campo lleno se muestra en número
-// grande (22px/500) en vez de tamaño estándar de input; los 4 campos
-// financieros opcionales quedan con borde punteado hasta llenarse — pura
-// señal visual, no toca validación ni el payload que se envía al RPC.
-function _ffEstiloCampo(id, opcional){
+// Tratamiento visual acordado: campo lleno se muestra en número grande
+// (color/weight destacado), vacío en gris — el tamaño (22px Insumos
+// base, 18px Financieros) lo decide el llamador. Pura señal visual, no
+// toca validación ni el payload que se envía al RPC.
+function _ffEstiloValor(id, tam){
   var el = document.getElementById(id);
   if(!el) return;
   var lleno = el.value !== '' && el.value != null;
-  el.style.fontSize = lleno ? '22px' : '';
-  el.style.fontWeight = lleno ? '500' : '';
-  if(opcional) el.style.border = lleno ? '1.5px solid #26344a' : '1px dashed #26344a';
+  el.style.fontSize = tam + 'px';
+  el.style.color = lleno ? '#f5f0e8' : '#8a94a6';
+  el.style.fontWeight = lleno ? '500' : '400';
 }
 
-// Completitud por componente del CFF — mapea directo a los 4 términos de
-// la fórmula (marco, sección 8): qué necesita cada uno para calcularse
-// con dato real vs. benchmark de respaldo, y cuál queda completamente
-// fuera del CFF si falta el dato (Desenganche y Retrabajo, no solo
-// "menos preciso" sino "no se calcula").
+// Insumos base "bloqueantes" (Salario, Rotación): sin benchmark de
+// respaldo documentado en la fórmula del CFF (marco, sección 8) — a
+// diferencia de Ausencia, que sí tiene TasaAusentismoBase_pais. Por eso
+// muestran advertencia roja cuando están vacíos, no solo texto neutro.
+function _ffRenderInsumo(inputId, ayudaId, tam, textoNeutro, textoAlerta){
+  _ffEstiloValor(inputId, tam);
+  var el = document.getElementById(inputId);
+  var out = document.getElementById(ayudaId);
+  if(!el || !out) return;
+  var lleno = el.value !== '' && el.value != null;
+  out.innerHTML = lleno
+    ? '<div style="height:1px;background:#26344a;margin-bottom:8px"></div><div style="font-size:10px;color:#8a94a6;line-height:1.4">' + textoNeutro + '</div>'
+    : '<div style="font-size:10px;color:#f2542d;line-height:1.4">⚠ ' + textoAlerta + '</div>';
+}
+
+// Ausencia SÍ tiene benchmark de respaldo real (TasaAusentismoBase_pais,
+// EALI 2024 Colombia — marco, sección 8) — nunca advertencia roja, y es
+// el único de los 3 insumos base con barra de comparación: los otros dos
+// no tienen un benchmark citable con el que compararse sin inventar uno
+// (por eso Rotación perdió la barra que tenía antes de esta revisión).
+function _ffRenderAusenciaBarra(){
+  var el = document.getElementById('ff-ausencia');
+  var out = document.getElementById('ff-ausencia-ayuda');
+  if(!el || !out) return;
+  var v = el.value;
+  var barraHtml;
+  if(v !== '' && v != null && !isNaN(v)){
+    var pct = Math.max(0, Math.min(100, parseFloat(v) / 20 * 100));
+    barraHtml = '<div style="height:5px;border-radius:3px;background:#1c2740;overflow:hidden;margin-bottom:8px"><div style="height:100%;border-radius:3px;background:#4a9d6e;width:' + pct + '%"></div></div>';
+  } else {
+    barraHtml = '<div style="height:1px;background:#26344a;margin-bottom:8px"></div>';
+  }
+  out.innerHTML = barraHtml + '<div style="font-size:10px;color:#8a94a6;line-height:1.4">Referencia: 9.4 días/año (EALI 2024, Colombia) — respaldo si este campo queda vacío.</div>';
+}
+
+// Financieros opcionales: borde punteado mientras estén vacíos, sólido
+// al llenarse — señal de "opcional pero incompleto" vs. "ya lleno".
+function _ffEstiloFinanciero(inputId, cardId, tam){
+  _ffEstiloValor(inputId, tam);
+  var el = document.getElementById(inputId);
+  var card = document.getElementById(cardId);
+  if(!el || !card) return;
+  var lleno = el.value !== '' && el.value != null;
+  card.style.border = lleno ? '1.5px solid #26344a' : '1px dashed #26344a';
+}
+
+// Solo Costo operativo total tiene advertencia roja entre los 4
+// financieros — es el único que bloquea por completo un componente del
+// CFF (Costo_retrabajo) si falta, no solo lo deja "menos preciso".
+function _ffRenderFinanciero(inputId, cardId, ayudaId, textoNeutro, textoAlerta){
+  _ffEstiloFinanciero(inputId, cardId, 18);
+  var el = document.getElementById(inputId);
+  var out = document.getElementById(ayudaId);
+  if(!el || !out) return;
+  var lleno = el.value !== '' && el.value != null;
+  out.innerHTML = lleno
+    ? '<div style="font-size:10px;color:#8a94a6;line-height:1.4">' + textoNeutro + '</div>'
+    : '<div style="font-size:10px;color:#f2542d;line-height:1.4">⚠ ' + textoAlerta + '</div>';
+}
+
+// Completitud por componente del CFF — mapea 1:1 a las condiciones REALES
+// de inclusión en calcular_cff() (migración 015, _calcular_cff_interno),
+// no a una lectura intuitiva de la fórmula. Los 4 son binarios (incluido/
+// no incluido) — ninguno tiene un estado intermedio "menos preciso pero
+// calculado" salvo Ausentismo, cuyo benchmark (EALI 2024) reemplaza solo
+// la TASA usada, nunca decide si el componente se incluye:
+//   Desenganche: requiere n_empleados + salario_promedio (n_empleados es
+//     obligatorio al crear la organización — crear_organizacion, migración
+//     011/007 — y esta ficha nunca lo vuelve a NULL, por eso no se repite
+//     el chequeo aquí).
+//   Rotación: requiere salario_promedio + tasa_rotacion_base +
+//     multiplicador_rol — SIN benchmark de respaldo (a diferencia de lo
+//     que decía este comentario antes: Rotación es bloqueo duro, igual
+//     que Desenganche y Retrabajo, no "con benchmark" como Ausentismo).
+//   Ausentismo: requiere solo salario_promedio — dias_ausencia_base NUNCA
+//     bloquea el componente (siempre hay benchmark de país de respaldo),
+//     solo decide si la tasa usada es el dato real o el benchmark.
+//   Retrabajo: requiere solo costo_operativo_total — tasa_retrabajo_real
+//     igual que dias_ausencia_base, solo decide la fuente de la tasa.
 function _ffRenderCompletitud(d){
   var wrap = document.getElementById('ff-completitud');
   if(!wrap) return;
   var estados = [
-    {
-      nombre: 'Desenganche',
-      ok: d.salario_promedio != null,
-      msgOk: 'Listo — usa salario promedio',
-      msgFalta: 'Falta salario promedio — este componente no puede calcularse'
-    },
-    {
-      nombre: 'Rotación',
-      ok: d.tasa_rotacion_base != null,
-      naranja: true,
-      msgOk: 'Listo — usa tasa real del cliente',
-      msgFalta: 'Sin tasa real — se necesita para calcular este componente'
-    },
-    {
-      nombre: 'Ausentismo',
-      ok: d.dias_ausencia_base != null,
-      naranja: true,
-      msgOk: 'Listo — usa días reales del cliente',
-      msgFalta: 'Sin dato real — usará el benchmark de respaldo (EALI 2024, Colombia)'
-    },
-    {
-      nombre: 'Retrabajo',
-      ok: d.costo_operativo_total != null,
-      msgOk: d.tasa_retrabajo_real != null ? 'Listo — usa tasa real del cliente' : 'Listo — usa benchmark de manufactura (5%-15%)',
-      msgFalta: 'Falta costo operativo total — este componente no se incluirá en el CFF'
-    }
+    { nombre: 'Desenganche', ok: d.salario_promedio != null,
+      motivo: d.salario_promedio != null ? 'usa salario promedio' : 'falta salario promedio' },
+    { nombre: 'Rotación', ok: d.salario_promedio != null && d.tasa_rotacion_base != null && d.multiplicador_rol != null,
+      motivo: (function(){
+        var faltan = [];
+        if(d.salario_promedio == null) faltan.push('salario promedio');
+        if(d.tasa_rotacion_base == null) faltan.push('tasa de rotación');
+        if(d.multiplicador_rol == null) faltan.push('composición de roles');
+        return faltan.length ? 'falta ' + faltan.join(', ') : 'usa tasa, salario y composición reales';
+      })() },
+    { nombre: 'Ausentismo', ok: d.salario_promedio != null,
+      motivo: d.salario_promedio == null ? 'falta salario promedio'
+        : (d.dias_ausencia_base != null ? 'usa días reales' : 'usa benchmark EALI 2024') },
+    { nombre: 'Retrabajo', ok: d.costo_operativo_total != null,
+      motivo: d.costo_operativo_total != null
+        ? (d.tasa_retrabajo_real != null ? 'usa tasa real' : 'usa benchmark 5%-15%')
+        : 'falta costo operativo' }
   ];
   wrap.innerHTML = estados.map(function(e){
-    var color = e.ok ? 'var(--sev-seguridad)' : (e.naranja ? 'var(--sev-alerta)' : 'var(--sev-amenaza)');
-    var msg = e.ok ? e.msgOk : e.msgFalta;
-    return '<div style="border:1px solid #26344a;border-radius:8px;padding:10px 12px;background:var(--dk-card)">' +
-      '<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">' +
-        '<span style="width:8px;height:8px;border-radius:50%;background:' + color + ';display:inline-block"></span>' +
-        '<span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:rgba(255,255,255,.7)">' + e.nombre + '</span>' +
-      '</div>' +
-      '<div style="font-size:11px;color:var(--dk-text-2)">' + msg + '</div>' +
+    var color = e.ok ? '#4a9d6e' : '#b3261e';
+    var labelColor = e.ok ? '#f5f0e8' : '#8a94a6';
+    return '<div style="display:flex;align-items:center;gap:6px">' +
+      '<span style="width:7px;height:7px;border-radius:50%;background:' + color + ';display:inline-block;flex-shrink:0"></span>' +
+      '<span style="font-size:11px;color:' + labelColor + '">' + e.nombre + ' <span style="opacity:.7">(' + e.motivo + ')</span></span>' +
     '</div>';
   }).join('');
-}
-
-// Barra de comparación genérica: valor del cliente vs. una banda de
-// referencia, sobre una escala 0-escalaMax. No es un cálculo del CFF —
-// solo ayuda visual para que el consultor note un dato atípico antes de
-// guardarlo (mismo espíritu que la nota de "rango de plausibilidad" en
-// INVESTIGACION_DATOS_CALIBRACION_CFF.md).
-function _ffBandaHtml(valor, min, max, escalaMax, fuenteLabel){
-  if(valor === '' || valor == null || isNaN(valor)) return '';
-  valor = parseFloat(valor);
-  var pct = Math.max(0, Math.min(100, valor / escalaMax * 100));
-  var bandaIni = Math.max(0, Math.min(100, min / escalaMax * 100));
-  var bandaFin = Math.max(0, Math.min(100, max / escalaMax * 100));
-  var estado = valor < min ? 'Por debajo del benchmark' : (valor > max ? 'Por encima del benchmark' : 'Dentro del benchmark');
-  var color = valor > max ? 'var(--sev-amenaza)' : (valor < min ? 'var(--azul-l)' : 'var(--sev-seguridad)');
-  return '<div style="font-size:10.5px;color:rgba(255,255,255,.55);margin-bottom:3px">' + estado + ' — ' + fuenteLabel + '</div>' +
-    '<div style="position:relative;height:7px;background:rgba(255,255,255,.1);border-radius:4px">' +
-      '<div style="position:absolute;left:' + bandaIni + '%;width:' + (bandaFin - bandaIni) + '%;height:100%;background:rgba(255,255,255,.2);border-radius:4px"></div>' +
-      '<div style="position:absolute;left:0;width:' + pct + '%;height:100%;background:' + color + ';border-radius:4px"></div>' +
-    '</div>';
-}
-
-function _ffCompararRotacion(){
-  var el = document.getElementById('ff-rotacion');
-  var out = document.getElementById('ff-rotacion-cmp');
-  if(!el || !out) return;
-  out.innerHTML = _ffBandaHtml(el.value, 15, 30, 50, 'benchmark sector 15%-30%');
-}
-
-function _ffCompararAusencia(){
-  var el = document.getElementById('ff-ausencia');
-  var out = document.getElementById('ff-ausencia-cmp');
-  if(!el || !out) return;
-  // Banda angosta alrededor de 9.4 solo para reutilizar el mismo
-  // componente visual que la de rotación — EALI 2024 publica un punto,
-  // no un rango, así que no se presenta como si lo fuera.
-  out.innerHTML = _ffBandaHtml(el.value, 9.0, 9.8, 20, 'EALI 2024 Colombia — 9.4 días/año');
 }
 
 function guardarFichaFinanciera(){
@@ -6725,7 +6773,8 @@ function guardarFichaFinanciera(){
     p_costo_operativo_total: num('ff-costo-operativo'),
     p_costo_intervencion: num('ff-costo-intervencion'),
     p_ebitda: num('ff-ebitda'),
-    p_tasa_retrabajo_real: num('ff-retrabajo')
+    p_tasa_retrabajo_real: num('ff-retrabajo'),
+    p_multiplicador_rol: num('ff-multiplicador-rol')
   }).then(function(res){
     btn.disabled = false; btn.textContent = 'Guardar cambios';
     if(res.error){ status.textContent = 'Error: ' + res.error.message; return; }
@@ -6735,6 +6784,103 @@ function guardarFichaFinanciera(){
     btn.disabled = false; btn.textContent = 'Guardar cambios';
     status.textContent = 'Error de conexión: ' + (err && err.message || err);
   });
+}
+
+// ── tab CFF (Tablero Ejecutivo) — consume calcular_cff() directamente,
+// igual que 'area' consume resumen_organizacion_completo() por tab click
+// (no se carga junto con el resto del diagnóstico): cada clic en el tab
+// recalcula/relee el snapshot más reciente de cff_historial. ───────────
+var _CFF_COMPONENTES = [
+  { key: 'desenganche', costo: 'costo_desenganche', nombre: 'Desenganche' },
+  { key: 'ausentismo',  costo: 'costo_ausentismo',  nombre: 'Ausentismo' },
+  { key: 'rotacion',    costo: 'costo_rotacion',    nombre: 'Rotación' },
+  { key: 'retrabajo',   costo: 'costo_retrabajo',   nombre: 'Retrabajo' }
+];
+
+function cargarCFF(){
+  if(!S_ORG.id) return;
+  var status = document.getElementById('cff-status');
+  var content = document.getElementById('cff-content');
+  if(status) status.textContent = 'Calculando…';
+  if(content) content.innerHTML = '';
+
+  supa.rpc('calcular_cff', { p_organizacion_id: S_ORG.id }).then(function(res){
+    if(res.error){
+      // La organización nunca completó un diagnóstico — calcular_cff()
+      // lo señala con esta excepción explícita (migración 015) en vez de
+      // devolver datos vacíos. No es un error real, es el estado inicial.
+      if(/no tiene ningún período con respuestas/.test(res.error.message)){
+        if(status) status.textContent = '';
+        if(content) content.innerHTML = _cffEstadoVacioHtml();
+        return;
+      }
+      if(status) status.textContent = 'Error al calcular el CFF: ' + res.error.message;
+      return;
+    }
+    if(status) status.textContent = '';
+    if(content) content.innerHTML = _renderCFFHtml(res.data);
+  }).catch(function(err){
+    if(status) status.textContent = 'Error de conexión: ' + (err && err.message || err);
+  });
+}
+
+function _cffEstadoVacioHtml(){
+  return '<div style="background:#0a1420;border-radius:10px;padding:24px 20px;text-align:center">' +
+    '<div style="font-size:13px;color:#8a94a6;line-height:1.6;margin-bottom:14px">Todavía no hay un diagnóstico cargado para esta organización — el CFF se calcula sobre el período más reciente con respuestas.</div>' +
+    '<div style="font-size:13px;color:#8a94a6;line-height:1.6">Mientras tanto, completa la <a href="#" onclick="mostrarFichaFinanciera();return false" style="color:#5a95e0">Ficha financiera</a> para que el cálculo quede listo apenas haya un diagnóstico.</div>' +
+  '</div>';
+}
+
+function _renderCFFHtml(d){
+  var detalle = d.detalle || {};
+  var incluidos = _CFF_COMPONENTES.filter(function(c){ return detalle[c.key] && detalle[c.key].incluido; });
+  var completo = incluidos.length === _CFF_COMPONENTES.length;
+
+  var labelTotal = completo ? 'Costo total' : 'Costo total (parcial)';
+  var colorTotal = completo ? '#f5f0e8' : '#f2542d';
+  var valorTotal = d.costo_total != null ? fmt(d.costo_total) : '—';
+  var iaoTxt = d.iao_org_usado != null ? d.iao_org_usado.toFixed(1) : '—';
+
+  var html = '<div style="background:#0a1420;border-radius:10px;padding:18px 20px;margin-bottom:16px">' +
+    '<div style="font-size:11px;color:#8a94a6;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">' + labelTotal + '</div>' +
+    '<div style="font-size:32px;font-weight:600;color:' + colorTotal + '">' + valorTotal + '</div>' +
+    '<div style="font-size:11.5px;color:#8a94a6;margin-top:6px">COP/año · basado en IAO = ' + iaoTxt + '% · ' + incluidos.length + ' de ' + _CFF_COMPONENTES.length + ' componentes incluidos</div>' +
+  '</div>';
+
+  if(incluidos.length < _CFF_COMPONENTES.length){
+    var faltantes = _CFF_COMPONENTES.filter(function(c){ return !(detalle[c.key] && detalle[c.key].incluido); })
+      .map(function(c){ return c.nombre; }).join(', ');
+    html += '<div style="display:flex;gap:12px;align-items:flex-start;background:#2a1810;border:1px solid #f2542d;border-radius:var(--r);padding:14px 16px;margin-bottom:16px">' +
+      '<span style="font-size:16px;flex-shrink:0;line-height:1.3">⚠</span>' +
+      '<div style="font-size:12.5px;color:#f5f0e8;line-height:1.6">No incluidos en el total: <strong>' + faltantes + '</strong>. Completa la Ficha financiera para un cálculo completo.</div>' +
+    '</div>';
+  }
+
+  html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">';
+  _CFF_COMPONENTES.forEach(function(c){
+    var det = detalle[c.key] || {};
+    var incluido = !!det.incluido;
+    var valor = incluido && d[c.costo] != null ? fmt(d[c.costo]) : 'no calculado';
+    var borde = incluido ? '' : 'border:1px dashed #26344a;';
+    var punto = incluido ? '#4a9d6e' : '#8a94a6';
+    var colorValor = incluido ? '#f5f0e8' : '#8a94a6';
+    var colorRazon = incluido ? '#8a94a6' : '#f2542d';
+    html += '<div style="background:#0a1420;' + borde + 'border-radius:10px;padding:14px 16px">' +
+      '<div style="display:flex;align-items:center;gap:6px;margin-bottom:8px">' +
+        '<span style="width:7px;height:7px;border-radius:50%;background:' + punto + ';flex-shrink:0"></span>' +
+        '<span style="font-size:11px;color:#8a94a6;text-transform:uppercase;letter-spacing:.04em">' + c.nombre + '</span>' +
+      '</div>' +
+      '<div style="font-size:20px;font-weight:500;color:' + colorValor + ';margin-bottom:6px">' + valor + '</div>' +
+      '<div style="font-size:10px;color:' + colorRazon + ';line-height:1.4">' + (det.razon || '') + '</div>' +
+    '</div>';
+  });
+  html += '</div>';
+
+  html += '<div style="text-align:right">' +
+    '<a href="#" onclick="mostrarFichaFinanciera();return false" style="font-size:12.5px;color:#5a95e0;text-decoration:none">→ Completar Ficha financiera</a>' +
+  '</div>';
+
+  return html;
 }
 
 // 5 números consolidados — compartido entre Resumen (Página 1, org
