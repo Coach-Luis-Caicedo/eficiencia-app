@@ -521,7 +521,51 @@ en Colombia. Mismo tratamiento que el desenganche: no se inventa un número.
 CFF = Costo_desenganche + Costo_rotación + Costo_ausentismo + Costo_retrabajo
 
 Costo_desenganche = N × Salario_promedio × 0.26 × (IAO_org/100)
+```
 
+**Pendiente de confirmar con Luis, señalado 2026-08-19 — no decidido en
+silencio:** al construir el motor de cálculo (migración 015 de
+`supabase/migrations/`), se propuso reemplazar el 0.26 (Gallup) por
+`f_legal(país, antigüedad_promedio, Salario_promedio)` — la fórmula
+legal de indemnización ya investigada
+(`INVESTIGACION_COSTO_LEGAL_DESVINCULACION_LATAM.md`). **No se
+implementó así.** "Desenganche" (Gallup: empleados que se quedan pero
+están psicológicamente desconectados) y "desvinculación legal" (costo
+de indemnizar a quien se va, Art. 64 CST) son conceptos distintos — la
+propia investigación de Colombia ya identifica la indemnización legal
+como una fracción de `Costo_rotación` ("solo 15%-25% del costo real de
+reemplazo", Latin Human Capital), no como sustituto de
+`Costo_desenganche`. El motor de cálculo mantiene el 0.26 ya aprobado
+hasta que esto se aclare explícitamente.
+
+**Dos pendientes de precisión, señalados 2026-08-19 — no bloquean el
+motor, que funciona hoy sin ellos:**
+
+1. **Cobertura de país — solo Colombia de punta a punta.** El sistema
+   soporta países en el esquema (`organizaciones.pais`, migración 011) y
+   el selector de alta/Ficha financiera hoy solo ofrece Colombia. La
+   Fase 2 de países (México, Perú, Chile, Argentina, Ecuador, Venezuela,
+   Costa Rica, Panamá, Guatemala) ya está investigada — costo legal de
+   desvinculación (`INVESTIGACION_COSTO_LEGAL_DESVINCULACION_LATAM.md`)
+   y factor prestacional (`INVESTIGACION_FACTOR_PRESTACIONAL_LATAM.md`)
+   — pero **no está conectada a la UI ni al motor de cálculo**:
+   `dias_laborales_año` (242) y `TasaAusentismoBase_pais` (EALI 2024)
+   están hardcodeados solo para Colombia en `_calcular_cff_interno`
+   (migración 015). Ampliar a otro país requiere trabajo explícito, no
+   es automático por tener el dato investigado.
+2. **Fórmula legal de indemnización dentro de `Costo_rotación` — sin
+   lugar confirmado.** La fórmula de la sección 8 no especifica dónde
+   entraría un término legal (¿dentro de `Multiplicador_rol`?, ¿término
+   sumado aparte?, ¿ya implícito en `TasaRotaciónBase_cliente` como tasa
+   real reportada por el cliente?) — vacío de diseño real, no una
+   omisión de implementación, verificado explícitamente contra el texto
+   del marco. Tampoco existe hoy un campo `antigüedad_promedio`
+   capturado a nivel organización — lo único parecido es
+   `respuestas_cuestionario.antiguedad`, un dato categórico por
+   individuo, no un promedio organizacional, y no vive en Ficha
+   financiera. Pendiente de decisión antes de intentar integrarla.
+
+```
 Costo_rotación = N × TasaRotaciónBase_cliente × (1 + s_rot × IAO_org/100)
                    × Salario_promedio_afectado × Multiplicador_rol[0.25–0.75]
 
@@ -569,11 +613,50 @@ supuestos antes de reportar el CFF al cliente.
   opcional de referencia para quien solo conoce el salario base, no como
   una conversión automática obligatoria; la decisión de construir esa
   ayuda queda pendiente hasta ver los datos reales.
+- **`Salario_promedio_afectado` = `Salario_promedio`** — decisión tomada
+  2026-08-19: se usa el mismo valor que ya captura la ficha financiera,
+  no un dato adicional distinto capturado aparte. Es una simplificación
+  reconocida, no una equivalencia conceptual real — "salario promedio
+  afectado" (de los roles con rotación) y "salario promedio" (de toda la
+  organización) pueden divergir en la práctica si la rotación se
+  concentra en niveles de salario distintos al promedio general. Se
+  simplifica así en Fase 1 porque pedirle al cliente un tercer dato
+  (salario promedio específico de los roles que rotan, distinto del
+  salario promedio general ya pedido) agrega fricción de captura sin que
+  exista todavía calibración que demuestre que la precisión adicional
+  vale ese costo — mismo criterio que ya se aplicó a
+  `Salario_promedio` (un campo, no dos, sección 8 arriba). Revisar en
+  Fase 2 si el piloto muestra que la rotación se concentra
+  sistemáticamente en un nivel salarial distinto al promedio.
 - `Multiplicador_rol` (0.25–0.75): benchmark ACRIP/Adecco/Michael Page
   Colombia; el cliente indica composición de roles afectados. Rango
   significativamente más bajo que el benchmark estadounidense (0.5–2.0) —
   refleja diferencias reales de estructura salarial y costo de reemplazo
-  entre mercados, no un error de conversión de moneda.
+  entre mercados, no un error de conversión de moneda. **Verificado
+  2026-08-19 contra las fuentes originales:** ninguna de las tres
+  (ACRIP, Adecco, Michael Page) publica categorías explícitas con
+  valores numéricos por nivel de rol — todas describen el costo como
+  variable "según el nivel y la especialización del rol" en términos
+  cualitativos (Michael Page: "50% del salario anual, dependiendo del
+  nivel y especialización"; Adecco: "6-9 meses de salario para talento
+  estratégico"; ACRIP: "3-6 veces el salario mensual" como estimado
+  general, sin desglose por nivel), sin una tabla de categorías propia
+  que EFICIENCIA pueda adoptar tal cual.
+
+  **Mapeo de 3 niveles — aprobado 2026-08-19, con el respaldo de cada
+  valor documentado por separado (no todos tienen el mismo anclaje):**
+
+  | Nivel | Valor | Origen |
+  |---|---|---|
+  | Operativo | 0.30 | **Interpolación, no cita directa.** El rango (25%-50%) viene de una cifra textual de ACRIP ("3-6 meses de salario"), pero ACRIP la presenta como estimado *general* de toda la organización, sin atarla a ningún nivel de rol específico — la asociación con "operativo" y el valor puntual 0.30 son interpolación de EFICIENCIA, sin anclaje de fuente a ese nivel. El más débil de los tres. |
+  | Medio | 0.50 | **Cifra textual directa** de Michael Page ("50% del salario anual"), sin calificar por nivel en la fuente — se asigna a "medio" por ser la cifra general/no calificada de la fuente (ni la más baja ni la más alta reportada), no porque Michael Page la etiquete como "nivel medio". |
+  | Directivo / estratégico | 0.70 | **Rango textualmente anclado, valor puntual interpolado.** Adecco ata explícitamente su cifra ("6-9 meses de salario") a "talento estratégico" — comparable a directivo — así que el *rango* (50%-75%) sí tiene respaldo directo de fuente para ese nivel. El *valor puntual* 0.70 dentro del rango es interpolación de EFICIENCIA; Adecco no da un número único. |
+
+  Ningún valor de esta tabla es un benchmark calibrado — son la mejor
+  lectura disponible de fuentes reales con distinto grado de anclaje,
+  documentado explícitamente por fila en vez de presentar los tres con
+  la misma apariencia de respaldo. Sujeto a recalibración con regresión
+  en Fase 2, mismo criterio que `s_rot`/`s_aus`/`s_ret`/`w_neg`/`γ`.
 - **`dias_ausencia_base` tiene prioridad sobre `TasaAusentismoBase`** —
   mismo criterio ya aplicado a `TasaRotaciónBase_cliente` (dato real del
   cliente por encima de cualquier benchmark) y ya anticipado en el propio
@@ -845,6 +928,65 @@ experto documentado explícitamente en el diagnóstico, no una caja negra —
 y es, en sí mismo, uno de los futuros candidatos a calibrarse con
 regresión una vez exista suficiente historial de casos reales (mismo
 horizonte que la Fase 2 del CFF).
+
+### 8.4 Snapshot del CFF — `cff_historial`, cuándo se dispara y cómo se guarda
+
+Decisión tomada con Luis, 2026-08-19. El CFF no se recalcula "en vivo"
+cada vez que alguien mira el Tablero y se descarta — se guarda un
+snapshot por período en `cff_historial` (migración 014 de
+`supabase/migrations/`), con los 4 componentes (nullable — no todos son
+siempre calculables), el total, y un `detalle` jsonb por componente
+(`{incluido: bool, razon: text}`) para que el Tablero pueda mostrar
+explícitamente qué entró al total y qué no, en vez de un número sin
+contexto.
+
+**Invariante central: un punto por (organización, período)** —
+`UNIQUE(organizacion_id, periodo)`, necesaria para que el IFT (sección
+8.2) pueda leer una serie de tiempo coherente. Nunca se inserta un
+segundo punto para el mismo período; siempre se sobrescribe.
+
+**Dos disparadores, no uno:**
+
+1. **Diagnóstico nuevo completado** — mismo punto donde ya se calcula
+   `IAO_org` hoy: dentro de `resumen_organizacion_completo()`, después
+   de calcular el resultado, solo cuando la consulta es de organización
+   completa (nunca por área — los insumos de Ficha financiera no son
+   por departamento) y solo si `IAO_org` tiene N≥8. Esto significa que
+   el snapshot se actualiza cada vez que el IAO_org de la organización
+   cambia dentro del mismo período (más respuestas acumulándose), no
+   solo la primera vez que se alcanza N≥8.
+2. **Caso especial — edición de Ficha financiera:** editar la ficha
+   financiera **nunca crea un punto nuevo por sí sola**. Si el período
+   actual ya tiene un snapshot (un diagnóstico ya se completó), se
+   recalcula con el mismo `IAO_org` ya guardado y los insumos
+   financieros nuevos, y se sobrescribe. Si el período actual todavía no
+   tiene snapshot, no pasa nada — la Ficha financiera puede editarse
+   libremente sin generar historial hasta que exista un diagnóstico real
+   de por medio.
+
+**Núcleo de cálculo separado del disparo** (`_calcular_cff_interno`,
+sin GRANT a `authenticated` — solo invocable desde otras funciones
+`SECURITY DEFINER`): recibe `IAO_org` ya calculado como parámetro, no lo
+calcula él mismo — evita que `resumen_organizacion_completo()` y el
+cálculo del CFF se llamen circularmente entre sí. `calcular_cff()` es
+el wrapper público (si en algún momento hace falta recalcular el CFF de
+forma independiente, ej. un botón "recalcular" en el tab CFF del
+Tablero) — resuelve `IAO_org` llamando a `resumen_organizacion_completo()`
+y delega el cálculo al núcleo.
+
+**Fórmulas implementadas** (migración 015) — las 4 ya documentadas
+arriba en esta sección, con las prioridades de dato real ya establecidas
+(`TasaAusentismo`, `TasaRetrabajo`, `dias_laborales_año=242` para
+Colombia) y `s_rot=s_aus=s_ret=1` (provisional, sin calibrar, mismo
+tratamiento que el resto de la sección 12). **Excepción señalada:**
+`Costo_desenganche` usa el 0.26 de Gallup ya aprobado, no la fórmula
+legal propuesta en el mismo prompt que pidió este motor — ver nota en
+la fórmula de `Costo_desenganche` más arriba en esta sección, pendiente
+de confirmación explícita.
+
+**Fuera de alcance de esta pieza:** el tab CFF del Tablero (todavía
+placeholder) — el motor y el historial existen, pero no hay UI que los
+consuma todavía. Siguiente paso una vez esto se confirme.
 
 ---
 
@@ -1190,7 +1332,27 @@ PIIO lo aplicaba originalmente (rotación, ausentismo, productividad,
 accidentalidad):
 
 - α, γ (sección 6.2)
-- w_neg, umbral_piso (sección 4, fórmula del IAO)
+- w_neg (sección 4, fórmula del IAO) — sin anclaje externo, prior
+  arbitrario sujeto a calibración completa con el piloto.
+- **umbral_piso (sección 4, fórmula del IAO) — actualizado 2026-08-19 de
+  0.5 a 0.575, informado por evidencia externa, no calibrado con datos
+  del piloto — revisar cuando haya 12 meses de datos reales.** Mismo
+  tratamiento que el resto de esta lista (prior de partida para el
+  mecanismo bayesiano de arriba, no un valor validado), pero a
+  diferencia de w_neg/γ, este prior ya no es arbitrario: 0.575 es el
+  punto medio entre dos anclajes externos de psicología clínica/
+  ocupacional documentados en `INVESTIGACION_ANCLAJE_UMBRAL_PISO.md` —
+  (1) WHO-5 Well-Being Index, corte de cribado validado meta-
+  analíticamente en ≤50/100 (0.50 normalizado, sensibilidad 0.86/
+  especificidad 0.81 agregadas), y (2) Maslach Burnout Inventory,
+  subescalas de Realización personal/Eficacia profesional (dos versiones
+  independientes del instrumento convergiendo en ≈0.64-0.65
+  normalizado). Ninguno de los dos es suficiente por sí solo — WHO-5 mide
+  bienestar subjetivo general, un constructo distinto a `Concepto_B`; el
+  MBI es específico de agotamiento laboral y no generaliza directamente a
+  las 10 dimensiones de `Concepto_B` — el punto medio (0.575) es la
+  mejor aproximación disponible sin sobreajustar a un solo instrumento,
+  no una derivación estadística de ninguno de los dos.
 - causa_margen (sección 4, desglose por par — clasificación 'mixta' de
   causa_dominante, migración 010 de Supabase; mismo tratamiento que
   w_neg/umbral_piso, no un valor validado)
