@@ -538,8 +538,8 @@ reemplazo", Latin Human Capital), no como sustituto de
 `Costo_desenganche`. El motor de cálculo mantiene el 0.26 ya aprobado
 hasta que esto se aclare explícitamente.
 
-**Dos pendientes de precisión, señalados 2026-08-19 — no bloquean el
-motor, que funciona hoy sin ellos:**
+**Tres pendientes de precisión, señalados 2026-08-19 y 2026-08-21 — no
+bloquean el motor, que funciona hoy sin ellos:**
 
 1. **Cobertura de país — solo Colombia de punta a punta.** El sistema
    soporta países en el esquema (`organizaciones.pais`, migración 011) y
@@ -564,6 +564,76 @@ motor, que funciona hoy sin ellos:**
    `respuestas_cuestionario.antiguedad`, un dato categórico por
    individuo, no un promedio organizacional, y no vive en Ficha
    financiera. Pendiente de decisión antes de intentar integrarla.
+3. **`organizaciones.sector` se captura obligatoriamente pero el CFF no lo
+   lee nunca — auditado 2026-08-21, rotación resuelta el mismo día
+   (migración 017); ausentismo y retrabajo siguen pendientes.** `sector`
+   es campo obligatorio desde
+   la creación de la organización (`crear_organizacion()`, migración 007:
+   `RAISE EXCEPTION` si falta o no es uno de los 5 valores de
+   `SECTOR_BENCHMARKS`) y el propio comentario de la migración 005 ya
+   anticipaba su uso ("el benchmark sectorial (SECTOR_BENCHMARKS) sigue
+   siendo el valor de referencia/fallback") — pero `_calcular_cff_interno`
+   (migración 015) nunca lo lee (confirmado por búsqueda: cero menciones
+   de `sector` en todo el archivo). Es el mismo patrón de dato
+   capturado-pero-huérfano que el país (punto 1), con una diferencia: aquí
+   el dato es obligatorio en la captura, no opcional. Auditado componente
+   por componente:
+   - **`TasaRetrabajoBase` (5%-15%) es explícitamente benchmark de
+     manufactura** (ya lo dice esta misma sección arriba) y el código lo
+     aplica a **cualquier** organización que reporte `costo_operativo_total`,
+     sin importar su sector — el guard "omitir en organizaciones puramente
+     de servicios" que describe el texto de la fórmula es, en la
+     implementación real, un guard de *presencia de dato*
+     (`costo_operativo_total IS NOT NULL`), no de *sector*. Un cliente de
+     retail o salud que sí reporte un costo operativo total recibiría hoy
+     una tasa de retrabajo calibrada para defectos de manufactura.
+   - **`TasaAusentismoBase_pais['colombia']` (EALI 2024, 9.4 días) es un
+     promedio nacional, sin desagregación por sector** — ninguna
+     investigación de este proyecto (incluida la ronda ampliada de
+     `INVESTIGACION_VALIDACION_IFT.md`) encontró una cifra de ausentismo
+     específica por sector con fuente citable; la ACHC (salud) solo aportó
+     rotación, no ausentismo. No confundir con rotación, donde sí existe
+     evidencia sectorial real (siguiente punto).
+   - **`Multiplicador_rol` (ACRIP/Adecco/Michael Page) está correctamente
+     sin diferenciar por sector** — las tres fuentes, re-verificadas
+     palabra por palabra el 2026-08-21, diferencian por **nivel de rol**
+     ("dependiendo del nivel y la especialización", "talento estratégico"),
+     no por sector. No hay evidencia externa que reclame una tabla
+     sector-específica aquí; el diseño actual ya está alineado con sus
+     propias fuentes.
+   - **Existe evidencia real para diferenciar rotación por sector en al
+     menos 3 categorías** (no implementado): retail_logistica 69% anual,
+     manufactura 44% anual (ambas Michael Page Colombia 2023,
+     `INVESTIGACION_DATOS_CALIBRACION_CFF.md` sección 1), salud_educacion
+     13.1%-15.8% (ACHC, `INVESTIGACION_BENCHMARKS_ESG_SOSTENIBILIDAD.md`
+     sección 3.1). BPO/call center (74%-89% anual) es un caso extremo
+     dentro de la categoría genérica `servicios_prof`, que hoy no tiene
+     ningún benchmark de rotación propio en el CFF — solo aplica si el
+     cliente reporta `tasa_rotacion_base` real.
+   - **La tabla `SECTOR_BENCHMARKS` del motor legacy (`workbook.html`,
+     PIIO/CTD, ya no en uso) ya tiene esta estructura de 5 sectores
+     construida** (`servicios_prof`, `manufactura`, `finanzas_tech`,
+     `retail_logistica`, `salud_educacion` — rotación/ausentismo/CR por
+     cada uno) — pero su cita es genérica de bloque ("ACRIP Colombia 2023,
+     ANDI-CESLA EALI 2023, Gallup 2024-2025"), sin fuente por valor
+     individual, y **donde se puede contrastar contra las cifras
+     verificadas de esta investigación, diverge de forma material**:
+     manufactura 31.0% en la tabla legacy vs. 44% verificado (Michael
+     Page); retail_logistica 42.0% vs. 69% verificado. No es reutilizable
+     tal cual — necesitaría la misma re-verificación palabra por palabra
+     que ya se le aplicó a Gallup/ACRIP/Michael Page en otras partes de
+     esta investigación, no un port directo.
+   - **Conclusión, mismo criterio que el país (punto 1) — RESUELTO para
+     rotación, 2026-08-21, migración 017:** había evidencia real
+     suficiente para diferenciar `TasaRotaciónBase` de respaldo por 3
+     sectores (retail, manufactura, salud) y ya se implementó — ver el
+     bloque `TasaRotaciónBase_cliente` más arriba en esta sección para el
+     detalle completo. `TasaAusentismoBase` y `TasaRetrabajoBase` por
+     sector siguen pendientes de investigación adicional, mismo estado
+     que la Fase 2 de países. La corrección de
+     `TasaRetrabajoBase` (no aplicar el benchmark de manufactura fuera de
+     manufactura) es un ajuste de prudencia que no depende de tener más
+     datos — se puede resolver antes, con lo que ya se sabe hoy.
 
 ```
 Costo_rotación = N × TasaRotaciónBase_cliente × (1 + s_rot × IAO_org/100)
@@ -657,6 +727,36 @@ supuestos antes de reportar el CFF al cliente.
   documentado explícitamente por fila en vez de presentar los tres con
   la misma apariencia de respaldo. Sujeto a recalibración con regresión
   en Fase 2, mismo criterio que `s_rot`/`s_aus`/`s_ret`/`w_neg`/`γ`.
+- **`TasaRotaciónBase_cliente` tiene un benchmark de respaldo por sector
+  — implementado 2026-08-21, migración 017 de `supabase/migrations/`.**
+  Hasta esta migración, `organizaciones.sector` se capturaba
+  obligatoriamente (`crear_organizacion()`, migración 007) pero
+  `_calcular_cff_interno()` nunca lo leía — auditado y documentado como
+  pendiente 3 más abajo en esta sección. Prioridad de 2 niveles, sin
+  tercer nivel genérico nacional (a diferencia de `TasaAusentismoBase`):
+  `INVESTIGACION_DATOS_CALIBRACION_CFF.md` (sección 1) encontró dos
+  cifras nacionales colombianas de rotación que divergen sustancialmente
+  entre sí (41% El Colombiano vs. 26% La República, 2025, sin metodología
+  pública reconciliable) y concluyó explícitamente no usar ninguna como
+  respaldo genérico sin verificar la fuente primaria — se prefirió dejar
+  el componente sin calcular antes que introducir un número no confiable.
+
+  | Sector | Benchmark | Fuente |
+  |---|---|---|
+  | `retail_logistica` | 69% | Michael Page Colombia 2023 |
+  | `manufactura` | 44% | Michael Page Colombia 2023 |
+  | `salud_educacion` | 14.45% | Punto medio ACHC médicos (13.1%) / enfermería (15.8%), encuesta mayo-jun 2024, 102 instituciones |
+  | `servicios_prof`, `finanzas_tech` | *(ninguno)* | Sin evidencia real con el mismo rigor — BPO/call center (rotación real 74%-89%, verificada) cae hoy dentro de `servicios_prof` pero es demasiado atípico para representar a todo el sector con un solo número; aplicarle cualquier valor sería tan arbitrario como el problema que este benchmark busca evitar |
+
+  Deliberadamente **no** se reutilizó la tabla `SECTOR_BENCHMARKS` del
+  motor legacy PIIO/CTD (`workbook.html`) — tiene cita genérica de bloque,
+  sin fuente por valor individual, y donde se pudo contrastar contra las
+  cifras verificadas diverge de forma material (manufactura 31.0% en la
+  tabla legacy vs. 44% verificado; `retail_logistica` 42.0% vs. 69%
+  verificado). `TasaAusentismoBase` y `TasaRetrabajoBase` **no** recibieron
+  este mismo tratamiento en la migración 017 a propósito — quedan como
+  benchmark único, sin distinción de sector, documentado como pendiente de
+  datos sectoriales (pendiente 3, más abajo).
 - **`dias_ausencia_base` tiene prioridad sobre `TasaAusentismoBase`** —
   mismo criterio ya aplicado a `TasaRotaciónBase_cliente` (dato real del
   cliente por encima de cualquier benchmark) y ya anticipado en el propio
