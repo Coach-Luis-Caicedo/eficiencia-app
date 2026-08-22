@@ -1875,15 +1875,42 @@ supa.auth.getSession().then(function(res){
       <div id="ff-completitud" style="display:flex;gap:16px;flex-wrap:wrap"></div>
     </div>
 
-    <div style="background:#0a1420;border-radius:10px;padding:12px 16px;display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
-      <div style="display:flex;align-items:center;gap:10px">
-        <span style="font-size:11px;color:#8a94a6">País</span>
-        <select id="ff-pais" style="font-size:16px;font-weight:500;color:#f5f0e8;background:none;border:none;appearance:none;-webkit-appearance:none;padding:0;cursor:pointer">
-          <option value="">Seleccionar país...</option>
-          <option value="colombia">🇨🇴 Colombia</option>
-        </select>
+    <div style="display:grid;grid-template-columns:2fr 1fr;gap:14px;margin-bottom:14px">
+      <div style="background:#0a1420;border-radius:10px;padding:14px 16px">
+        <label style="font-size:11px;color:#8a94a6;display:block;margin-bottom:6px">Nombre de la organización</label>
+        <input type="text" id="ff-nombre" placeholder="Ej. Acme S.A.S." style="width:100%;background:none;border:none;color:#f5f0e8;font-size:16px;font-weight:500;padding:0;outline:none;font-family:inherit">
       </div>
-      <div id="ff-pais-help" style="font-size:10px;color:#8a94a6">fijo al crear la organización</div>
+      <div style="background:#0a1420;border-radius:10px;padding:14px 16px">
+        <label style="font-size:11px;color:#8a94a6;display:block;margin-bottom:6px">N° de empleados</label>
+        <input type="number" id="ff-n-empleados" min="1" step="1" placeholder="Ej. 120" style="width:100%;background:none;border:none;color:#f5f0e8;font-size:16px;font-weight:500;padding:0;outline:none;font-family:inherit">
+      </div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
+      <div style="background:#0a1420;border-radius:10px;padding:12px 16px;display:flex;justify-content:space-between;align-items:center">
+        <div style="display:flex;align-items:center;gap:10px">
+          <span style="font-size:11px;color:#8a94a6">País</span>
+          <select id="ff-pais" style="font-size:16px;font-weight:500;color:#f5f0e8;background:none;border:none;appearance:none;-webkit-appearance:none;padding:0;cursor:pointer">
+            <option value="">Seleccionar país...</option>
+            <option value="colombia">🇨🇴 Colombia</option>
+          </select>
+        </div>
+        <div id="ff-pais-help" style="font-size:10px;color:#8a94a6">fijo al crear la organización</div>
+      </div>
+      <div style="background:#0a1420;border-radius:10px;padding:12px 16px;display:flex;justify-content:space-between;align-items:center">
+        <div style="display:flex;align-items:center;gap:10px">
+          <span style="font-size:11px;color:#8a94a6">Sector</span>
+          <select id="ff-sector" style="font-size:16px;font-weight:500;color:#f5f0e8;background:none;border:none;appearance:none;-webkit-appearance:none;padding:0;cursor:pointer">
+            <option value="">Seleccionar sector...</option>
+            <option value="servicios_prof">Servicios profesionales</option>
+            <option value="manufactura">Manufactura</option>
+            <option value="finanzas_tech">Finanzas / Tecnología</option>
+            <option value="retail_logistica">Retail / Logística</option>
+            <option value="salud_educacion">Salud / Educación</option>
+          </select>
+        </div>
+        <div id="ff-sector-help" style="font-size:10px;color:#8a94a6">fijo al crear la organización</div>
+      </div>
     </div>
 
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
@@ -6577,13 +6604,18 @@ function cargarFichaFinanciera(){
   var status = document.getElementById('ff-status');
   status.textContent = 'Cargando…';
   supa.from('organizaciones')
-    .select('pais,salario_promedio,tasa_rotacion_base,dias_ausencia_base,costo_operativo_total,costo_intervencion,ebitda,tasa_retrabajo_real,multiplicador_rol')
+    .select('nombre,n_empleados,sector,pais,salario_promedio,tasa_rotacion_base,dias_ausencia_base,costo_operativo_total,costo_intervencion,ebitda,tasa_retrabajo_real,multiplicador_rol')
     .eq('id', S_ORG.id)
     .single()
     .then(function(res){
       if(res.error){ status.textContent = 'Error al cargar: ' + res.error.message; return; }
       status.textContent = '';
       var d = res.data || {};
+      // Nombre y n_empleados: siempre editables, sin guard (migración
+      // 018) — nunca están en NULL para una organización real, así que
+      // no hay estado "sin registrar" que mostrar, solo el valor actual.
+      document.getElementById('ff-nombre').value = d.nombre || '';
+      document.getElementById('ff-n-empleados').value = d.n_empleados != null ? d.n_empleados : '';
       document.getElementById('ff-salario').value = d.salario_promedio != null ? d.salario_promedio : '';
       document.getElementById('ff-rotacion').value = d.tasa_rotacion_base != null ? d.tasa_rotacion_base : '';
       document.getElementById('ff-ausencia').value = d.dias_ausencia_base != null ? d.dias_ausencia_base : '';
@@ -6611,14 +6643,26 @@ function cargarFichaFinanciera(){
       _ffEstiloFinanciero('ff-ebitda', 'ff-card-ebitda', 18);
       _ffEstiloFinanciero('ff-retrabajo', 'ff-card-retrabajo', 18);
 
-      // País: deshabilitado solo cuando ya tiene valor — una organización
-      // creada antes de la migración 011 puede llegar aquí con pais=NULL,
-      // y este panel es el mecanismo de backfill (migración 011,
-      // "prueba manual 3"), no solo de visualización.
+      // País y Sector: deshabilitados solo cuando ya tienen valor — el
+      // guard real vive en el backend (migración 018, COALESCE, ignora
+      // silenciosamente cualquier intento de cambio si ya está fijado);
+      // este disabled es solo UX, no la única protección, a diferencia
+      // de antes de la migración 018 (auditado 2026-08-21). Una
+      // organización creada antes de que la columna existiera puede
+      // llegar aquí con el valor en NULL — este panel es el mecanismo de
+      // backfill único, igual que ya lo era país (migración 011, "prueba
+      // manual 3").
       var paisSel = document.getElementById('ff-pais');
       paisSel.value = d.pais || '';
       paisSel.disabled = !!d.pais;
       document.getElementById('ff-pais-help').textContent = d.pais
+        ? 'fijo al crear la organización'
+        : 'sin registrar — selecciónalo para completarlo';
+
+      var sectorSel = document.getElementById('ff-sector');
+      sectorSel.value = d.sector || '';
+      sectorSel.disabled = !!d.sector;
+      document.getElementById('ff-sector-help').textContent = d.sector
         ? 'fijo al crear la organización'
         : 'sin registrar — selecciónalo para completarlo';
 
@@ -6759,30 +6803,69 @@ function guardarFichaFinanciera(){
   var paisCodigo = document.getElementById('ff-pais').value;
   if(!paisCodigo){ status.textContent = 'Selecciona un país.'; return; }
 
+  var nombre = document.getElementById('ff-nombre').value.trim();
+  if(!nombre){ status.textContent = 'El nombre de la organización no puede quedar vacío.'; return; }
+
+  var nEmpleadosRaw = document.getElementById('ff-n-empleados').value;
+  var nEmpleados = nEmpleadosRaw === '' ? null : parseInt(nEmpleadosRaw, 10);
+  if(!nEmpleados || nEmpleados < 1){ status.textContent = 'El número de empleados debe ser mayor a 0.'; return; }
+
+  var sectorCodigo = document.getElementById('ff-sector').value || null;
+
   var num = function(id){ var v = document.getElementById(id).value; return v === '' ? null : parseFloat(v); };
 
   status.textContent = '';
   btn.disabled = true; btn.textContent = 'Guardando…';
 
-  supa.rpc('actualizar_ficha_financiera', {
+  // Dos RPC separados (migración 018) — ficha técnica primero, ficha
+  // financiera después. Si el primero falla (ej. nombre vacío, n_empleados
+  // inválido), se detiene ahí con el error específico de esa llamada — no
+  // se intenta la segunda. Si el primero tiene éxito y el segundo falla,
+  // el mensaje lo dice explícitamente (ficha técnica sí quedó guardada) —
+  // un error genérico ahí sugeriría, equivocadamente, que no se guardó
+  // nada. Decisión de Luis, 2026-08-21.
+  var tecnicaOk = false;
+
+  supa.rpc('actualizar_ficha_tecnica', {
     p_organizacion_id: S_ORG.id,
-    p_pais: paisCodigo,
-    p_salario_promedio: num('ff-salario'),
-    p_tasa_rotacion_base: num('ff-rotacion'),
-    p_dias_ausencia_base: num('ff-ausencia'),
-    p_costo_operativo_total: num('ff-costo-operativo'),
-    p_costo_intervencion: num('ff-costo-intervencion'),
-    p_ebitda: num('ff-ebitda'),
-    p_tasa_retrabajo_real: num('ff-retrabajo'),
-    p_multiplicador_rol: num('ff-multiplicador-rol')
-  }).then(function(res){
+    p_nombre: nombre,
+    p_n_empleados: nEmpleados,
+    p_sector: sectorCodigo
+  }).then(function(resTecnica){
+    if(resTecnica.error){
+      return Promise.reject(resTecnica.error); // manejado en el .catch() de abajo, un solo lugar que fija el mensaje
+    }
+    tecnicaOk = true;
+    // Rastro de intento de cambio de sector ignorado (migración 018) —
+    // no bloquea nada, solo informa por qué el selector no cambió.
+    if(resTecnica.data && resTecnica.data.sector_cambio_ignorado){
+      status.textContent = 'El sector ya estaba fijado — el cambio no se aplicó. ';
+    }
+    return supa.rpc('actualizar_ficha_financiera', {
+      p_organizacion_id: S_ORG.id,
+      p_pais: paisCodigo,
+      p_salario_promedio: num('ff-salario'),
+      p_tasa_rotacion_base: num('ff-rotacion'),
+      p_dias_ausencia_base: num('ff-ausencia'),
+      p_costo_operativo_total: num('ff-costo-operativo'),
+      p_costo_intervencion: num('ff-costo-intervencion'),
+      p_ebitda: num('ff-ebitda'),
+      p_tasa_retrabajo_real: num('ff-retrabajo'),
+      p_multiplicador_rol: num('ff-multiplicador-rol')
+    });
+  }).then(function(resFinanciera){
+    if(!resFinanciera) return; // ya se detuvo y mostró el error de ficha técnica arriba
     btn.disabled = false; btn.textContent = 'Guardar cambios';
-    if(res.error){ status.textContent = 'Error: ' + res.error.message; return; }
-    status.textContent = 'Guardado.';
-    cargarFichaFinanciera(); // refresca completitud y comparaciones con lo recién guardado
+    if(resFinanciera.error){
+      status.textContent = 'Ficha técnica guardada correctamente. Error en datos financieros: ' + resFinanciera.error.message;
+      return;
+    }
+    status.textContent = (status.textContent || '') + 'Guardado.';
+    cargarFichaFinanciera(); // refresca completitud, comparaciones, y los 3 campos nuevos con lo recién guardado
   }).catch(function(err){
     btn.disabled = false; btn.textContent = 'Guardar cambios';
-    status.textContent = 'Error de conexión: ' + (err && err.message || err);
+    if(!tecnicaOk && err && err.message) status.textContent = 'Error en ficha técnica: ' + err.message;
+    else if(tecnicaOk && err && err.message) status.textContent = 'Ficha técnica guardada correctamente. Error de conexión en datos financieros: ' + err.message;
   });
 }
 
