@@ -634,6 +634,42 @@ bloquean el motor, que funciona hoy sin ellos:**
      `TasaRetrabajoBase` (no aplicar el benchmark de manufactura fuera de
      manufactura) es un ajuste de prudencia que no depende de tener más
      datos — se puede resolver antes, con lo que ya se sabe hoy.
+   - **`sector` ganó camino de corrección — RESUELTO 2026-08-21, migración
+     018 (`actualizar_ficha_tecnica()`, propuesta, pendiente de aplicar).**
+     Auditoría adicional encontró que `sector` no solo estaba huérfano en
+     el CFF (ya resuelto arriba) — tampoco tenía **ningún** RPC que lo
+     editara después de creada la organización, a diferencia de país
+     (`actualizar_ficha_financiera()`, migración 011). Al revisar el
+     patrón de país para replicarlo, se encontró que tampoco es un patrón
+     seguro: el bloqueo "una vez tiene valor" es puramente de interfaz
+     (`workbook.html`, `paisSel.disabled = !!d.pais`), sin ningún guard en
+     el backend — país se sobrescribía sin condición en cada guardado de
+     Ficha financiera. Auditando además `crear_organizacion()` completo
+     contra `actualizar_ficha_financiera()`, se confirmó que **4 de los 5
+     campos obligatorios de la creación no tenían camino de corrección**:
+     `nombre`, `n_empleados`, `sector`, y `áreas` (`areas_organizacion`) —
+     solo país lo tenía, y sin protección real.
+
+     Diseño aplicado, no uniforme a propósito: `nombre`/`n_empleados`
+     quedan **siempre editables, sin guard** (son hechos operativos que
+     cambian legítimamente con el tiempo — un guard de "solo si es NULL"
+     los habría dejado permanentemente congelados, porque nunca están en
+     NULL en la práctica); `sector`/`país` reciben un **guard real**
+     (`COALESCE(campo, p_campo)`, solo aplica si el valor actual es NULL)
+     — son atributos estructurales, el problema real era el hueco de
+     backfill histórico, no la falta de poder cambiarlos en operación
+     normal. `n_empleados` es el más urgente de los cuatro: multiplica los
+     4 componentes del CFF (`N`), y sin poder actualizarse, el CFF calcula
+     indefinidamente sobre una plantilla desactualizada — un error
+     silencioso que empeora con el tiempo, no uno que se manifiesta una
+     sola vez.
+
+     `áreas` queda **fuera** de esta migración, documentado aparte: es una
+     tabla relacionada (`areas_organizacion`) con inserciones dinámicas,
+     no un campo simple de `organizaciones` — merece su propio flujo
+     (agregar/renombrar/quitar áreas), no un campo más en Ficha financiera.
+     Sigue sin ningún camino de edición después de creada la organización
+     — vacío conocido, sin fecha de resolución todavía.
 
 ```
 Costo_rotación = N × TasaRotaciónBase_cliente × (1 + s_rot × IAO_org/100)
