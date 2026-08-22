@@ -586,12 +586,24 @@ bloquean el motor, que funciona hoy sin ellos:**
      implementación real, un guard de *presencia de dato*
      (`costo_operativo_total IS NOT NULL`), no de *sector*. Un cliente de
      retail o salud que sí reporte un costo operativo total recibiría hoy
-     una tasa de retrabajo calibrada para defectos de manufactura.
+     una tasa de retrabajo calibrada para defectos de manufactura. **Se
+     buscó explícitamente una alternativa por sector 2026-08-21**
+     (`INVESTIGACION_AUSENTISMO_RETRABAJO_SECTORIAL.md`, sección 2, call
+     center/BPO, salud, retail, construcción) — sin resultado utilizable
+     con el mismo rigor que rotación; la corrección de no aplicar el
+     benchmark de manufactura fuera de manufactura sigue pendiente como
+     ajuste de prudencia (dejar el componente sin calcular en vez de
+     aplicar el número equivocado), independiente de tener o no un
+     benchmark alternativo.
    - **`TasaAusentismoBase_pais['colombia']` (EALI 2024, 9.4 días) es un
-     promedio nacional, sin desagregación por sector** — ninguna
-     investigación de este proyecto (incluida la ronda ampliada de
-     `INVESTIGACION_VALIDACION_IFT.md`) encontró una cifra de ausentismo
-     específica por sector con fuente citable; la ACHC (salud) solo aportó
+     promedio nacional, sin desagregación por sector — investigado
+     explícitamente 2026-08-21
+     (`INVESTIGACION_AUSENTISMO_RETRABAJO_SECTORIAL.md`), vacío
+     confirmado, no un vacío de búsqueda.** Ninguna investigación de este
+     proyecto (incluida la ronda ampliada de `INVESTIGACION_VALIDACION_IFT.md`
+     y la dedicada de ausentismo/retrabajo) encontró una cifra de
+     ausentismo específica por sector con fuente citable suficientemente
+     sólida; la ACHC (salud) solo aportó
      rotación, no ausentismo. No confundir con rotación, donde sí existe
      evidencia sectorial real (siguiente punto).
    - **`Multiplicador_rol` (ACRIP/Adecco/Michael Page) está correctamente
@@ -629,8 +641,10 @@ bloquean el motor, que funciona hoy sin ellos:**
      sectores (retail, manufactura, salud) y ya se implementó — ver el
      bloque `TasaRotaciónBase_cliente` más arriba en esta sección para el
      detalle completo. `TasaAusentismoBase` y `TasaRetrabajoBase` por
-     sector siguen pendientes de investigación adicional, mismo estado
-     que la Fase 2 de países. La corrección de
+     sector siguen pendientes de investigación adicional — investigado
+     explícitamente 2026-08-21
+     (`INVESTIGACION_AUSENTISMO_RETRABAJO_SECTORIAL.md`), vacío
+     confirmado, mismo estado que la Fase 2 de países. La corrección de
      `TasaRetrabajoBase` (no aplicar el benchmark de manufactura fuera de
      manufactura) es un ajuste de prudencia que no depende de tener más
      datos — se puede resolver antes, con lo que ya se sabe hoy.
