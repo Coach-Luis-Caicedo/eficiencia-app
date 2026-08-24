@@ -1939,6 +1939,16 @@ supa.auth.getSession().then(function(res){
         <input type="number" id="ff-ausencia" step="0.5" min="0" placeholder="Ej. 8" style="width:100%;background:none;border:none;color:#8a94a6;font-size:22px;padding:0;outline:none;font-family:inherit" oninput="_ffEstiloValor('ff-ausencia',22);_ffRenderAusenciaBarra()">
         <div id="ff-ausencia-ayuda" style="margin-top:8px"></div>
       </div>
+      <div style="background:#0a1420;border-radius:10px;padding:14px 16px">
+        <label style="font-size:11px;color:#8a94a6;display:block;margin-bottom:6px">Nivel de reducción del IAO objetivo <span style="opacity:.7">(plan de intervención)</span></label>
+        <select id="ff-pct-reduccion" style="width:100%;background:none;border:none;color:#8a94a6;font-size:22px;padding:0;outline:none;font-family:inherit;appearance:none;-webkit-appearance:none;cursor:pointer" onchange="_ffRenderInsumo('ff-pct-reduccion','ff-pct-reduccion-ayuda',22,'Se usa para proyectar el IFT — recuperación y ROI (marco, sección 8.2).','Sin este dato, el IFT no puede proyectarse.')">
+          <option value="">Seleccionar...</option>
+          <option value="0.2">Conservador — 20%</option>
+          <option value="0.4">Moderado — 40%</option>
+          <option value="0.6">Ambicioso — 60%</option>
+        </select>
+        <div id="ff-pct-reduccion-ayuda" style="margin-top:8px"></div>
+      </div>
     </div>
 
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:20px">
@@ -6604,7 +6614,7 @@ function cargarFichaFinanciera(){
   var status = document.getElementById('ff-status');
   status.textContent = 'Cargando…';
   supa.from('organizaciones')
-    .select('nombre,n_empleados,sector,pais,salario_promedio,tasa_rotacion_base,dias_ausencia_base,costo_operativo_total,costo_intervencion,ebitda,tasa_retrabajo_real,multiplicador_rol')
+    .select('nombre,n_empleados,sector,pais,salario_promedio,tasa_rotacion_base,dias_ausencia_base,costo_operativo_total,costo_intervencion,ebitda,tasa_retrabajo_real,multiplicador_rol,pct_reduccion_iao_target')
     .eq('id', S_ORG.id)
     .single()
     .then(function(res){
@@ -6636,6 +6646,10 @@ function cargarFichaFinanciera(){
         'Sin este dato, Costo_rotación no puede calcularse.');
       _ffEstiloValor('ff-ausencia', 22);
       _ffRenderAusenciaBarra();
+      document.getElementById('ff-pct-reduccion').value = d.pct_reduccion_iao_target != null ? String(d.pct_reduccion_iao_target) : '';
+      _ffRenderInsumo('ff-pct-reduccion', 'ff-pct-reduccion-ayuda', 22,
+        'Se usa para proyectar el IFT — recuperación y ROI (marco, sección 8.2).',
+        'Sin este dato, el IFT no puede proyectarse.');
       _ffRenderFinanciero('ff-costo-operativo', 'ff-card-costo-operativo', 'ff-costo-operativo-ayuda',
         'Necesario para calcular Costo_retrabajo (marco, sección 8).',
         'Sin este dato, Costo_retrabajo no se incluye en el CFF.');
@@ -6851,7 +6865,8 @@ function guardarFichaFinanciera(){
       p_costo_intervencion: num('ff-costo-intervencion'),
       p_ebitda: num('ff-ebitda'),
       p_tasa_retrabajo_real: num('ff-retrabajo'),
-      p_multiplicador_rol: num('ff-multiplicador-rol')
+      p_multiplicador_rol: num('ff-multiplicador-rol'),
+      p_pct_reduccion_iao_target: num('ff-pct-reduccion')
     });
   }).then(function(resFinanciera){
     if(!resFinanciera) return; // ya se detuvo y mostró el error de ficha técnica arriba
