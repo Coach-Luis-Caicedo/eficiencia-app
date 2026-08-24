@@ -591,6 +591,7 @@ hr.rl{border:none;border-top:1px solid var(--rule);margin:20px 0}
 .piio-tab.active{color:var(--azul-l);border-bottom-color:var(--azul-l)}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
 </head>
 <body>
 
@@ -1733,6 +1734,7 @@ supa.auth.getSession().then(function(res){
           <button type="button" class="reg-tab-btn" onclick="_showRegTab('sdmo')">SDMO</button>
           <button type="button" class="reg-tab-btn" onclick="_showRegTab('recom')">Recomendaciones</button>
           <button type="button" class="reg-tab-btn" onclick="_showRegTab('cff')">CFF</button>
+          <button type="button" class="reg-tab-btn" onclick="_showRegTab('ift')">IFT</button>
         </div>
 
         <div id="reg-variables" class="reg-tabpanel active">
@@ -1796,6 +1798,11 @@ supa.auth.getSession().then(function(res){
           </div>
           <div id="cff-status" style="font-size:13px;color:var(--dk-text-2);margin-bottom:16px"></div>
           <div id="cff-content"></div>
+        </div>
+
+        <div id="reg-ift" class="reg-tabpanel">
+          <div id="ift-status" style="font-size:13px;color:var(--dk-text-2);margin-bottom:16px"></div>
+          <div id="ift-content"></div>
         </div>
       </div>
 
@@ -6258,6 +6265,7 @@ function _showRegTab(tab){
   });
   if(tab === 'area'){ _initPorArea(); cargarPorArea(); }
   if(tab === 'cff'){ cargarCFF(); }
+  if(tab === 'ift'){ cargarIFT(); }
 }
 
 function cargarDiagnostico(){
@@ -6979,6 +6987,257 @@ function _renderCFFHtml(d){
   '</div>';
 
   return html;
+}
+
+// ── tab IFT (Tablero Ejecutivo) — consume simular_ift() directamente,
+// mismo criterio que CFF: se recalcula en cada clic del tab, no junto con
+// el resto del diagnóstico. Sin lógica propia de negocio aquí — todo el
+// cálculo (IAO(t), CFF(t), t_rec, ROI) ya vive en el RPC; esta capa solo
+// formatea y dibuja lo que el RPC devuelve. ───────────────────────────
+var _iftCharts = {};
+
+function _iftDestroyChart(key){
+  if(_iftCharts[key]){ _iftCharts[key].destroy(); _iftCharts[key] = null; }
+}
+
+function _iftFmtPct(v){ return v == null ? '—' : v.toFixed(1) + '%'; }
+
+// Pesos en millones (a diferencia de fmt(), que muestra el peso completo
+// en el resto del Workbook) — pedido explícito para las 4 tarjetas y los
+// tooltips de este tab, donde los montos son mucho más grandes.
+function _iftFmtCOP(v){
+  if(v == null) return '—';
+  var signo = v < 0 ? '-' : '';
+  return signo + '$' + (Math.abs(v) / 1e6).toLocaleString('es-CO', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + 'M';
+}
+
+function _iftFmtROI(v){ return v == null ? '—' : (v >= 0 ? '+' : '') + (v * 100).toFixed(1) + '%'; }
+
+function cargarIFT(){
+  if(!S_ORG.id) return;
+  var status = document.getElementById('ift-status');
+  var content = document.getElementById('ift-content');
+  if(status) status.textContent = 'Proyectando…';
+  if(content) content.innerHTML = '';
+
+  supa.rpc('simular_ift', { p_organizacion_id: S_ORG.id }).then(function(res){
+    if(res.error){
+      // simular_ift() siempre falla con un mensaje específico (sin plan de
+      // intervención, sin costo, o sin snapshot con IAO) — se muestra tal
+      // cual, sin envolverlo en un "Error:" genérico (mismo criterio que
+      // cargarCFF() con "no tiene ningún período con respuestas").
+      if(status) status.textContent = '';
+      if(content) content.innerHTML = _iftEstadoVacioHtml(res.error.message);
+      return;
+    }
+    if(status) status.textContent = '';
+    if(content) content.innerHTML = _renderIFTHtml(res.data);
+    _dibujarIFTCharts(res.data);
+  }).catch(function(err){
+    if(status) status.textContent = 'Error de conexión: ' + (err && err.message || err);
+  });
+}
+
+function _iftEstadoVacioHtml(mensaje){
+  return '<div style="background:#0a1420;border-radius:10px;padding:24px 20px;text-align:center">' +
+    '<div style="font-size:13px;color:#f5f0e8;line-height:1.6;margin-bottom:14px">' + mensaje + '</div>' +
+    '<div style="font-size:13px;color:#8a94a6;line-height:1.6">Completa la <a href="#" onclick="mostrarFichaFinanciera();return false" style="color:#5a95e0">Ficha financiera</a> con los datos que falten para proyectar el IFT.</div>' +
+  '</div>';
+}
+
+function _iftCard(label, valor, color){
+  return '<div style="background:#0a1420;border-radius:10px;padding:16px 18px">' +
+    '<div style="font-size:11px;color:#8a94a6;text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">' + label + '</div>' +
+    '<div style="font-size:22px;font-weight:600;color:' + color + '">' + valor + '</div>' +
+  '</div>';
+}
+
+function _renderIFTHtml(d){
+  var roi = d.roi || {};
+  var roiColor = function(v){ return v == null ? '#8a94a6' : (v >= 0 ? '#4a9d6e' : '#f2542d'); };
+  var maxMes = (d.serie && d.serie.length) ? d.serie[d.serie.length - 1].t : 36;
+  var recuperacionTxt = d.t_rec != null ? ('Mes ' + d.t_rec) : ('No se recupera dentro de ' + maxMes + ' meses');
+
+  var html = '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px">' +
+    _iftCard('Recuperación', recuperacionTxt, d.t_rec != null ? '#4a9d6e' : '#f2542d') +
+    _iftCard('ROI a 12 meses', _iftFmtROI(roi.t12), roiColor(roi.t12)) +
+    _iftCard('ROI a 24 meses', _iftFmtROI(roi.t24), roiColor(roi.t24)) +
+    _iftCard('ROI a 36 meses', _iftFmtROI(roi.t36), roiColor(roi.t36)) +
+  '</div>';
+
+  html += '<div style="background:#0a1420;border-radius:10px;padding:18px 20px;margin-bottom:16px">' +
+    '<div style="font-size:12.5px;font-weight:700;color:#f5f0e8;margin-bottom:12px">Energía organizacional — producción vs. fricción</div>' +
+    '<div style="position:relative;height:260px"><canvas id="ift-chart-energia"></canvas></div>' +
+  '</div>';
+
+  var textoValor = d.t_rec != null
+    ? 'Mes ' + d.t_rec + ' — a partir de aquí, el ahorro supera lo invertido.'
+    : 'La inversión no se recupera dentro de los ' + maxMes + ' meses proyectados.';
+  html += '<div style="background:#0a1420;border-radius:10px;padding:18px 20px;margin-bottom:16px">' +
+    '<div style="font-size:12.5px;font-weight:700;color:#f5f0e8;margin-bottom:4px">Valor recuperado acumulado vs. costo de intervención</div>' +
+    '<div style="font-size:12px;color:' + (d.t_rec != null ? '#4a9d6e' : '#f2542d') + ';margin-bottom:12px">' + textoValor + '</div>' +
+    '<div style="position:relative;height:260px"><canvas id="ift-chart-valor"></canvas></div>' +
+  '</div>';
+
+  html += '<div style="display:grid;grid-template-columns:2fr 1fr;gap:16px">' +
+    '<div style="background:#0a1420;border-radius:10px;padding:18px 20px">' +
+      '<div style="font-size:12.5px;font-weight:700;color:#f5f0e8;margin-bottom:12px">IAO vs. valor recuperado — trayectoria</div>' +
+      '<div style="position:relative;height:240px"><canvas id="ift-chart-dual"></canvas></div>' +
+    '</div>' +
+    '<div style="background:#0a1420;border-radius:10px;padding:18px 20px">' +
+      '<div style="font-size:12.5px;font-weight:700;color:#f5f0e8;margin-bottom:12px">Inicial vs. objetivo — IAO</div>' +
+      '<div style="position:relative;height:100px;margin-bottom:20px"><canvas id="ift-chart-barras-iao"></canvas></div>' +
+      '<div style="font-size:12.5px;font-weight:700;color:#f5f0e8;margin-bottom:12px">Invertido vs. recuperado</div>' +
+      '<div style="position:relative;height:100px"><canvas id="ift-chart-barras-inversion"></canvas></div>' +
+    '</div>' +
+  '</div>';
+
+  return html;
+}
+
+// Dibuja los 4 gráficos con Chart.js — se llama después de inyectar
+// _renderIFTHtml() en el DOM (los <canvas> deben existir ya). Destruye
+// cualquier instancia previa antes de recrear: el tab puede recargarse
+// varias veces en una misma sesión (cada clic vuelve a llamar cargarIFT).
+function _dibujarIFTCharts(d){
+  if(typeof Chart === 'undefined') return;
+  var serie = d.serie || [];
+  var labels = serie.map(function(p){ return p.t; });
+  var iaoSerie = serie.map(function(p){ return p.iao; });
+  var produccionSerie = iaoSerie.map(function(v){ return 100 - v; });
+  var valorSerie = serie.map(function(p){ return p.valor_recuperado_acumulado; });
+  var costo = d.costo_intervencion;
+  var tRec = d.t_rec; // t y el índice del arreglo coinciden — la serie va de t=0 a t=p_meses sin huecos
+
+  var tituloMes = function(items){ return 'Mes ' + items[0].label; };
+
+  _iftDestroyChart('energia');
+  _iftCharts.energia = new Chart(document.getElementById('ift-chart-energia'), {
+    type: 'line',
+    data: { labels: labels, datasets: [
+      { label: 'Producción (100 − IAO)', data: produccionSerie, borderColor: '#4a9d6e', backgroundColor: 'rgba(74,157,110,.35)', fill: true, pointRadius: 0, borderWidth: 1.5, tension: 0.15 },
+      { label: 'Fricción (IAO)', data: iaoSerie, borderColor: '#f2542d', backgroundColor: 'rgba(242,84,45,.35)', fill: true, pointRadius: 0, borderWidth: 1.5, tension: 0.15 }
+    ] },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      scales: {
+        x: { title: { display: true, text: 'Mes', color: '#8a94a6' }, ticks: { color: '#8a94a6' }, grid: { color: '#1c2740' } },
+        y: { stacked: true, min: 0, max: 100, ticks: { color: '#8a94a6', callback: function(v){ return v + '%'; } }, grid: { color: '#1c2740' } }
+      },
+      plugins: {
+        legend: { labels: { color: '#8a94a6' } },
+        tooltip: { callbacks: { title: tituloMes, label: function(ctx){ return ctx.dataset.label + ': ' + ctx.parsed.y.toFixed(1) + '%'; } } }
+      }
+    }
+  });
+
+  var pointRadii = serie.map(function(p, i){ return (tRec != null && i === tRec) ? 6 : 0; });
+  var pointColores = serie.map(function(p, i){ return (tRec != null && i === tRec) ? '#4a9d6e' : 'transparent'; });
+  _iftDestroyChart('valor');
+  _iftCharts.valor = new Chart(document.getElementById('ift-chart-valor'), {
+    type: 'line',
+    data: { labels: labels, datasets: [
+      {
+        label: 'Valor recuperado acumulado',
+        data: valorSerie,
+        borderWidth: 2,
+        pointRadius: pointRadii,
+        pointBackgroundColor: pointColores,
+        pointBorderColor: pointColores,
+        fill: 'origin',
+        tension: 0.15,
+        segment: {
+          borderColor: function(ctx){ return (tRec != null && ctx.p0DataIndex >= tRec) ? '#4a9d6e' : '#f2542d'; },
+          backgroundColor: function(ctx){ return (tRec != null && ctx.p0DataIndex >= tRec) ? 'rgba(74,157,110,.18)' : 'rgba(242,84,45,.18)'; }
+        }
+      },
+      {
+        label: 'Costo de intervención',
+        data: labels.map(function(){ return costo; }),
+        borderColor: '#8a94a6', borderDash: [6, 4], borderWidth: 1.5, pointRadius: 0, fill: false
+      }
+    ] },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      scales: {
+        x: { title: { display: true, text: 'Mes', color: '#8a94a6' }, ticks: { color: '#8a94a6' }, grid: { color: '#1c2740' } },
+        y: { ticks: { color: '#8a94a6', callback: function(v){ return _iftFmtCOP(v); } }, grid: { color: '#1c2740' } }
+      },
+      plugins: {
+        legend: { labels: { color: '#8a94a6' } },
+        tooltip: { callbacks: { title: tituloMes, label: function(ctx){ return ctx.dataset.label + ': ' + _iftFmtCOP(ctx.parsed.y); } } }
+      }
+    }
+  });
+
+  // Sin marcar el cruce (a diferencia del gráfico anterior) — es solo
+  // narrativa visual de las dos trayectorias, cada una en su propia escala.
+  _iftDestroyChart('dual');
+  _iftCharts.dual = new Chart(document.getElementById('ift-chart-dual'), {
+    type: 'line',
+    data: { labels: labels, datasets: [
+      { label: 'IAO', data: iaoSerie, borderColor: '#f2542d', backgroundColor: 'rgba(242,84,45,.12)', yAxisID: 'yIAO', pointRadius: 0, borderWidth: 2, tension: 0.15, fill: false },
+      { label: 'Valor recuperado', data: valorSerie, borderColor: '#4a9d6e', backgroundColor: 'rgba(74,157,110,.12)', yAxisID: 'yValor', pointRadius: 0, borderWidth: 2, tension: 0.15, fill: false }
+    ] },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      scales: {
+        x: { ticks: { color: '#8a94a6' }, grid: { color: '#1c2740' } },
+        yIAO: { type: 'linear', position: 'left', min: 0, max: 35, ticks: { color: '#f2542d', callback: function(v){ return v + '%'; } }, grid: { color: '#1c2740' } },
+        yValor: { type: 'linear', position: 'right', ticks: { color: '#4a9d6e', callback: function(v){ return _iftFmtCOP(v); } }, grid: { drawOnChartArea: false } }
+      },
+      plugins: {
+        legend: { labels: { color: '#8a94a6' } },
+        tooltip: { callbacks: { title: tituloMes, label: function(ctx){
+          return ctx.dataset.label === 'IAO' ? ('IAO: ' + ctx.parsed.y.toFixed(1) + '%') : ('Valor recuperado: ' + _iftFmtCOP(ctx.parsed.y));
+        } } }
+      }
+    }
+  });
+
+  _iftDestroyChart('barrasIAO');
+  _iftCharts.barrasIAO = new Chart(document.getElementById('ift-chart-barras-iao'), {
+    type: 'bar',
+    data: { labels: ['IAO'], datasets: [
+      { label: 'Inicial', data: [d.iao_0], backgroundColor: '#8a94a6' },
+      { label: 'Objetivo', data: [d.iao_target], backgroundColor: '#4a9d6e' }
+    ] },
+    options: {
+      indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+      scales: {
+        x: { min: 0, max: 35, ticks: { color: '#8a94a6', callback: function(v){ return v + '%'; } }, grid: { color: '#1c2740' } },
+        y: { ticks: { color: '#8a94a6' }, grid: { display: false } }
+      },
+      plugins: {
+        legend: { labels: { color: '#8a94a6' } },
+        tooltip: { callbacks: { label: function(ctx){ return ctx.dataset.label + ': ' + ctx.parsed.x.toFixed(1) + '%'; } } }
+      }
+    }
+  });
+
+  var valorFinal = valorSerie.length ? valorSerie[valorSerie.length - 1] : 0;
+  _iftDestroyChart('barrasInversion');
+  _iftCharts.barrasInversion = new Chart(document.getElementById('ift-chart-barras-inversion'), {
+    type: 'bar',
+    data: { labels: ['Inversión'], datasets: [
+      { label: 'Invertido', data: [costo], backgroundColor: '#8a94a6' },
+      { label: 'Recuperado', data: [valorFinal], backgroundColor: valorFinal >= costo ? '#4a9d6e' : '#f2542d' }
+    ] },
+    options: {
+      indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+      scales: {
+        x: { min: 0, ticks: { color: '#8a94a6', callback: function(v){ return _iftFmtCOP(v); } }, grid: { color: '#1c2740' } },
+        y: { ticks: { color: '#8a94a6' }, grid: { display: false } }
+      },
+      plugins: {
+        legend: { labels: { color: '#8a94a6' } },
+        tooltip: { callbacks: { label: function(ctx){ return ctx.dataset.label + ': ' + _iftFmtCOP(ctx.parsed.x); } } }
+      }
+    }
+  });
 }
 
 // 5 números consolidados — compartido entre Resumen (Página 1, org
