@@ -966,7 +966,6 @@ supa.auth.getSession().then(function(res){
     <div class="nav-item" onclick="show('p-motor')"><span class="nav-icon">⚡</span> Motor · Impacto Económico</div>
     <div class="nav-grp">Análisis avanzado</div>
     <div class="nav-item" onclick="show('p-longitudinal')"><span class="nav-icon">📉</span> Seguimiento Longitudinal</div>
-    <div class="nav-item" onclick="show('p-predictor')"><span class="nav-icon">🔮</span> Predictor IFT</div>
     -->
     <div class="nav-grp">Resultado</div>
     <div class="nav-item" onclick="show('p-dash-resultado')"><span class="nav-icon">📊</span> Tablero Ejecutivo</div>
@@ -2000,7 +1999,7 @@ supa.auth.getSession().then(function(res){
     <div class="icard" style="margin-bottom:16px">
       <div class="icard-tag">Seguimiento longitudinal — §28 Marco EFICIENCIA</div>
       <div class="icard-name">¿Para qué sirve este panel?</div>
-      <div class="icard-desc">El estado regulatorio no es un dato puntual — es una trayectoria. Este panel acumula mediciones en el tiempo para calcular la tendencia del IIE, identificar si el sistema está mejorando o deteriorándose, y alimentar el Predictor IFT con el delta real entre períodos.</div>
+      <div class="icard-desc">El estado regulatorio no es un dato puntual — es una trayectoria. Este panel acumula mediciones en el tiempo para calcular la tendencia del IIE, identificar si el sistema está mejorando o deteriorándose, y alimentar el Predictor IFT (legacy) con el delta real entre períodos.</div>
       <div class="icard-meta">
         <span><strong>Frecuencia IEHS/ICE:</strong> Semestral</span>
         <span><strong>Frecuencia IAO:</strong> Mensual</span>
@@ -2051,7 +2050,6 @@ supa.auth.getSession().then(function(res){
           <button class="btn btn-ghost btn-sm" onclick="exportarSesion()" title="Descarga el estado completo como JSON para continuar en otra sesión">⬇ Exportar sesión</button>
           
           <label class="btn btn-ghost btn-sm" style="cursor:pointer" title="Carga una sesión exportada anteriormente">⬆ Importar sesión<input type="file" accept=".json" style="display:none" onchange="importarSesion(this)"></label>
-          <button class="btn btn-primary" onclick="show('p-predictor')">→ Predictor IFT</button>
         </div>
       </div>
 
@@ -2079,283 +2077,6 @@ supa.auth.getSession().then(function(res){
           </div>
           <div class="rp-div"></div>
           <div id="long-mop-trend" style="font-size:11px;color:rgba(255,255,255,.4);line-height:1.6">Agrega mediciones para ver la tendencia.</div>
-        </div>
-      </div>
-    </div>
-  </div>
-</div>
-
-
-<!-- ═══ PREDICTOR ═══ -->
-<div id="p-predictor" class="panel">
-  <div class="panel-inner">
-    <div class="ph">
-      <div class="ph-tag">Análisis avanzado · Proyección financiera
-    <div id="pred-autocalc" class="autocalc-banner" style="display:none"><span class="autocalc-dot"></span><span class="autocalc-label">Auto-calculado desde Configuración</span><span class="autocalc-vals"></span></div></div>
-      <div class="ph-title">Predictor IFT — Proyección de Impacto</div>
-      <div class="ph-desc">Calcula el impacto financiero proyectado de una mejora regulatoria. El IFT (Impacto Financiero de Transformación) es la ganancia esperada si el IIE pasa de su valor actual a un valor objetivo.</div>
-    </div>
-
-    <div class="icard" style="margin-bottom:16px">
-      <div class="icard-tag">IFT — §26.3 Marco EFICIENCIA</div>
-      <div class="icard-name">¿Qué mide y cómo se diferencia del DEP?</div>
-      <div class="icard-desc">El DEP mide el costo del deterioro actual (estado presente). El IFT mide el ahorro proyectado de una mejora (estado futuro). Son complementarios pero no se suman: el DEP cuantifica el problema, el IFT cuantifica el retorno de la intervención. Nunca sumar ambos — implica doble conteo.</div>
-      <div class="icard-meta">
-        <span><strong>DEP:</strong> Costo del estado actual</span>
-        <span><strong>IFT:</strong> Ganancia proyectada de la mejora</span>
-      </div>
-    </div>
-
-    <div class="split">
-      <div class="split-left">
-        <div class="card">
-          <div class="card-title">Variables de entrada — Organización</div>
-          <div class="fgrid">
-            <div class="fg"><label class="fl">IIE₀ — IIE actual</label><input type="number" class="fi" id="ift-iie0" min="0" max="1" step="0.001" placeholder="0.000" oninput="calcIFT()"></div>
-            <div class="fg"><label class="fl">IIE₁ — IIE objetivo</label><input type="number" class="fi" id="ift-iie1" min="0" max="1" step="0.001" placeholder="0.000" oninput="calcIFT()"></div>
-            <div class="fg"><label class="fl">N — Colaboradores</label><input type="number" class="fi" id="ift-n" value="100" min="1" oninput="calcIFT()"></div>
-            <div class="fg">
-              <label class="fl">CIE — Costo integral/empleado/año ($ COP)
-                <span id="cie-source-badge" style="font-size:9px;font-weight:700;padding:2px 6px;border-radius:4px;margin-left:4px;background:rgba(16,185,129,0.1);color:var(--teal)">con rampa</span>
-              </label>
-              <input type="number" class="fi" id="ift-s" value="" step="1000000" placeholder="Auto desde Config" oninput="calcIFT()">
-            </div>
-            <div class="fg">
-              <label class="fl">CR — Costo de reemplazo (× salario anual)
-                <span id="cr-source-badge" style="font-size:9px;font-weight:700;padding:2px 6px;border-radius:4px;margin-left:6px;background:rgba(37,99,168,0.1);color:var(--azul-m)">benchmark sectorial</span>
-              </label>
-              <input type="number" class="fi" id="ift-cr" value="0.70" min="0.30" max="2.0" step="0.05" oninput="this.dataset.userCR='1';document.getElementById('cr-source-badge').textContent='editado';document.getElementById('cr-source-badge').style.background='rgba(217,119,6,0.1)';document.getElementById('cr-source-badge').style.color='var(--amber)';calcIFT()">
-            </div>
-          </div>
-        </div>
-
-        <div class="card card-amber">
-          <div class="card-title">Coeficientes β — Escenario de impacto</div>
-          <div style="display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap">
-            <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;font-weight:600">
-              <input type="radio" name="escenario" value="conservador" onchange="setEscenario(this.value)" checked>
-              <span>Conservador</span>
-            </label>
-            <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;font-weight:600">
-              <input type="radio" name="escenario" value="moderado" onchange="setEscenario(this.value)">
-              <span>Moderado</span>
-            </label>
-            <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;font-weight:600">
-              <input type="radio" name="escenario" value="alto" onchange="setEscenario(this.value)">
-              <span>Alto impacto</span>
-            </label>
-          </div>
-          <!-- v4: Datos sectoriales para betas adaptativos -->
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
-            <div class="fg">
-              <label class="fl">Sector <span style="font-size:9px;color:var(--ink-s)">(auto desde Config si vacío)</span></label>
-              <select class="fi" id="ift-sector" onchange="calcIFT()">
-                <option value="servicios_prof">Servicios profesionales</option>
-                <option value="manufactura">Manufactura</option>
-                <option value="finanzas_tech">Finanzas / Tech</option>
-                <option value="retail_logistica">Retail / Logística</option>
-                <option value="salud_educacion">Salud / Educación</option>
-              </select>
-            </div>
-            <div style="display:flex;gap:6px">
-              <div class="fg" style="flex:1">
-                <label class="fl">Rotación real (%) <span id="rot-bench-badge" style="display:none;font-size:9px;color:var(--amber)">📊 bench</span></label>
-                <input type="number" class="fi" id="ift-rotacion" min="0" max="100" step="0.5" placeholder="Auto-benchmark" oninput="calcIFT()">
-              </div>
-              <div class="fg" style="flex:1">
-                <label class="fl">Ausentismo (días/año) <span id="aus-bench-badge" style="display:none;font-size:9px;color:var(--amber)">📊 bench</span></label>
-                <input type="number" class="fi" id="ift-ausentismo" min="0" max="30" step="0.5" placeholder="Auto-benchmark" oninput="calcIFT()">
-              </div>
-            </div>
-          </div>
-          <div id="cr-sector-info" style="font-size:10px;color:var(--ink-s);margin-bottom:8px"></div>
-          <!-- Tabla de betas por escenario (3 columnas) -->
-          <table class="dt" style="font-size:11px">
-            <thead><tr><th>Coeficiente</th><th>Descripción</th><th style="text-align:center">Conservador</th><th style="text-align:center">Moderado</th><th style="text-align:center">Alto</th></tr></thead>
-            <tbody>
-              <tr><td>β₁ rot.</td><td style="font-size:10px">Reducción rotación / pt ΔIIE (ACRIP 2023)</td>
-                  <td class="mono" id="ift-b1-cons" style="text-align:center">—</td>
-                  <td class="mono" id="ift-b1-mod" style="text-align:center;font-weight:700">—</td>
-                  <td class="mono" id="ift-b1-alto" style="text-align:center">—</td></tr>
-              <tr><td>β₂ aus.</td><td style="font-size:10px">Reducción ausentismo / pt ΔIIE (ANDI-CESLA)</td>
-                  <td class="mono" id="ift-b2-cons" style="text-align:center">—</td>
-                  <td class="mono" id="ift-b2-mod" style="text-align:center;font-weight:700">—</td>
-                  <td class="mono" id="ift-b2-alto" style="text-align:center">—</td></tr>
-              <tr><td>β₃ prod.</td><td style="font-size:10px">Recuperación productividad / pt ΔIIE (Gallup)</td>
-                  <td class="mono" id="ift-b3-cons" style="text-align:center">—</td>
-                  <td class="mono" id="ift-b3-mod" style="text-align:center;font-weight:700">—</td>
-                  <td class="mono" id="ift-b3-alto" style="text-align:center">—</td></tr>
-              <tr class="hl"><td colspan="2"><strong>IFT proyectado / año</strong></td>
-                  <td class="mono" id="r-cons-total" style="text-align:center">—</td>
-                  <td class="mono" id="r-mod-total" style="text-align:center;font-weight:700">—</td>
-                  <td class="mono" id="r-alto-total" style="text-align:center">—</td></tr>
-            </tbody>
-          </table>
-          <input type="hidden" id="ift-b1" value="0.008">
-          <input type="hidden" id="ift-b2" value="0.004">
-          <input type="hidden" id="ift-b3" value="0.006">
-          <!-- v4: tramos y factor de zona -->
-          <div id="ift-tramos-info" style="display:none;margin-top:10px">
-            <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--ink-s);margin-bottom:6px">Tramos aplicados</div>
-            <div id="tramo-rot-label" style="font-size:11px;color:var(--ink-m);margin-bottom:3px"></div>
-            <div id="tramo-aus-label" style="font-size:11px;color:var(--ink-m);margin-bottom:3px"></div>
-            <div id="tramo-zona-iie" style="display:none;font-size:11px;font-weight:700;color:var(--amber);margin-top:4px;padding:5px 10px;background:var(--dorado-lt);border-radius:6px"></div>
-          </div>
-
-        <div id="ift-missing-csal" class="alert warn" style="display:none;margin-bottom:14px">
-          <span class="ai">⚠</span><div><strong>C_sal no configurado</strong> — Ingresa el salario promedio anual en Configuración (Paso 1) para proyectar el IFT.</div>
-        </div>
-        <div id="ift-results" style="display:none">
-          <div id="ift-retroc-warn" class="alert bad" style="display:none">
-            <span class="ai">⚠</span><div><strong>ΔIIE negativo — deterioro proyectado:</strong> IIE₁ &lt; IIE₀. El resultado representa pérdida esperada, no ahorro. Revisar el objetivo.</div>
-          </div>
-          <div class="card card-teal">
-            <div class="card-title">Desglose del impacto proyectado</div>
-            <table class="dt">
-              <thead><tr><th>Componente</th><th>Cálculo</th><th>Proyección</th></tr></thead>
-              <tbody id="ift-breakdown"></tbody>
-            </table>
-          </div>
-          <div class="dash-hero" style="margin-top:0">
-            <div>
-              <div class="dh-title" id="ift-org-name">Proyección IFT</div>
-              <div class="dh-sub" id="ift-scenario-label">Escenario conservador · ΔIIE positivo</div>
-              <div style="margin-top:10px;font-size:11px;color:rgba(255,255,255,.4)">No sumar al DEP. Son medidas independientes del mismo sistema.</div>
-            </div>
-            <div class="dh-iie">
-              <div class="dh-val" id="ift-total">—</div>
-              <div class="dh-lbl">Ahorro proyectado / año</div>
-            </div>
-          </div>
-          <!-- Rango de escenarios y alertas de coherencia -->
-          <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:8px;margin-bottom:4px">
-            <div style="font-size:11px;color:rgba(255,255,255,.5)">Rango escenarios:</div>
-            <span id="ift-rango-min" style="font-family:'DM Mono',monospace;font-size:13px;color:#4ade80;font-weight:700">—</span>
-            <span style="font-size:11px;color:rgba(255,255,255,.3)">→</span>
-            <span id="ift-rango-max" style="font-family:'DM Mono',monospace;font-size:13px;color:#60a5fa;font-weight:700">—</span>
-          </div>
-          <div id="ift-alerta-coher" class="alert warn" style="display:none;margin-top:8px">
-            <span class="ai">⚠</span><div id="ift-alerta-coher-msg"></div>
-          </div>
-          <div class="alert info"><span class="ai">ℹ</span><div><strong>Distinción metodológica:</strong> El IFT es una proyección del retorno de la intervención, no una garantía. Los coeficientes β son estimaciones basadas en evidencia internacional. La magnitud real dependerá de la calidad y consistencia de la intervención.</div></div>
-
-          <div class="card" style="border-left:3px solid var(--red);margin-top:4px" id="ift-nointerv-card" style="display:none">
-            <div class="card-title" style="color:var(--red)">⚠ Impacto de no intervenir</div>
-            <p style="font-size:12px;color:var(--ink-m);margin-bottom:8px">
-              Proyección 3 años comparando dos trayectorias: <strong>sin intervención</strong> (el deterioro crece con arrastre compuesto)
-              vs. <strong>con intervención</strong> (ahorro recuperable año a año).
-              La <strong>pérdida neta</strong> es la diferencia irrecuperable entre ambas trayectorias.
-            </p>
-            <div id="nointerv-src-nota" class="alert info" style="margin-bottom:10px;font-size:11px"></div>
-            <table class="dt" style="margin-bottom:12px">
-              <thead><tr>
-                <th>Año</th>
-                <th>Pérdida sin intervenir<br><span style="font-weight:400;font-size:10px">costo ese año con arrastre</span></th>
-                <th>Ahorro recuperable (IFT)<br><span style="font-weight:400;font-size:10px">rot + aus + prod por ΔIIE</span></th>
-                <th style="color:var(--green)">Deterioro futuro evitado<br><span style="font-weight:400;font-size:10px;color:var(--ink-s)">g(IIE₀)−g(IIE₁) sostenido</span></th>
-                <th>Total ahorro por intervención<br><span style="font-weight:400;font-size:10px">IFT + DEF ese año</span></th>
-              </tr></thead>
-              <tbody id="nointerv-tbody"></tbody>
-            </table>
-
-            <!-- KPI cards: 4 métricas accionables -->
-            <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:10px;margin-top:4px">
-              <!-- Card 1: Pérdida acumulada sin intervenir -->
-              <div style="background:rgba(176,58,46,0.07);border:1px solid rgba(176,58,46,0.2);border-radius:6px;padding:12px;text-align:center">
-                <div style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--red);margin-bottom:4px">Pérdida acumulada 3 años</div>
-                <div style="font-family:'DM Mono',monospace;font-size:15px;font-weight:700;color:var(--red)" id="nointerv-costo-acum">—</div>
-                <div style="font-size:10px;color:var(--ink-s);margin-top:4px">costo total sin intervención</div>
-              </div>
-              <!-- Card 2: Ahorro recuperable acumulado (IFT betas) -->
-              <div style="background:rgba(37,99,168,0.07);border:1px solid rgba(37,99,168,0.2);border-radius:6px;padding:12px;text-align:center">
-                <div style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--azul-m);margin-bottom:4px">Ahorro recuperable 3 años</div>
-                <div style="font-family:'DM Mono',monospace;font-size:15px;font-weight:700;color:var(--azul)" id="nointerv-ahorro-acum">—</div>
-                <div style="font-size:10px;color:var(--ink-s);margin-top:4px"><span id="nointerv-pct-costo">—</span> de la pérdida · rot+aus+prod</div>
-              </div>
-              <!-- Card 3: DEF — deterioro futuro evitado (g(IIE₀)−g(IIE₁)) -->
-              <div style="background:rgba(37,99,168,0.05);border:1px solid rgba(37,150,90,0.30);border-radius:6px;padding:12px;text-align:center">
-                <div style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--green);margin-bottom:4px">Deterioro futuro evitado</div>
-                <div style="font-family:'DM Mono',monospace;font-size:15px;font-weight:700;color:var(--green)" id="nointerv-def-acum">—</div>
-                <div style="font-size:10px;color:var(--ink-s);margin-top:4px" id="nointerv-def-residual">acum. 3 años · g(IIE₀)−g(IIE₁)</div>
-              </div>
-              <!-- Card 4: Punto de equilibrio correcto -->
-              <div style="background:rgba(154,96,0,0.07);border:1px solid rgba(154,96,0,0.2);border-radius:6px;padding:12px;text-align:center">
-                <div style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--amber);margin-bottom:4px">Punto de equilibrio</div>
-                <div style="font-family:'DM Mono',monospace;font-size:18px;font-weight:700;color:var(--amber)" id="nointerv-breakeven">—</div>
-                <div style="font-size:10px;color:var(--ink-s);margin-top:4px">mes en que la pérdida acumulada supera el costo de intervenir</div>
-              </div>
-            </div>
-
-            <div class="alert info" style="margin-top:12px"><span class="ai">ℹ</span><div>
-              <strong>Tres métricas complementarias:</strong>
-              <em>Ahorro recuperable (IFT)</em>: lo que la intervención recupera en rotación, ausentismo y productividad según los betas β₁β₂β₃ — corto plazo, conservador.
-              <em>Deterioro futuro evitado (DEF)</em>: la reducción estructural del impacto al pasar de g(IIE₀) a g(IIE₁) y sostenerlo — captura TODO el beneficio sistémico que el sistema deja de perder una vez consolidado el nuevo IIE. Es mayor que el IFT porque incluye efectos que los betas no miden.
-              <em>Punto de equilibrio</em>: mes en que la pérdida acumulada sin intervenir supera el costo de la intervención — a partir de ese mes, actuar es la decisión económicamente racional.
-            </div></div>
-            <div class="card card-amber" style="margin-top:12px">
-              <div class="card-title">Factor de arrastre anual <span class="v4-badge">configurable v4</span></div>
-              <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
-                <div style="flex:1;min-width:200px">
-                  <label class="fl">Arrastre anual del deterioro no intervenido (%)</label>
-                  <input type="range" id="nointerv-arrastre" min="0" max="25" step="1" value="8"
-                    oninput="document.getElementById('nointerv-arrastre-val').textContent=this.value+'%';calcIFT()"
-                    style="width:100%;accent-color:var(--azul-l);margin-top:6px">
-                  <div style="display:flex;justify-content:space-between;font-size:9px;color:var(--ink-s);margin-top:2px">
-                    <span>0% — Sin arrastre</span><span id="nointerv-arrastre-val" style="font-weight:700;color:var(--amber)">8%</span><span>25% — Muy alto</span>
-                  </div>
-                </div>
-                <div style="background:#fff;border:1px solid var(--rule);border-radius:8px;padding:10px 14px;text-align:center;min-width:130px">
-                  <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--ink-s);margin-bottom:4px">Referencia sectorial</div>
-                  <select class="fi" style="padding:4px 6px;font-size:11px" onchange="
-                    const v={publico:3,estable:5,privado:8,servicios:10,startup:18}[this.value]||8;
-                    document.getElementById('nointerv-arrastre').value=v;
-                    document.getElementById('nointerv-arrastre-val').textContent=v+'%';
-                    calcIFT()">
-                    <option value="publico">Entidad pública (3%)</option>
-                    <option value="estable">Empresa estable (5%)</option>
-                    <option value="privado" selected>Empresa privada (8%)</option>
-                    <option value="servicios">Servicios / tech (10%)</option>
-                    <option value="startup">Startup / alto crec. (18%)</option>
-                  </select>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div class="btn-row">
-          <button class="btn btn-ghost" onclick="show('p-longitudinal')">← Seguimiento</button>
-          <button class="btn btn-primary" onclick="_cascadeAll();show('p-dashboard')">Tablero Ejecutivo →</button>
-          <button class="btn btn-gold" onclick="window.print()">🖨 Imprimir</button>
-        </div>
-      </div>
-
-      <div class="split-right">
-        <div class="results-panel">
-          <div class="rp-title">Proyección IFT</div>
-          <div class="rp-metric">
-            <div class="rp-label">ΔIIE</div>
-            <div class="rp-val" id="rp-delta-iie">—</div>
-            <div class="rp-sub">IIE₁ − IIE₀</div>
-          </div>
-          <div class="rp-div"></div>
-          <div class="rp-metric">
-            <div class="rp-label">Ahorro rotación</div>
-            <div class="rp-val" id="rp-ift-rot" style="font-size:16px">—</div>
-          </div>
-          <div class="rp-metric">
-            <div class="rp-label">Ahorro ausentismo</div>
-            <div class="rp-val" id="rp-ift-aus" style="font-size:16px">—</div>
-          </div>
-          <div class="rp-metric">
-            <div class="rp-label">Impacto productividad</div>
-            <div class="rp-val" id="rp-ift-prod" style="font-size:16px">—</div>
-          </div>
-          <div class="rp-div"></div>
-          <div class="rp-metric">
-            <div class="rp-label">IFT total proyectado</div>
-            <div class="rp-val" id="rp-ift-total" style="font-size:20px;color:var(--dorado)">—</div>
-          </div>
         </div>
       </div>
     </div>
@@ -2402,7 +2123,6 @@ const S={
   _iaoSource:null,          // 'sdmo' | 'areas' | 'proxy' — origen del IAO activo
   crPonderado:0,            // CR ponderado por nivel calculado en calcCRPonderado()
   cieConRampa:null,         // CIE ajustado con curva de aprendizaje (calcCRPonderado)
-  iftCache:null,            // resultados del Predictor IFT más reciente
   rotReal:null,             // rotación real ingresada por el usuario (VBE ΔCC)
   sector:'servicios_prof',  // benchmark sector por defecto
   // ── Módulos VBE (Valor Expandido) ──────────────────────────────────────
@@ -2419,8 +2139,7 @@ const S={
 };
 
 /* ── Constantes de betas adaptativos y benchmarks sectoriales ──────────────
-   DEBEN estar al inicio del script porque calcIFT_porTamano y calcEcon las usan
-   antes de que el Predictor IFT (donde originalmente estaban) se cargue.
+   DEBEN estar al inicio del script porque calcEcon (vía calcBetasAdaptativosV4) las usa.
    Fuentes: ACRIP Colombia 2023, ANDI-CESLA EALI 2023, Gallup 2024-2025
    ───────────────────────────────────────────────────────────────────────── */
 const BETAS_ROT = {
@@ -2488,7 +2207,7 @@ function show(id){
     if((n.getAttribute('onclick')||'').includes(id)) n.classList.add('active');
   });
 
-  const steps=['p-cover','p-acrostico','p-config','p-sdmo','p-areas','p-piio','p-motor','p-longitudinal','p-predictor','p-dashboard'];
+  const steps=['p-cover','p-acrostico','p-config','p-sdmo','p-areas','p-piio','p-motor','p-longitudinal'];
   const idx=steps.indexOf(id);
   document.getElementById('top-prog').style.width=Math.max(0,idx/(steps.length-1)*100)+'%';
 
@@ -2499,44 +2218,13 @@ function show(id){
   if(id==='p-longitudinal'){renderLongTable();updateLongPanel();drawLongChart();}
 
   // ── INTEGRACIÓN AUTOMÁTICA v3.5 — cascada completa en navegación ──
-  const downstreamPanels = ['p-motor','p-economico','p-dashboard','p-predictor','p-longitudinal','p-vbe'];
+  const downstreamPanels = ['p-motor','p-economico','p-longitudinal','p-vbe'];
   if(downstreamPanels.includes(id) && (S.ice !== null || S.iie !== null)){
     _cascadeAll();
   }
 
   // VBE: renderizar al navegar al panel (calcVBE ya corrió en _cascadeAll)
   if(id === 'p-vbe') renderVBE();
-
-  // Dashboard: siempre re-renderizar (renderDash tiene self-heal interno)
-  if(id === 'p-dashboard'){
-    // Intentar cascade aunque S.ice sea null, por si el usuario ingresó datos de otra forma
-    if(S.ice !== null || S.iie !== null) _cascadeAll();
-    // Asegurar que iftCache está fresco sincronizando y corriendo calcIFT
-    if(S.iie !== null){
-      const f0 = document.getElementById('ift-iie0');
-      const f1 = document.getElementById('ift-iie1');
-      if(f0 && !f0.dataset.userSet) f0.value = S.iie.toFixed(3);
-      if(f1 && !f1.dataset.userSet) f1.value = Math.min(1, S.iie + 0.15).toFixed(3);
-      calcIFT();
-    }
-    applyBenchmarkSector(); // v4.1: sincronizar sector antes de render
-    renderDash();
-  }
-
-  // Predictor: bind eventos de edición manual y escenario
-  if(id === 'p-predictor'){
-    setEscenario(currentEscenario);
-    const f0=document.getElementById('ift-iie0');
-    const f1=document.getElementById('ift-iie1');
-    if(f0 && !f0._ift0Bound){
-      f0._ift0Bound=true;
-      f0.addEventListener('input',()=>{ f0.dataset.userSet='1'; calcIFT(); });
-    }
-    if(f1 && !f1._iftBound){
-      f1._iftBound=true;
-      f1.addEventListener('input',()=>{ f1.dataset.userSet='1'; calcIFT(); });
-    }
-  }
 
   window.scrollTo(0,0);
 }
@@ -2588,23 +2276,6 @@ function readConfig(){
   document.getElementById('m-warn').style.display=S.m<3?'flex':'none';
 
   updateStatus();
-  // FIX B11 (v5.8): invalidar iftCache si el IIE cambió desde la última vez que
-  // se calculó el Predictor con IIE₀ manual. Así el Dashboard no muestra un ROI
-  // calculado sobre un IIE₀ que ya no corresponde al estado actual del Motor.
-  // Solo se invalida si el usuario editó manualmente ift-iie0 (dataset.userSet)
-  // Y el IIE actual difiere del iie0 guardado en cache por más de 0.005.
-  if(S.iftCache && S.iie !== null){
-    const f0stale = document.getElementById('ift-iie0');
-    const cacheIie0 = S.iftCache.iie0;
-    if(f0stale && f0stale.dataset.userSet && cacheIie0 !== undefined &&
-       Math.abs(S.iie - cacheIie0) > 0.005){
-      S.iftCache = null; // forzar recálculo en el próximo calcIFT()
-      // Limpiar userSet para que _cascadeAll() sincronice IIE₀ desde S.iie
-      delete f0stale.dataset.userSet;
-      const f1stale = document.getElementById('ift-iie1');
-      if(f1stale) delete f1stale.dataset.userSet;
-    }
-  }
 
   // Propagar solo si motor ya corrió (sin crear loop — calcMotor no llama readConfig)
   // Recalcular composición de nómina (usa S.n y S.sector actualizados)
@@ -2628,35 +2299,10 @@ function _cascadeAll(){
   // 2. Módulo económico → actualiza impacto, DS, PS
   calcEcon();
 
-  // 3. Predictor IFT → sincroniza IIE0 y recalcula rango
-  // Mostrar banner autocalc en el predictor
-  const predBanner = document.getElementById('pred-autocalc');
-  if(predBanner && S.iie !== null) {
-    predBanner.style.display = 'flex';
-    const valsEl = predBanner.querySelector('.autocalc-vals');
-    if(valsEl) valsEl.textContent = ` IIE=${S.iie.toFixed(3)} · N=${S.n} · CIE=$${Math.round((S.cieConRampa||S.cie||0)/1e6).toFixed(0)}M · Sector: ${(S.sector||'').replace(/_/g,' ')}`;
-  }
-  const f0 = document.getElementById('ift-iie0');
-  const f1 = document.getElementById('ift-iie1');
-  if(f0 && !f0.dataset.userSet) f0.value = S.iie !== null ? S.iie.toFixed(3) : '';
-  if(f1 && !f1.dataset.userSet) f1.value = S.iie !== null ? Math.min(1, S.iie + 0.15).toFixed(3) : '';
-  const fn_ift = document.getElementById('ift-n');
-  const fs_ift = document.getElementById('ift-s');
-  if(fn_ift && S.n) fn_ift.value = S.n;
-  if(fs_ift && S.cie) fs_ift.value = Math.round(S.cie);
-  calcIFT();
-
-  // 3b. Valor Expandido (Capa 2) → actualiza S.vbeCache, S.gcoCache, S.deltaCC
-  // Depende de S.iftCache producido por calcIFT() — debe ir después.
+  // 3. Valor Expandido (Capa 2) → actualiza S.vbeCache, S.gcoCache, S.deltaCC
   calcVBE();
 
   // 4. Dashboard ejecutivo → renderizar si tiene datos
-  if(S.iie !== null){
-    const dashEl = document.getElementById('p-dashboard');
-    if(dashEl && dashEl.classList.contains('active')){
-      renderDash();
-    }
-  }
 
   // 5. Actualizar barra de progreso del sistema
   updateStatus();
@@ -2701,7 +2347,7 @@ function applyBenchmarkSector() {
     descEl.textContent = 'Sector: rot. ' + bench.rotacion + '% · aus. ' + bench.ausentismo + 'd/año · CR benchmark ' + bench.cr + '×';
   }
   
-  // 3. Sincronizar selector de sector del Predictor IFT
+  // 3. Sincronizar selector de sector del Predictor IFT (legacy)
   const iftSectorEl = document.getElementById('ift-sector');
   if(iftSectorEl && !iftSectorEl.dataset.userSet) {
     iftSectorEl.value = sector;
@@ -3381,331 +3027,12 @@ function _renderAdvChips(){
       +'<div style="font-family:Montserrat,sans-serif;font-size:9px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#64748b">'+it.label+'</div>'
       +'<div style="font-size:9px;font-weight:700;padding:2px 7px;border-radius:20px;background:'+statusBg+';color:'+statusColor+'">'+statusTxt+'</div>'
       +'</div>'
-      +'<div style="font-family:DM Mono,monospace;font-size:22px;font-weight:700;color:#0D1B2A;line-height:1;margin-bottom:4px">'+(hasVal?it.fmt(v):'\u2014')+'</div>'
+      +'<div style="font-family:DM Mono,monospace;font-size:22px;font-weight:700;color:#0D1B2A;line-height:1;margin-bottom:4px">'+(hasVal?it.fmt(v):'—')+'</div>'
       +'<div style="font-size:10px;color:#94a3b8;line-height:1.3">'+it.desc+'</div>'
       +'<div style="font-size:9px;color:#cbd5e1;margin-top:4px">ref: '+refTxt+'</div>'
       +'</div>';
   }
   return html;
-}
-
-function renderDash(){
-  // Self-heal v2: intentar calcular con lo que haya disponible
-  let _selfHealMsg = null; // FIX B17 (v5.8): registrar qué se infirió para mostrarlo al usuario
-  if(S.iie === null){
-    // Si tenemos ice e iehs (cuestionario respondido), correr motor completo
-    if(S.ice !== null && S.iehs !== null){
-      if(S.iao === null){ S.iao = (S.ice + S.iehs) / 2; _selfHealMsg = 'IAO estimado como (ICE + IEHS) / 2 = ' + S.iao.toFixed(3) + ' — completa el SDMO para mayor precisión.'; }
-      if(S.corg === null) S.corg = 1.0;
-      if(S.dorg === null) S.dorg = 0.0;
-      calcMotor();
-    }
-    // Si solo tenemos uno, inferir el otro
-    else if(S.ice !== null && S.iehs === null){
-      S.iehs = S.ice; _selfHealMsg = 'IEHS no disponible — se usó ICE (' + S.ice.toFixed(3) + ') como aproximación. Completa el cuestionario para resultados precisos.';
-      calcMotor();
-    } else if(S.iehs !== null && S.ice === null){
-      S.ice = S.iehs; _selfHealMsg = 'ICE no disponible — se usó IEHS (' + S.iehs.toFixed(3) + ') como aproximación. Completa el cuestionario para resultados precisos.';
-      calcMotor();
-    }
-  }
-  if(S.iie===null){
-    document.getElementById('dash-content').innerHTML=`
-      <div class="alert info" style="flex-direction:column;gap:12px">
-        <div style="display:flex;align-items:flex-start;gap:10px">
-          <span class="ai">ℹ</span>
-          <div><strong>Completa el cuestionario EFICIENCIA</strong> para ver el tablero.<br>
-          Estado: ICE=${S.ice!==null?S.ice.toFixed(3):'pendiente'} · IEHS=${S.iehs!==null?S.iehs.toFixed(3):'pendiente'}</div>
-        </div>
-        <button class="btn btn-primary btn-sm" onclick="if(S.ice!==null||S.iehs!==null){if(!S.ice)S.ice=S.iehs;if(!S.iehs)S.iehs=S.ice;if(!S.iao)S.iao=(S.ice+S.iehs)/2;calcMotor();renderDash();}else{show('p-dash-resultado');}">
-          ${S.ice!==null||S.iehs!==null ? '⚡ Calcular ahora' : '📋 Ir al tablero'}
-        </button>
-      </div>`;
-    return;
-  }
-  // FIX B17 (v5.8): mostrar banner si self-heal infirió valores
-  const _selfHealBanner = document.getElementById('dash-selfheal-banner');
-  if(_selfHealBanner){
-    if(_selfHealMsg){
-      _selfHealBanner.style.display='flex';
-      _selfHealBanner.innerHTML='<span class="ai">⚠</span><div><strong>Datos inferidos automáticamente:</strong> ' + _selfHealMsg + '</div>';
-    } else {
-      _selfHealBanner.style.display='none';
-    }
-  }
-  calcEcon();
-  // FIX B2 (v5.8): banner visible cuando cifras son límite superior por IIO=0
-  const _iioZeroBanner = document.getElementById('dash-iio-zero-banner');
-  if(_iioZeroBanner){
-    if(S._iioZeroFlag){
-      _iioZeroBanner.style.display='flex';
-      _iioZeroBanner.innerHTML='<span class="ai">⚠</span><div><strong>Cifras económicas en modo límite superior</strong> — IIO = 0 porque los KPIs no están configurados. Los valores de impacto, ROI y IFT representan el techo teórico máximo, no una estimación real. Configura los KPIs en el Paso 1 y recalcula.</div>';
-    } else {
-      _iioZeroBanner.style.display='none';
-    }
-  }
-  // Mostrar el campo estático de costo de intervención
-  const intervBox=document.getElementById('dash-interv-box');
-  if(intervBox){
-    intervBox.style.display='block';
-    // Sincronizar valor sin perder foco
-    const inp=document.getElementById('dash-costo-interv');
-    if(inp && document.activeElement!==inp){
-      inp.value=S.costoIntervManual!==null?Math.round(S.costoIntervManual):'';
-    }
-    const nota=document.getElementById('dash-interv-estimado');
-    const fmtN=v=>'$'+Math.round(v).toLocaleString('es-CO');
-    const _ceN = costoIntervEstimado();
-    if(nota){
-      const tramo = S.n<200?'pequeña (<200 emp)':S.n<800?'mediana (200–800 emp)':'grande (≥800 emp)';
-      nota.textContent='Modelo '+_ceN.modelo+' · '+tramo+': '+fmtN(_ceN.total);
-    }
-  }
-  const mop=S.iao<.40?'Defensivo':S.iao<.65?'Transicional':'Regulado';
-  const fmt=v=> (v !== null && v !== undefined) ? '$'+Math.round(v).toLocaleString('es-CO') : '—';
-  const s_op=Math.abs(S.iao-S.iie),s_est=Math.abs(S.ice-S.iie),s_exp=Math.abs(S.iehs-S.iie);
-  const dn=s_op+s_est+s_exp;
-  let prio='Equilibrio perfecto',prioDesc='Mantener monitoreo preventivo';
-  if(dn>1e-6){
-    const mx=Math.max(s_op,s_est,s_exp);
-    if(mx===s_op){prio='IAO — Dinámica operativa';prioDesc='Activar SDMO intensivo y liderazgo de flujo';}
-    else if(mx===s_est){prio='ICE — Coherencia estructural';prioDesc='Revisar coherencia de decisiones y estructura de mando';}
-    else{prio='IEHS — Experiencia relacional';prioDesc='Intervención en clima y vínculos interpersonales';}
-  }
-  const nominaAnual = S.cieEsp||S.cie ? S.n*(S.cieEsp||S.cie) : null;
-  // IFT estimado para dashboard — betas escalados por tamaño v3.5
-  // ── IFT para el tablero: usar cache del Predictor IFT si está disponible ──
-  // S.iftCache se llena cada vez que el usuario corre calcIFT() en el Predictor.
-  // Si no hay cache y no hay CIE, IFT = 0 (sin fallback hardcoded).
-  const _sal_dash = S.csal || (S.cieEsp||S.cie) || null;
-  // Usar el escenario activo del predictor para coherencia visual
-  const _escDash = (typeof currentEscenario !== 'undefined') ? currentEscenario : 'moderado';
-  let ift_est, _ift_desglose;
-  if (S.iftCache && S.iftCache.total > 0) {
-    const _escValorDash = S.iftCache[_escDash];
-    ift_est = (_escValorDash !== undefined && _escValorDash !== null) ? _escValorDash : S.iftCache.total;
-    _ift_desglose = S.iftCache;
-  } else if (_sal_dash) {
-    const _ift_dash = calcIFT_porTamano(S.n, _sal_dash, S.vri, 0.15);
-    ift_est = _ift_dash.total;
-    _ift_desglose = _ift_dash;
-  } else {
-    ift_est = 0;
-    _ift_desglose = null;
-  }
-  // Costo de intervención
-  const _ce2 = costoIntervEstimado();
-  const costoIntervDefault = _ce2._noCsal ? 0 : _ce2.total;
-  const costoInterv = (S.costoIntervManual !== null && S.costoIntervManual > 0)
-    ? S.costoIntervManual
-    : costoIntervDefault;
-  // Arrastre para proyección 3 años
-  const _arr = (()=>{ const el=document.getElementById('nointerv-arrastre'); return el?parseFloat(el.value)/100:0.08; })();
-  // IFT acumulado 3 años
-  const iftAcum3 = ift_est + ift_est*(1+_arr) + ift_est*(1+_arr*2);
-  // Costo del deterioro acumulado 3 años — null-safe
-  const _impBase = S.impacto || 0;
-  const costoAcum3 = _impBase + _impBase*(1+_arr) + _impBase*Math.pow(1+_arr,2);
-
-  // ── DEF: Deterioro Futuro Evitado — g(IIE₀)−g(IIE₁) sostenido ───────────
-  // Usa la misma función calibrada del Motor (v5.5 Gallup/McKinsey/ACRIP)
-  const _gDash  = iie => iie >= 0.80 ? 0 : Math.pow(0.55*(1-iie/0.80), 1.05);
-  const _hDash  = iio => Math.pow(Math.max(0,1-iio), 0.60);
-  const _csDash = Math.max(S.corg||1, 0.50);
-  const _ciDash = S.cieEsp || S.cie || null;
-  const _iie0D  = S.iie;
-  const _iie1D  = S.iftCache?.iie1 ?? Math.min(1, _iie0D + 0.15);
-  const _imp1D  = (_ciDash !== null && _ciDash > 0) ? S.n * _ciDash * _gDash(_iie1D) * _hDash(S.iio||0) / _csDash : 0;
-  const defAnualDash = S.impacto !== null ? Math.max(0, S.impacto - _imp1D) : 0;
-  const defAcum3 = defAnualDash*0.70 + defAnualDash*0.90 + defAnualDash*1.00;
-
-  // ── VBE: ΔCC + GCO (si corrió calcVBE) ───────────────────────────────────
-  const _vbeD    = S.vbeCache || null;
-  const _gcoD    = S.gcoCache || {};
-  const dccDash  = _vbeD ? (_vbeD.deltaCC || 0) : 0;
-  const gcoDash  = _vbeD ? (_gcoD.moderado || _vbeD.gco || 0) : 0;
-  const vbeTotalDash = dccDash + gcoDash;
-
-  // ── Beneficio total = IFT + DEF + VBE ────────────────────────────────────
-  // Nota: IFT y DEF son complementarios (IFT captura operativo corto plazo,
-  // DEF captura reducción estructural sostenida). No hay doble conteo porque:
-  //   IFT = ahorro por betas β₁β₂β₃ en la mejora de IIE₀→IIE₁ (año 1)
-  //   DEF = diferencia g(IIE₀)−g(IIE₁) sostenida en años 1-3 (estructural)
-  // VBE es capa adicional (marca empleadora + capacidad), también sin doble conteo.
-  const beneficioTotal3 = iftAcum3 + defAcum3 + vbeTotalDash;
-  const roi_total_pct   = costoInterv > 0 ? (beneficioTotal3 / costoInterv * 100) : 0;
-  const ratio_total     = costoInterv > 0 ? beneficioTotal3 / costoInterv : 0;
-  // ROI solo IFT (base conservador, como antes)
-  const roi_acum3_pct = costoInterv > 0 ? (iftAcum3 / costoInterv * 100) : 0;
-  const ratio_acum3   = costoInterv > 0 ? iftAcum3 / costoInterv : 0;
-  const roi_color_total = ratio_total >= 3 ? '#60a5fa' : ratio_total >= 1 ? '#C9A227' : '#f87171';
-  const roi_color       = ratio_acum3 >= 3 ? '#60a5fa' : ratio_acum3 >= 1 ? '#C9A227' : '#f87171';
-  // roiAlertHtml: usar roi_acum3_pct para alertas de ROI negativo
-  const roiAlertHtml = (roi_acum3_pct < 100) ? (() => {
-    const _ceDash = costoIntervEstimado();
-    const horizon = _ceDash.horizonte;
-    const msgs = {
-      'Interno facilitado': (() => {
-        const _sal_p  = S.csal || (S.cieEsp||S.cie) || null;
-        if(!_sal_p) return 'Configura C_sal en Paso 1 para ver el ROI detallado.';
-        const _ift_p  = calcIFT_porTamano(S.n, _sal_p, S.vri, null);
-        const _ift3   = _ift_p.total + _ift_p.total*(1+_arr) + _ift_p.total*(1+_arr*2);
-        const roi18   = _ceDash.total > 0 ? (_ift3 / _ceDash.total * 100).toFixed(0) : '—';
-        const roiColor= parseFloat(roi18) > 100 ? '#4ade80' : '#fbbf24';
-        return `ROI acumulado 3 años: IFT acum. <strong>$${Math.round(_ift3/1e6)}M</strong> · inversión <strong>$${Math.round(_ceDash.total/1e6)}M</strong> · ROI <strong style="color:${roiColor}">${roi18}%</strong>. Ajusta el costo de intervención arriba para recalcular.`;
-      })(),
-      'Híbrido': `Modelo híbrido · horizonte ${horizon} meses. Ajusta el costo de intervención para ver el ROI real.`,
-      'Consultoría externa': `Verifica los betas de recuperación para el sector. Ajusta el costo de intervención para recalcular.`
-    };
-    const msg = msgs[_ceDash.modelo] || msgs['Consultoría externa'];
-    return roi_acum3_pct < 100 ? `<div style="background:rgba(154,96,0,0.15);border:1px solid rgba(154,96,0,0.40);border-radius:8px;padding:14px 16px;margin-bottom:14px">
-      <div style="font-size:9px;font-weight:700;letter-spacing:.16em;color:#fbbf24;margin-bottom:6px">ℹ ROI MENOR A 100% EN ESCENARIO BASE</div>
-      <div style="font-size:12px;color:rgba(255,255,255,0.75);line-height:1.6">${msg}</div>
-    </div>` : '';
-  })() : '';
-
-  const recs=[];
-  if(mop==='Defensivo') recs.push({p:'🔴 URGENTE',t:'Protocolo Zona Roja',d:'IAO crítico. Intervención inmediata en liderazgo y condiciones operativas.'});
-  if(mop==='Transicional') recs.push({p:'🟡 PRIORITARIO',t:'Monitoreo reforzado + reducción de tensión',d:'Aumentar frecuencia SDMO. Identificar y eliminar causas de tensión recurrente.'});
-  if(S.idc!==null&&S.idc<0.40) recs.push({p:'🔴 URGENTE',t:'Incoherencia estructural (IDC bajo)',d:'Intervención en ICE y liderazgo directivo. Coherencia de decisiones deteriorada.'});
-  if(S.iehs<0.50) recs.push({p:'🚫 BLOQUEO',t:'IEHS bajo umbral de certificación',d:'Suspender certificación hasta superar 0.50 en experiencia relacional.'});
-  if(S.ice!==null&&S.ice<0.40) recs.push({p:'🔴 URGENTE',t:'ICE crítico — Riesgo silencioso (ICE < 0.40)',d:'Coherencia estructural gravemente deteriorada: roles ambiguos, reglas rotas o compromisos no cumplidos. Aunque IAO e IEHS compensen el IIE, este nivel genera riesgo de colapso operativo a mediano plazo. Intervenir en estructura y gobernanza.'});
-  if(S.ice!==null&&S.ice>=0.40&&S.ice<0.50) recs.push({p:'🟠 ATENCIÓN',t:'ICE en zona de riesgo (0.40–0.50)',d:'Coherencia estructural por debajo del umbral funcional. Revisar consistencia entre decisiones, roles y compromisos. Sin intervención puede escalar.'});
-  if(S.ito>0.30) recs.push({p:'🟠 MODERADO',t:'Desalineación sistémica (ITO alto)',d:'Priorizar intervención en: '+prio+'.'});
-  if(S.ifo!==null&&S.ifo<0.40) recs.push({p:'🟡 ATENCIÓN',t:'Fricción operativa sistémica (IFO bajo)',d:'Revisar fluidez de procesos, coordinación y claridad de prioridades.'});
-  if(S.ds_rel>0&&(S.dep_display||0)<0.050) recs.push({p:'🟡 PREVENTIVO',t:'Sistema en zona pre-deterioro',d:'IIE está bajo el umbral de referencia (IIE_min='+(S.iieMin||0.65).toFixed(2)+') pero el impacto aún es contenido (<5% de nómina). Este es el momento de menor costo de intervención.'});
-  if((S.dep_display||0)>0.120) recs.push({p:'🔴 SEVERO',t:'Impacto económico elevado — deterioro activo',d:'Costo estimado: '+fmt(S.impacto)+'/año (>12% de nómina). Intervención urgente para detener pérdida.'});
-  if(recs.length===0) recs.push({p:'✅ SALUDABLE',t:'Sistema regulado',d:'Mantener condiciones. Activar monitoreo preventivo y mejora continua.'});
-  const recHTML=recs.map(r=>`<tr><td><span style="font-size:10px;font-weight:700;color:rgba(255,255,255,0.9)">${r.p}</span></td><td style="font-weight:600;color:rgba(255,255,255,0.85)">${r.t}</td><td style="font-size:12px;color:rgba(255,255,255,0.88)">${r.d}</td></tr>`).join('');
-  document.getElementById('dash-content').innerHTML=`
-    <div class="dash-hero">
-      <div><div class="dh-title">${S.orgNombre}</div>
-      <div class="dh-sub">Tablero Ejecutivo EFICIENCIA · Motor v3.4 · ${new Date().toLocaleDateString('es-CO')} · v5.8</div>
-      <div style="margin-top:10px"><div class="mop-pill ${mop}" style="font-size:13px"><span class="mop-dot"></span>MOP: ${mop}</div></div></div>
-      <div class="dh-iie"><div class="dh-val">${(S.iie*100).toFixed(1)}</div><div class="dh-lbl">IIE · Índice Integral</div></div>
-    </div>
-    <div class="ring-grid">${rc('IAO',S.iao,'card-teal','',1,'dash')}${rc('ICE',S.ice,'card-amber','',1,'dash')}${rc('IEHS',S.iehs,'card-blue','',1,'dash')}</div>
-    <div class="ring-grid">${rc('ITO',S.ito,'card-rose','[0,0.667]',2/3,'dash')}${rc('C_org',S.corg,'card-teal','',1,'dash')}${rc('DEP',S.dep_display||S.dep,'card-amber','[0,0.25]',0.25,'dash')}</div>
-    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px">
-      <div class="ring-card dc" style="background:linear-gradient(135deg,#1a3a52,#0f2236);padding:14px;text-align:center">
-        <div style="font-size:9px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:rgba(255,255,255,.5);margin-bottom:8px">Impacto económico / año</div>
-        <div style="font-family:'DM Mono',monospace;font-size:18px;font-weight:700;color:#f87171;margin:6px 0">${fmt(S.impacto)}</div>
-        <div style="font-size:10px;color:rgba(255,255,255,.45)">Costo actual del deterioro</div>
-      </div>
-      <div class="ring-card dc" style="background:linear-gradient(135deg,#1a3a52,#0f2236);padding:14px;text-align:center">
-        <div style="font-size:9px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:rgba(255,255,255,.5);margin-bottom:8px">ROI total acum. 3 años</div>
-        <div id="dash-roi-small" style="font-family:'DM Mono',monospace;font-size:22px;font-weight:700;color:${roi_color_total};margin:6px 0">${roi_total_pct.toFixed(0)}%</div>
-        <div style="font-size:10px;color:rgba(255,255,255,.45)">IFT + DEF${vbeTotalDash>0?' + VBE':''} / inversión</div>
-      </div>
-      <div class="ring-card dc" style="background:linear-gradient(135deg,#1a3a52,#0f2236);padding:14px;text-align:center">
-        <div style="font-size:9px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:rgba(255,255,255,.5);margin-bottom:8px">Ratio beneficio / costo</div>
-        <div id="dash-ratio-small" style="font-family:'DM Mono',monospace;font-size:22px;font-weight:700;color:${roi_color_total};margin:6px 0">${ratio_total.toFixed(1)}×</div>
-        <div style="font-size:10px;color:rgba(255,255,255,.45)">Por cada $1 invertido</div>
-      </div>
-    </div>
-    <div class="card" style="background:#fff;border:1.5px solid var(--rule);margin-bottom:14px">
-      <div class="card-title" style="color:var(--azul-m);margin-bottom:14px">Análisis avanzado — indicadores del sistema</div>
-      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px">${_renderAdvChips()}</div>
-      <div style="margin-top:12px;padding:10px 14px;background:#F8FAFC;border-radius:8px;border:1px solid #e2e8f0">
-        <span style="font-size:9px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#64748b">Dimensión prioritaria: </span>
-        <span style="font-size:12px;font-weight:600;color:var(--azul-m)">${prio}</span>
-        <span style="font-size:11px;color:#94a3b8"> — ${prioDesc}</span>
-      </div>
-    </div>
-    <div class="card dc" style="background:linear-gradient(135deg,#1a2a3a,#0d1d2b);margin-bottom:14px">
-      <div class="card-title" style="color:rgba(255,255,255,.7)">Recomendaciones de intervención</div>
-      <table class="dt">
-        <thead><tr><th style="color:rgba(255,255,255,.5)">Prioridad</th><th style="color:rgba(255,255,255,.5)">Acción</th><th style="color:rgba(255,255,255,.5)">Justificación</th></tr></thead>
-        <tbody>${recHTML}</tbody>
-      </table>
-    </div>
-    <div class="card dc" style="background:linear-gradient(135deg,#1a2e50,#0d1d35)">
-      <div class="card-title">Argumento ejecutivo</div>
-
-      <!-- Fila 1: Costo del deterioro -->
-      <div style="background:rgba(176,58,46,0.18);border:1px solid rgba(176,58,46,0.35);border-radius:10px;padding:14px 16px;margin-bottom:12px">
-        <div style="font-size:9px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:rgba(255,255,255,0.5);margin-bottom:6px">Costo del deterioro acumulado 3 años — sin intervención</div>
-        <div style="font-family:'DM Mono',monospace;font-size:26px;font-weight:700;color:#f87171;line-height:1">${S.impacto !== null ? fmt(costoAcum3) : '— configura C_sal'}</div>
-        <div style="font-size:11px;color:rgba(255,255,255,0.4);margin-top:6px">Año 1: ${fmt(S.impacto)} · crece con arrastre ${(_arr*100).toFixed(0)}%/año</div>
-      </div>
-
-      <!-- Fila 2: Tabla de beneficios apilados -->
-      <div style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.10);border-radius:10px;padding:14px 16px;margin-bottom:12px">
-        <div style="font-size:9px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:rgba(255,255,255,0.45);margin-bottom:12px">Beneficios económicos derivados de la intervención — acumulado 3 años</div>
-
-        <!-- IFT -->
-        <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.08)">
-          <div>
-            <div style="font-size:12px;font-weight:600;color:rgba(255,255,255,0.85)">Ahorro recuperable (IFT)</div>
-            <div style="font-size:10px;color:rgba(255,255,255,0.38)">Rot. + ausentismo + productividad · betas β₁β₂β₃ · ${S.iftCache ? 'ΔIIE +'+((S.iftCache.dIIE||0.15)*100).toFixed(1)+'pp · '+_escDash : 'estimado'}</div>
-          </div>
-          <div style="font-family:'DM Mono',monospace;font-size:18px;font-weight:700;color:#60a5fa;white-space:nowrap">+${fmt(iftAcum3)}</div>
-        </div>
-
-        <!-- DEF -->
-        <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.08)">
-          <div>
-            <div style="font-size:12px;font-weight:600;color:rgba(255,255,255,0.85)">Deterioro futuro evitado (DEF)</div>
-            <div style="font-size:10px;color:rgba(255,255,255,0.38)">g(IIE₀)−g(IIE₁) sostenido · IIE₀=${_iie0D.toFixed(3)} → IIE₁=${_iie1D.toFixed(3)} · progresión 70/90/100%</div>
-          </div>
-          <div style="font-family:'DM Mono',monospace;font-size:18px;font-weight:700;color:#4ade80;white-space:nowrap">+${fmt(defAcum3)}</div>
-        </div>
-
-        ${vbeTotalDash > 0 ? `
-        <!-- VBE -->
-        <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.08)">
-          <div>
-            <div style="font-size:12px;font-weight:600;color:rgba(255,255,255,0.85)">Valor expandido (VBE)</div>
-            <div style="font-size:10px;color:rgba(255,255,255,0.38)">ΔCC ${fmt(dccDash)} + GCO ${fmt(gcoDash)} · marca empleadora + capacidad operativa nueva</div>
-          </div>
-          <div style="font-family:'DM Mono',monospace;font-size:18px;font-weight:700;color:#c4b5fd;white-space:nowrap">+${fmt(vbeTotalDash)}</div>
-        </div>
-        ` : ''}
-
-        <!-- Total -->
-        <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0 2px">
-          <div style="font-size:13px;font-weight:700;color:#fff">Total beneficios por intervención</div>
-          <div style="font-family:'DM Mono',monospace;font-size:22px;font-weight:700;color:#fff;white-space:nowrap">${fmt(beneficioTotal3)}</div>
-        </div>
-      </div>
-
-      <!-- Fila 3: ROI total -->
-      <div style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-radius:10px;padding:16px 20px;text-align:center;margin-bottom:12px">
-        <div style="font-size:9px;font-weight:700;letter-spacing:.20em;text-transform:uppercase;color:rgba(255,255,255,0.45);margin-bottom:4px">Retorno sobre inversión — beneficio total acumulado 3 años</div>
-        <div id="roi-pct-big" style="font-family:'DM Mono',monospace;font-size:48px;font-weight:700;color:${roi_color_total};line-height:1;margin-bottom:6px">${roi_total_pct.toFixed(0)}%</div>
-        <div style="font-size:10px;color:rgba(255,255,255,0.3);margin-bottom:12px">IFT + DEF ${vbeTotalDash>0?'+ VBE':''} acum. 3 años / inversión</div>
-
-        <div style="display:flex;justify-content:center;gap:20px;flex-wrap:wrap">
-          <div style="text-align:center">
-            <div style="font-size:9px;color:rgba(255,255,255,0.4);font-weight:600;letter-spacing:.1em;text-transform:uppercase;margin-bottom:3px">Ratio total 3 años</div>
-            <div id="roi-ratio" style="font-family:'DM Mono',monospace;font-size:20px;font-weight:700;color:${roi_color_total}">${ratio_total.toFixed(1)}×</div>
-            <div style="font-size:10px;color:rgba(255,255,255,0.35);margin-top:2px">por cada $1 invertido</div>
-          </div>
-          <div style="width:1px;background:rgba(255,255,255,0.1)"></div>
-          <div style="text-align:center">
-            <div style="font-size:9px;color:rgba(255,255,255,0.4);font-weight:600;letter-spacing:.1em;text-transform:uppercase;margin-bottom:3px">Inversión</div>
-            <div id="roi-inv-val" style="font-family:'DM Mono',monospace;font-size:20px;font-weight:700;color:rgba(255,255,255,0.75)">${fmt(costoInterv)}</div>
-            <div id="roi-inv-lbl" style="font-size:10px;color:rgba(255,255,255,0.35);margin-top:2px">${S.costoIntervManual ? 'valor ingresado manualmente' : 'estimado automático'}</div>
-          </div>
-          <div style="width:1px;background:rgba(255,255,255,0.1)"></div>
-          <div style="text-align:center">
-            <div style="font-size:9px;color:rgba(255,255,255,0.4);font-weight:600;letter-spacing:.1em;text-transform:uppercase;margin-bottom:3px">Solo IFT (conservador)</div>
-            <div id="roi-neto" style="font-family:'DM Mono',monospace;font-size:20px;font-weight:700;color:#60a5fa">${ratio_acum3.toFixed(1)}×</div>
-            <div style="font-size:10px;color:rgba(255,255,255,0.35);margin-top:2px">base mínima garantizable</div>
-          </div>
-        </div>
-      </div>
-
-      <div style="font-size:11px;color:rgba(255,255,255,0.35);text-align:center;line-height:1.6">
-        IFT: ahorro operativo por betas · DEF: reducción estructural g(IIE) sostenida · ${vbeTotalDash>0?'VBE: marca empleadora + capacidad nueva · ':''}Sin doble conteo entre componentes<br>
-        ${S.iftCache
-          ? `Predictor IFT · ΔIIE = +${((S.iftCache.dIIE||0)*100).toFixed(1)}pp · Sector ${(S.iftCache.sector||'').replace(/_/g,' ')} · Escenario ${_escDash}`
-          : 'Estimación automática: ΔIIE = +0.15 · Ejecuta el Predictor IFT para personalizar'}
-      </div>
-    </div>
-    ${S.iehs<.5?'<div class="alert bad" style="margin-top:12px"><span class="ai">🚫</span><div><strong>CONDICIÓN DE BLOQUEO:</strong> IEHS = '+S.iehs.toFixed(3)+' < 0.50. Suspender certificación.</div></div>':''}
-  `;
-  setTimeout(()=>['IAO','ICE','IEHS','ITO','C_org','DEP'].forEach(l=>drawDonut(l,'dash')),40);
 }
 
 /* ── RING CARD ── */
@@ -3740,72 +3067,6 @@ function drawDonut(label,ns){
 
 function gCol(p){return p>.65?'#2563A8':p>.40?'#C9A227':'#B03A2E';}
 
-/* ── Recálculo ROI sin re-render completo (evita scroll jump al editar costo) ── */
-
-/* ── IFT ESTIMADO PARA DASHBOARD (v3.5) ──────────────────────────────────
-   IFT_dashboard = N × CIE × DEP × tasa_recuperacion × factor_horizonte
-
-   La tasa de recuperación estima qué fracción del deterioro detectado puede
-   revertirse con una intervención efectiva en el horizonte dado.
-
-   Escenario conservador (base del dashboard): tasa = 0.50 (50% del DEP)
-   Fundamentación: benchmarks ACRIP Colombia + meta-análisis intervenciones RH LATAM.
-   El usuario puede cambiar el escenario en el módulo IFT para ver optimista/pesimista.
-
-   Factor horizonte por tamaño:
-   ─ Pequeña (N < 200):  horizonte 18m → factor 18/12 = 1.50
-   ─ Mediana (200–800):  horizonte 12m → factor 1.00
-   ─ Grande  (N ≥ 800):  horizonte 12m → factor 1.00
-
-   Nota: Esta función es para el ROI del dashboard (escenario conservador base).
-   El módulo IFT interactivo sigue usando los betas β₁, β₂, β₃ con ΔIIE del usuario.
-────────────────────────────────────────────────────────────────────────── */
-function calcIFT_porTamano(n, sal, vri, _unused) {
-  // ── IFT basado en betas adaptativos (v3.6) ──────────────────────────
-  // Reemplaza el proxy DEP×0.50 que subestimaba el ahorro hasta 4×.
-  const iie   = (S && S.iie  !== null) ? S.iie  : 0.55;
-  const iieMin = (S && S.iieMin)       ? S.iieMin : 0.65;
-  const sector = (S && S.sector) ? S.sector : 'servicios_prof';
-
-  // Target: gap hasta umbral saludable (o hasta 0.85 si ya está arriba)
-  const target = iie >= iieMin ? 0.85 : iieMin;
-  const dIIE   = Math.max(0.05, target - iie);
-
-  // Benchmarks sectoriales
-  const bench = (typeof SECTOR_BENCHMARKS !== 'undefined' && SECTOR_BENCHMARKS[sector])
-    ? SECTOR_BENCHMARKS[sector]
-    : {rotacion: 22.0, ausentismo: 6.0, cr: 0.70};
-
-  const CR  = (S.crPonderado && S.crPonderado > 0) ? S.crPonderado : (bench.cr || 0.70);
-  const rot = bench.rotacion || 22.0;
-  const aus = bench.ausentismo || 6.0;
-
-  const tRot = typeof getTramoRot === 'function' ? getTramoRot(rot) : {tramo:'medio'};
-  const tAus = typeof getTramoAus === 'function' ? getTramoAus(aus) : {tramo:'medio'};
-
-  const b1    = BETAS_ROT[tRot.tramo]['moderado'];
-  const b2    = BETAS_AUS[tAus.tramo]['moderado'];
-  const eProd = BETAS_PROD['moderado'];
-
-  // v4.1: usar CIE con rampa si existe para mayor precisión
-  const salEfectivo = S.cieConRampa || sal;
-  const ahorroRot   = n * (b1 * dIIE) * (salEfectivo * CR);
-  const ahorroAus   = n * sal * (b2 * dIIE);
-  const impactoProd = n * sal * (eProd * dIIE);
-  const total       = ahorroRot + ahorroAus + impactoProd;
-
-  const horizMeses    = n < 200 ? 18 : n < 800 ? 14 : 12;
-  const factorHorizonte = horizMeses / 12;
-
-  // v4.8 FIX: aplicar factorTemporal igual que calcIFT() para evitar divergencia Dashboard/Predictor
-  // factorTemporal penaliza levemente cuando T_rec > 12m (recuperación lenta)
-  const vriEfect  = (S && S.vri !== null && S.vri !== undefined) ? S.vri : 0.40;
-  const trecEfect = 24 * (1 - vriEfect);
-  const factorTemporal = trecEfect <= 12 ? 1.0 : Math.max(0.70, 1.0 - (trecEfect - 12) / 40);
-  const totalAjustado  = total * factorTemporal;
-
-  return { total: totalAjustado, totalBruto: total, ahorroRot, ahorroAus, impactoProd, dIIE, b1, b2, eProd, horizMeses, factorHorizonte, factorTemporal, tRot, tAus };
-}
 function costoIntervEstimado(){
   const n   = S.n   || 100;
   const dep = S.dep_display || S.dep || 0;
@@ -3836,51 +3097,6 @@ function costoIntervEstimado(){
   return { total, modelo, horizonte, base, factor_dep, pct, nomina };
 }
 
-function _recalcROI(){
-  if(S.iie===null) return;
-  const fmt=v=>'$'+Math.round(v).toLocaleString('es-CO');
-  const _escRoi = (typeof currentEscenario !== 'undefined') ? currentEscenario : 'moderado';
-  let ift_est;
-  if (S.iftCache && S.iftCache.total > 0) {
-    const _escValor = S.iftCache[_escRoi];
-    ift_est = (_escValor !== undefined && _escValor !== null) ? _escValor : S.iftCache.total;
-    if(_escValor === undefined) console.warn('[EFICIENCIA v4.8] iftCache sin key "'+_escRoi+'" — usando total. Recalcular Predictor IFT.');
-  } else {
-    const _sal_roi = S.csal || (S.cieEsp||S.cie);
-    const _ift_roi = calcIFT_porTamano(S.n, _sal_roi, S.vri, null);
-    ift_est = _ift_roi.total;
-  }
-  const _ce = costoIntervEstimado();
-  const costoIntervDefault = _ce.total;
-  const costoInterv=(S.costoIntervManual!==null && S.costoIntervManual>0)
-    ? S.costoIntervManual : costoIntervDefault;
-  // ROI sobre acumulado 3 años con recuperación progresiva
-  const _arr2 = (()=>{ const el=document.getElementById('nointerv-arrastre'); return el?parseFloat(el.value)/100:0.08; })();
-  const iftAcum3_roi = ift_est + ift_est*(1+_arr2) + ift_est*(1+_arr2*2);
-  const roi_pct  = costoInterv > 0 ? (iftAcum3_roi / costoInterv * 100) : 0;
-  const ratio    = costoInterv > 0 ? iftAcum3_roi / costoInterv : 0;
-  const neto     = iftAcum3_roi; // ahorro acumulado = costo invisible recuperado
-  const roi_color = ratio >= 3 ? '#60a5fa' : ratio >= 1 ? '#C9A227' : '#f87171';
-  const setT=(id,v)=>{const e=document.getElementById(id);if(e)e.textContent=v;};
-  const setC=(id,c)=>{const e=document.getElementById(id);if(e)e.style.color=c;};
-  setT('roi-pct-big', roi_pct.toFixed(0)+'%'); setC('roi-pct-big', roi_color);
-  setT('roi-ratio', ratio.toFixed(1)+'×');      setC('roi-ratio', roi_color);
-  setT('roi-inv-val', fmt(costoInterv));
-  const _tramo = S.n<200?'pequeña':S.n<800?'mediana':'grande';
-  const _horizLabel = S.iftCache ? `Predictor IFT · ΔIIE=${S.iftCache.dIIE ? '+'+(S.iftCache.dIIE*100).toFixed(1)+'pp' : '—'}` : `${_ce.pct ? (_ce.pct*100).toFixed(1)+'% nómina' : 'modelo'} · ${_ce.modelo} · ${_tramo}`;
-  setT('roi-inv-lbl', S.costoIntervManual ? 'valor ingresado manualmente' : _horizLabel);
-  setT('roi-interv-used', fmt(costoInterv));
-  setT('roi-neto', (neto>=0?'+':'')+fmt(neto)); setC('roi-neto', neto>=0?'#60a5fa':'#f87171');
-  const _desg = S.iftCache || {};
-  setT('roi-rot-val',  fmt(_desg.ahorroRot   || 0));
-  setT('roi-aus-val',  fmt(_desg.ahorroAus   || 0));
-  setT('roi-prod-val', fmt(_desg.impactoProd || 0));
-  setT('roi-dIIE-val', _desg.dIIE ? '+'+((_desg.dIIE)*100).toFixed(1)+'pp IIE' : '—');
-  const r2=document.getElementById('dash-roi-small');
-  if(r2) r2.textContent=roi_pct.toFixed(0)+'%';
-  const r3=document.getElementById('dash-ratio-small');
-  if(r3) r3.textContent=ratio.toFixed(1)+'×';
-}
 function showToast(msg, type){
   // type: 'info' | 'warn' | 'bad' | 'good'
   const t=type||'info';
@@ -4920,7 +4136,7 @@ function _migratePayload(payload){
   // Campos añadidos en v5.x
   if(s.crPonderado    === undefined) s.crPonderado    = 0;
   if(s.cieConRampa    === undefined) s.cieConRampa    = null;
-  if(s.iftCache       === undefined) s.iftCache       = null;
+  if(s.iftLegacyCache       === undefined) s.iftLegacyCache       = null;
   if(s.rotReal        === undefined) s.rotReal        = null;
   if(s.brep_efect     === undefined) s.brep_efect     = null;
   if(s.kappa          === undefined) s.kappa          = null;
@@ -5058,12 +4274,6 @@ function updateLongPanel(){
       </div>`;
     }
   }
-  // Prefill predictor
-  if(prev){
-    document.getElementById('ift-iie0').value = prev.iie.toFixed(3);
-    document.getElementById('ift-iie1').value = last.iie.toFixed(3);
-    calcIFT();
-  }
 }
 
 function drawLongChart(){
@@ -5144,432 +4354,12 @@ function calcBetasAdaptativos(rotPct, ausDias, dIIE, N, sal, CR) {
   return {results, tramoRot: tRot, tramoAus: tAus};
 }
 
-let currentEscenario = 'moderado'; // v3.5: moderado como referencia
-
-// Legacy setEscenario (kept for compatibility with dashboard calls)
-function setEscenario(esc) {
-  currentEscenario = esc;
-  calcIFT();
-}
-
-function calcIFT(){
-  const iie0raw = parseFloat(document.getElementById('ift-iie0').value);
-  const iie1raw = parseFloat(document.getElementById('ift-iie1').value);
-  if(isNaN(iie0raw) || isNaN(iie1raw)){
-    document.getElementById('ift-results').style.display='none';
-    setVal('rp-delta-iie','—'); setVal('rp-ift-rot','—');
-    setVal('rp-ift-aus','—'); setVal('rp-ift-prod','—'); setVal('rp-ift-total','—');
-    return;
-  }
-  const iie0 = Math.max(0, Math.min(1, iie0raw));
-  const iie1 = Math.max(0, Math.min(1, iie1raw));
-  const f0 = document.getElementById('ift-iie0'), f1 = document.getElementById('ift-iie1');
-  if(f0 && iie0raw !== iie0) f0.style.borderColor='var(--amber)'; else if(f0) f0.style.borderColor='';
-  if(f1 && iie1raw !== iie1) f1.style.borderColor='var(--amber)'; else if(f1) f1.style.borderColor='';
-
-  // Sincronización automática desde S.*
-  const fn = document.getElementById('ift-n');
-  const fs = document.getElementById('ift-s');
-  if(fn && S.n)   fn.value = S.n;
-  if(fs) {
-    const cieDisplay = S.cieConRampa || S.cie;
-    if(cieDisplay) {
-      fs.value = Math.round(cieDisplay);
-      fs.title = S.cieConRampa ? `CIE ajustado con curva de aprendizaje: $${Math.round(S.cieConRampa).toLocaleString('es-CO')}` : 'CIE base (sin ajuste por rampa)';
-    }
-    // Actualizar badge fuente CIE
-    const cieBadge = document.getElementById('cie-source-badge');
-    if(cieBadge) {
-      if(S.cieConRampa && S.cieConRampa > (S.cie||0)) {
-        cieBadge.textContent = 'CIE con rampa'; cieBadge.style.display='inline';
-        cieBadge.style.background='rgba(16,185,129,0.1)'; cieBadge.style.color='var(--teal)';
-      } else {
-        cieBadge.textContent = 'CIE base'; cieBadge.style.display='inline';
-        cieBadge.style.background='rgba(100,116,139,0.1)'; cieBadge.style.color='var(--ink-s)';
-      }
-    }
-  }
-  if(S.iie !== null){
-    const f0b = document.getElementById('ift-iie0');
-    const f1b = document.getElementById('ift-iie1');
-    if(f0b && !f0b.dataset.userSet) f0b.value = S.iie.toFixed(3);
-    if(f0b && !f0b._ift0Bound){ f0b._ift0Bound=true; f0b.addEventListener('input',()=>{ f0b.dataset.userSet='1'; calcIFT(); }); }
-    if(f1b && !f1b.dataset.userSet) f1b.value = Math.min(1, S.iie+0.15).toFixed(3);
-    if(f1b && !f1b._iftBound){ f1b._iftBound=true; f1b.addEventListener('input',()=>{ f1b.dataset.userSet='1'; calcIFT(); }); }
-  }
-
-  const N   = S.n   || parseInt(document.getElementById('ift-n').value)  || 100;
-  // Usar CIE del usuario — sin fallback hardcoded. Si no hay CIE, bloquear.
-  const sal = S.cieConRampa || S.cie || parseFloat(document.getElementById('ift-s').value) || null;
-  if(sal === null || sal <= 0){
-    document.getElementById('ift-results').style.display='none';
-    setVal('rp-ift-rot','—'); setVal('rp-ift-aus','—');
-    setVal('rp-ift-prod','—'); setVal('rp-ift-total','—');
-    const missingEl = document.getElementById('ift-missing-csal');
-    if(missingEl) missingEl.style.display='flex';
-    return;
-  }
-  { const missingEl = document.getElementById('ift-missing-csal'); if(missingEl) missingEl.style.display='none'; }
-  // v4.1: pre-llenar CR con S.crPonderado cuando existe y no fue editado manualmente
-  const crInputEl = document.getElementById('ift-cr');
-  if(crInputEl && S.crPonderado > 0 && !crInputEl.dataset.userCR) {
-    crInputEl.value = S.crPonderado.toFixed(2);
-  }
-  const CR  = parseFloat(document.getElementById('ift-cr').value) || 0.70;
-  const dIIE = iie1 - iie0;
-  const retroc = dIIE < 0;
-
-  setVal('rp-delta-iie', (dIIE>=0?'+':'') + dIIE.toFixed(3));
-  const deltaEl = document.getElementById('rp-delta-iie');
-  if(deltaEl) deltaEl.style.color = dIIE>=0?'#4ade80':'#f87171';
-
-  if(dIIE === 0){
-    document.getElementById('ift-results').style.display='none';
-    setVal('rp-ift-rot','—'); setVal('rp-ift-aus','—');
-    setVal('rp-ift-prod','—'); setVal('rp-ift-total','—');
-    return;
-  }
-
-  // Cambio 2+3: Obtener datos reales del cliente o benchmark sectorial
-  // Sincronizar selector de sector del Predictor con S.sector de Config (si no fue modificado manualmente)
-  const iftSectorEl = document.getElementById('ift-sector');
-  if(iftSectorEl && S.sector && !iftSectorEl.dataset.userSet) iftSectorEl.value = S.sector;
-  if(iftSectorEl) iftSectorEl.addEventListener('change', ()=>{ iftSectorEl.dataset.userSet='1'; }, {once:true});
-  const sector = iftSectorEl ? iftSectorEl.value : (S.sector || 'servicios_prof');
-  const bench = SECTOR_BENCHMARKS[sector] || SECTOR_BENCHMARKS.servicios_prof;
-  const rotInput = parseFloat(document.getElementById('ift-rotacion') ? document.getElementById('ift-rotacion').value : '');
-  const ausInput = parseFloat(document.getElementById('ift-ausentismo') ? document.getElementById('ift-ausentismo').value : '');
-  const useBenchRot = isNaN(rotInput) || rotInput <= 0;
-  const useBenchAus = isNaN(ausInput) || ausInput <= 0;
-  const rotPct = useBenchRot ? bench.rotacion : rotInput;
-  const ausDias = useBenchAus ? bench.ausentismo : ausInput;
-
-  // Show/hide benchmark badges
-  const rotBadge = document.getElementById('rot-bench-badge');
-  const ausBadge = document.getElementById('aus-bench-badge');
-  if(rotBadge) rotBadge.style.display = useBenchRot ? 'inline' : 'none';
-  if(ausBadge) ausBadge.style.display = useBenchAus ? 'inline' : 'none';
-
-  // Sector CR auto-update
-  const crEl = document.getElementById('ift-cr');
-  const crInfo = document.getElementById('cr-sector-info');
-  if(crEl && !crEl.dataset.userSet) {
-    crEl.value = bench.cr.toFixed(2);
-    const crSource = (S.crPonderado > 0 && !crInputEl?.dataset.userCR) ? `CR ponderado por nivel: ${S.crPonderado.toFixed(2)}× (Configuración)` : `Benchmark sectorial ${sector.replace(/_/g,' ')}: CR=${bench.cr.toFixed(2)}×`;
-    if(crInfo) crInfo.textContent = crSource;
-    // Actualizar badge
-    const crBadge = document.getElementById('cr-source-badge');
-    if(crBadge) {
-      if(S.crPonderado > 0 && !crInputEl?.dataset.userCR) {
-        crBadge.textContent = 'CR ponderado por nivel';
-        crBadge.style.background = 'rgba(16,185,129,0.1)';
-        crBadge.style.color = 'var(--teal)';
-      } else {
-        crBadge.textContent = 'benchmark sectorial';
-        crBadge.style.background = 'rgba(37,99,168,0.1)';
-        crBadge.style.color = 'var(--azul-m)';
-      }
-    }
-  }
-  const CRfinal = parseFloat(document.getElementById('ift-cr').value) || bench.cr;
-
-  // Calcular betas adaptativos — v4: usar wrapper con factor de zona IIE
-  const {results: betaResultados, tramoRot, tramoAus, factorZona} = calcBetasAdaptativosV4(rotPct, ausDias, dIIE, N, sal, CRfinal);
-
-  // Mostrar tramos en UI
-  const tramosDiv = document.getElementById('ift-tramos-info');
-  if(tramosDiv) {
-    tramosDiv.style.display = 'block';
-    const trl = document.getElementById('tramo-rot-label');
-    const tal = document.getElementById('tramo-aus-label');
-    if(trl) trl.textContent = tramoRot.label + (useBenchRot ? ' 🔶' : '');
-    if(tal) tal.textContent = tramoAus.label + (useBenchAus ? ' 🔶' : '');
-    // v4: mostrar factor de zona
-    const fzEl = document.getElementById('tramo-zona-iie');
-    if(fzEl) {
-      const fzLabel = factorZona < 1 ? `× ${factorZona} (zona baja — respuesta lenta)` :
-                      factorZona > 1 ? `× ${factorZona} (zona alta — retornos crecientes)` :
-                      `× 1.0 (zona media — retorno estándar)`;
-      fzEl.textContent = 'Factor zona IIE: ' + fzLabel;
-      fzEl.style.display = 'block';
-    }
-  }
-
-  // Actualizar tabla de betas adaptativos
-  const escLst = ['cons', 'mod', 'alto'];
-  const escMap = {cons:'conservador', mod:'moderado', alto:'alto'};
-  for(const e of escLst) {
-    const esc = escMap[e];
-    const r = betaResultados[esc];
-    const b1El = document.getElementById('ift-b1-' + e);
-    const b2El = document.getElementById('ift-b2-' + e);
-    const b3El = document.getElementById('ift-b3-' + e);
-    if(b1El) b1El.textContent = r.b1.toFixed(3);
-    if(b2El) b2El.textContent = r.b2.toFixed(3);
-    if(b3El) b3El.textContent = r.eProd.toFixed(3);
-  }
-  // Keep hidden fields with moderado values for compatibility
-  document.getElementById('ift-b1').value = betaResultados.moderado.b1;
-  document.getElementById('ift-b2').value = betaResultados.moderado.b2;
-  document.getElementById('ift-b3').value = betaResultados.moderado.eProd;
-
-  // Cambio 6: Factor temporal corregido — neutro, no premia organizaciones sanas
-  // Lógica anterior: min(1.50, 12/T_rec) bonificaba VRI alto → incorrecto
-  // v3.5: factor = 1.0 (neutro base). Penalización leve si T_rec > 18m (recuperación lenta)
-  const vriMotor = (S.vri !== null && S.vri !== undefined) ? S.vri : 0.40;
-  const trecMotor = 24 * (1 - vriMotor);
-  // Factor neutro: 1.0 si T_rec ≤ 12m, penalización lineal hasta 0.70 si T_rec=24m
-  const factorTemporal = trecMotor <= 12 ? 1.0 : Math.max(0.70, 1.0 - (trecMotor - 12) / 40);
-
-  // Nómina total para % cálculo
-  const nominaTotal = N * sal;
-
-  // Cambio 7: Calcular y mostrar los 3 escenarios como rango
-  const escenariosCells = {
-    conservador: {rotId:'r-cons-rot', ausId:'r-cons-aus', prodId:'r-cons-prod', totId:'r-cons-total', pctId:'r-cons-pct'},
-    moderado:    {rotId:'r-mod-rot',  ausId:'r-mod-aus',  prodId:'r-mod-prod',  totId:'r-mod-total',  pctId:'r-mod-pct'},
-    alto:        {rotId:'r-alto-rot', ausId:'r-alto-aus', prodId:'r-alto-prod', totId:'r-alto-total',  pctId:'r-alto-pct'}
-  };
-  const totals = {};
-  for(const esc of ['conservador','moderado','alto']) {
-    const r = betaResultados[esc];
-    const total = r.total * factorTemporal;
-    totals[esc] = total;
-    const cells = escenariosCells[esc];
-    const setC = (id, v) => { const el=document.getElementById(id); if(el) el.textContent = v; };
-    setC(cells.rotId,  fmtSig(r.ahorroRot));
-    setC(cells.ausId,  fmtSig(r.ahorroAus));
-    setC(cells.prodId, fmtSig(r.impactoProd));
-    setC(cells.totId,  fmtSig(total));
-    const pct = nominaTotal > 0 ? (total / nominaTotal * 100).toFixed(1) + '%' : '—';
-    setC(cells.pctId, pct);
-  }
-
-  const rangoMin = document.getElementById('ift-rango-min');
-  const rangoMax = document.getElementById('ift-rango-max');
-  if(rangoMin) rangoMin.textContent = fmtSig(totals.conservador);
-  if(rangoMax) rangoMax.textContent = fmtSig(totals.alto);
-
-  // Use currentEscenario as reference (fixes: hero card and right panel were hardcoded to moderado)
-  const refEsc  = betaResultados[currentEscenario];
-  const refTotal = totals[currentEscenario];
-  const escLabel = {conservador:'Conservador', moderado:'Moderado', alto:'Alto'}[currentEscenario] || 'Moderado';
-  const rowColor = v => v < 0 ? 'color:#B03A2E' : '';
-  const factorLabel = trecMotor <= 12
-    ? `× ${factorTemporal.toFixed(2)} (T_rec ${trecMotor.toFixed(1)}m · ajuste neutro)`
-    : `× ${factorTemporal.toFixed(2)} (T_rec ${trecMotor.toFixed(1)}m · penalización leve por recuperación lenta)`;
-
-  const breakEl = document.getElementById('ift-breakdown');
-  if(breakEl) breakEl.innerHTML=`
-    <tr><td>Ahorro en rotación</td><td class="mono" style="${rowColor(refEsc.ahorroRot)}">${fmtSig(refEsc.ahorroRot)}</td></tr>
-    <tr><td>Ahorro en ausentismo</td><td class="mono" style="${rowColor(refEsc.ahorroAus)}">${fmtSig(refEsc.ahorroAus)}</td></tr>
-    <tr><td>Recuperación productividad (sin F)</td><td class="mono" style="${rowColor(refEsc.impactoProd)}">${fmtSig(refEsc.impactoProd)}</td></tr>
-    <tr><td>IFT bruto ${escLabel.toLowerCase()}</td><td class="mono" style="${rowColor(refEsc.total)}">${fmtSig(refEsc.total)}</td></tr>
-    <tr><td style="font-size:11px;color:#64748b">Factor temporal v3.5 (corregido)</td><td class="mono" style="font-size:11px;color:#64748b">${factorLabel}</td></tr>
-    <tr class="hl"><td><strong>${retroc?'Pérdida proyectada':'IFT '+escLabel.toLowerCase()+' (ajustado)'}</strong></td><td class="mono" style="${rowColor(refTotal)}"><strong>${fmtSig(refTotal)}</strong></td></tr>`;
-
-  const lblEl = document.getElementById('ift-scenario-label');
-  if(lblEl) lblEl.textContent = `Escenario ${escLabel} · ΔIIE = ${(dIIE>=0?'+':'')+dIIE.toFixed(3)}`;
-
-  // Hero card — reflects currentEscenario (fixes: was hardcoded to conservador)
-  const totEl = document.getElementById('ift-total');
-  if(totEl){ totEl.textContent = fmtSig(refTotal); totEl.style.color = refTotal < 0 ? '#f87171' : ''; }
-
-  // Right panel (rp-*) — reflects currentEscenario (fixes: was hardcoded to moderado)
-  setVal('rp-ift-rot', fmtSig(refEsc.ahorroRot));
-  setVal('rp-ift-aus', fmtSig(refEsc.ahorroAus));
-  setVal('rp-ift-prod', fmtSig(refEsc.impactoProd));
-  const totEl2 = document.getElementById('rp-ift-total');
-  if(totEl2){ totEl2.textContent = fmtSig(refTotal); totEl2.style.color = refTotal >= 0 ? 'var(--dorado)' : '#f87171'; }
-
-  // Show/hide retroc warning
-  const retrocWarn = document.getElementById('ift-retroc-warn');
-  if(retrocWarn) retrocWarn.style.display = retroc ? 'flex' : 'none';
-
-  const alertCoher = document.getElementById('ift-alerta-coher');
-  const alertCoherMsg = document.getElementById('ift-alerta-coher-msg');
-  const alertas = [];
-  const pctCons = nominaTotal > 0 ? (totals.conservador / nominaTotal) : 0;
-  if(pctCons > 0.25) alertas.push('⚠ IFT conservador > 25% de nómina (' + (pctCons*100).toFixed(1) + '%). Revisar rotación real ingresada o reducir ΔIIE antes de presentar.');
-  if(betaResultados.conservador.total > betaResultados.moderado.total) alertas.push('⚠ Inconsistencia: IFT conservador > IFT moderado. Error en tramo aplicado — verificar datos.');
-  if(S.dep !== null && S.dep > 0.15) alertas.push('⚠ DEP > 15% del CIE — deterioro severo. Cruzar con datos operativos antes de presentar.');
-  // v4.1: alertar si IFT moderado supera el impacto DEP (señal de betas sobredimensionados)
-  const depImpacto = S.impacto !== null && S.impacto > 0 ? S.impacto : 0;
-  if(depImpacto > 0 && totals.moderado > depImpacto * 1.5) {
-    const iie1sugerido = (iie0 + Math.min(dIIE * 0.6, 0.15)).toFixed(3);
-    alertas.push('⚠ IFT moderado supera 1.5× el impacto DEP. Esto ocurre cuando el ΔIIE objetivo es mayor al deterioro actual. Opciones: (a) reducir IIE₁ a un valor más conservador (sugerido: ~' + iie1sugerido + '), o (b) ingresar la rotación y ausentismo reales del cliente para recalibrar los betas.');
-  }
-  const iftDepRatio = (S.dep && S.dep > 0 && nominaTotal > 0) ? (totals.moderado / (S.dep * N * sal)) : null;
-  if(iftDepRatio !== null && iftDepRatio < 0.3) alertas.push('⚠ IFT/DEP moderado < 0.3× — argumento económico débil. Considerar priorizar DEP como argumento principal.');
-  if(alertCoher && alertCoherMsg) {
-    if(alertas.length > 0) {
-      alertCoher.style.display = 'flex';
-      alertCoherMsg.innerHTML = '<strong>Alertas de coherencia:</strong><br>' + alertas.join('<br>');
-    } else {
-      alertCoher.style.display = 'none';
-    }
-  }
-
-  document.getElementById('ift-results').style.display = 'block';
-  const orgEl = document.getElementById('ift-org-name');
-  if(orgEl) orgEl.textContent = (S.orgNombre || 'Organización') + ' — Proyección IFT';
-
-  // ── Módulo "Impacto de no intervenir" ─────────────────────────────────────
-  // Tres columnas comparadas:
-  //   A) Pérdida sin intervenir : impacto crece con arrastre compuesto cada año
-  //   B) Ahorro recuperable (IFT betas): rot + aus + prod por ΔIIE — corto plazo
-  //   C) DEF — Deterioro Futuro Evitado: g(IIE₀)−g(IIE₁) — beneficio estructural
-  //      sostenido al mantener IIE₁. Captura TODO el ahorro sistémico, no solo betas.
-  const niCard = document.getElementById('ift-nointerv-card');
-  if(niCard) {
-    const impactoBase = (S.impacto !== null && S.impacto > 0) ? S.impacto : 0;
-    if(impactoBase <= 0){ niCard.style.display='none'; return; }
-
-    // ── DEF: g(IIE) del Motor aplicada a IIE₁ ────────────────────────────
-    // Misma función calibrada v5.5 (Gallup/McKinsey/ACRIP)
-    const _g  = iie => iie >= 0.80 ? 0 : Math.pow(0.55 * (1 - iie / 0.80), 1.05);
-    const _h  = iio => Math.pow(Math.max(0, 1 - iio), 0.60);
-    const _cs = Math.max(S.corg || 1, 0.50);
-    const _ci = S.cieEsp || S.cie || sal || 0;
-    // Impacto residual si IIE₁ se logra y sostiene
-    const impacto1 = _ci > 0 ? S.n * _ci * _g(iie1) * _h(S.iio || 0) / _cs : 0;
-    const defAnual = Math.max(0, impactoBase - impacto1);
-    // La mejora es progresiva según T_rec: 70% logrado año 1, 90% año 2, 100% año 3
-    const defPct   = [0.70, 0.90, 1.00];
-
-    // ── Ahorro recuperable año 1 (IFT betas) ─────────────────────────────
-    let pctRec1 = 0.20;
-    if(totals && totals.moderado > 0){
-      const ratio_raw = (totals.moderado * factorTemporal) / impactoBase;
-      pctRec1 = Math.min(0.40, Math.max(0.10, ratio_raw));
-    }
-
-    const ARRASTRE = getArrastreNoInterv();
-
-    // Tabla año a año
-    let acumPerdida = 0, acumAhorro = 0, acumDEF = 0;
-    const filas = [];
-    for(let y = 1; y <= 3; y++){
-      const perdidaAnio = impactoBase * Math.pow(1 + ARRASTRE, y - 1);
-      const pctRecY     = Math.min(0.60, pctRec1 + 0.05 * (y - 1));
-      const ahorroAnio  = Math.min(perdidaAnio * pctRecY, perdidaAnio);
-      const defEseAnio  = defAnual * defPct[y - 1];
-      const perdidaNeta = perdidaAnio - ahorroAnio;
-      acumPerdida += perdidaAnio;
-      acumAhorro  += ahorroAnio;
-      acumDEF     += defEseAnio;
-      filas.push({ y, perdidaAnio, ahorroAnio, defEseAnio, perdidaNeta, pctRecY });
-    }
-
-    // Punto de equilibrio: mes en que la pérdida acumulada supera el costo de intervenir
-    const costoInterv = (S.costoIntervManual > 0)
-      ? S.costoIntervManual
-      : costoIntervEstimado().total;
-    let cumPerdidaM = 0, breakEvenMes = null;
-    for(let m = 1; m <= 60; m++){
-      const yr = Math.floor((m - 1) / 12);
-      cumPerdidaM += (impactoBase * Math.pow(1 + ARRASTRE, yr)) / 12;
-      if(cumPerdidaM >= costoInterv && breakEvenMes === null) breakEvenMes = m;
-    }
-
-    // ── Tabla ──────────────────────────────────────────────────────────────
-    const tbody = document.getElementById('nointerv-tbody');
-    if(tbody){
-      const rowsHTML = filas.map(({y, perdidaAnio, ahorroAnio, defEseAnio, perdidaNeta, pctRecY}) => {
-        const totalAhorro = ahorroAnio + defEseAnio;
-        const totalColor  = totalAhorro >= perdidaAnio ? 'var(--green)' : 'var(--azul-l)';
-        return `<tr${y===1?' class="hl"':''}>
-          <td><strong>Año ${y}</strong></td>
-          <td class="mono" style="color:#B03A2E;font-weight:700">${fmt(perdidaAnio)}</td>
-          <td class="mono" style="color:#2563A8;font-weight:700">${fmt(ahorroAnio)}<span style="font-size:10px;color:var(--ink-s);margin-left:5px">(${(pctRecY*100).toFixed(0)}%)</span></td>
-          <td class="mono" style="font-weight:700;color:var(--green)">${fmt(defEseAnio)}<span style="font-size:10px;color:var(--ink-s);margin-left:5px">(${(defPct[y-1]*100).toFixed(0)}%)</span></td>
-          <td class="mono" style="font-weight:700;color:${totalColor}">${fmt(totalAhorro)}</td>
-        </tr>`;
-      }).join('');
-      const totalAhorroAcum = acumAhorro + acumDEF;
-      const totalAcumColor  = totalAhorroAcum >= acumPerdida ? 'var(--green)' : 'var(--azul-l)';
-      tbody.innerHTML = rowsHTML + `<tr style="border-top:2px solid var(--rule)">
-        <td><strong>Acum. 3 años</strong></td>
-        <td class="mono" style="color:#B03A2E;font-weight:700">${fmt(acumPerdida)}</td>
-        <td class="mono" style="color:#2563A8;font-weight:700">${fmt(acumAhorro)}</td>
-        <td class="mono" style="font-weight:700;color:var(--green)">${fmt(acumDEF)}</td>
-        <td class="mono" style="font-weight:700;color:${totalAcumColor}">${fmt(totalAhorroAcum)}</td>
-      </tr>`;
-    }
-
-    // ── KPI cards ──────────────────────────────────────────────────────────
-    const costoAcumEl  = document.getElementById('nointerv-costo-acum');
-    const ahorroAcumEl = document.getElementById('nointerv-ahorro-acum');
-    const pctCostoEl   = document.getElementById('nointerv-pct-costo');
-    const beEl         = document.getElementById('nointerv-breakeven');
-    const defAcumEl    = document.getElementById('nointerv-def-acum');
-    const defResEl     = document.getElementById('nointerv-def-residual');
-
-    if(costoAcumEl)  costoAcumEl.textContent  = fmt(acumPerdida);
-    if(ahorroAcumEl) ahorroAcumEl.textContent = fmt(acumAhorro);
-    if(pctCostoEl){
-      const pct = acumPerdida > 0 ? (acumAhorro / acumPerdida * 100) : 0;
-      pctCostoEl.textContent = pct.toFixed(0) + '%';
-      pctCostoEl.style.color = pct >= 40 ? 'var(--green)' : pct >= 20 ? 'var(--amber)' : 'var(--red)';
-    }
-    if(beEl){
-      beEl.textContent = breakEvenMes !== null
-        ? `Mes ${breakEvenMes}`
-        : `>${Math.round(costoInterv / (impactoBase / 12))}m`;
-    }
-    if(defAcumEl) defAcumEl.textContent = fmt(acumDEF);
-    if(defResEl && impacto1 > 0){
-      defResEl.textContent = `Impacto residual con IIE₁: ${fmt(impacto1)}/año`;
-    }
-
-    // Nota de fuente
-    const srcNota = document.getElementById('nointerv-src-nota');
-    if(srcNota){
-      const pctLabel   = (pctRec1 * 100).toFixed(0);
-      const defPctLbl  = (defAnual / impactoBase * 100).toFixed(0);
-      const pctSrc     = (totals && totals.moderado > 0)
-        ? `IFT/Impacto Predictor (${pctLabel}% año 1)`
-        : `estimado conservador (${pctLabel}% año 1)`;
-      const ciLabel    = S.costoIntervManual > 0
-        ? `costo manual ${fmt(costoInterv)}`
-        : `costo estimado ${fmt(costoInterv)} (${costoIntervEstimado().modelo})`;
-      srcNota.innerHTML =
-        `<strong>Pérdida sin intervenir:</strong> impacto año 1 con arrastre compuesto · ` +
-        `<strong>Ahorro recuperable:</strong> ${pctSrc} · +5pp/año · máx. ahorro = pérdida ese año · ` +
-        `<strong>DEF:</strong> g(IIE₀)−g(IIE₁) = ${defPctLbl}% reducción estructural · 70/90/100% progresivo · ` +
-        `<strong>Punto de equilibrio</strong> vs. ${ciLabel}.`;
-    }
-    niCard.style.display = 'block';
-  }
-
-  // ── v4 FIX: Guardar resultados en S.iftCache para que renderDash los use ──
-  // Esto asegura que el Argumento ejecutivo del tablero muestre exactamente
-  // los mismos números que el Predictor IFT con los inputs del usuario.
-  S.iftCache = {
-    total:       totals.moderado * factorTemporal,
-    conservador: totals.conservador * factorTemporal,
-    alto:        totals.alto * factorTemporal,
-    ahorroRot:   betaResultados.moderado.ahorroRot   * factorTemporal,
-    ahorroAus:   betaResultados.moderado.ahorroAus   * factorTemporal,
-    impactoProd: betaResultados.moderado.impactoProd * factorTemporal,
-    dIIE,
-    iie0,
-    iie1,
-    sector,
-    rotPct,
-    ausDias,
-    factorTemporal,
-    tramoRot,
-    tramoAus,
-    ts: Date.now()
-  };
-}
 
 /* ── calcVBE() — Módulos de Valor Expandido (Capa 2) ───────────────────────
    Spec: VBE_Especificacion_Tecnica_v1.0 Fase 1
    Bloque 1: GCO — Ganancia de Capacidad Operativa
    Bloque 2: β_rep dinámico — Marca Empleadora
-   Se llama desde _cascadeAll() después de calcIFT().
+   Se llama desde _cascadeAll(), después de calcEcon().
    Produce S.vbeCache, S.gcoCache, S.deltaCC, S.gco, S.brep_efect.
    El núcleo DE-EFICIENCIA (IIE→DEP→Impacto→IFT) no se modifica.
    ─────────────────────────────────────────────────────────────────────── */
@@ -5598,10 +4388,10 @@ function calcVBE(){
   const deltaCC = S.n * rotAnual * S.csal * (brep_efect - S.brep);
 
   // ── BLOQUE 1: GCO ─────────────────────────────────────────────────────
-  // iie1: usar iftCache si disponible; si no, leer del DOM; si no, S.iie + 0.15
+  // iie1: usar iftLegacyCache si disponible; si no, leer del DOM; si no, S.iie + 0.15
   let iie1;
-  if(S.iftCache && S.iftCache.iie1 != null){
-    iie1 = S.iftCache.iie1;
+  if(S.iftLegacyCache && S.iftLegacyCache.iie1 != null){
+    iie1 = S.iftLegacyCache.iie1;
   } else {
     const f1Dom = document.getElementById('ift-iie1');
     const f1Val = f1Dom ? parseFloat(f1Dom.value) : NaN;
@@ -5622,7 +4412,7 @@ function calcVBE(){
     alerts.push({id:'GCO_INACTIVO', nivel:'warn',
       msg:`GCO inactiva: IIE₁ proyectado (${iie1.toFixed(3)}) permanece en zona Defensivo. La intervención debe llevar el sistema al menos a zona Transicional (IIE₁ ≥ 0.40).`});
   }
-  const ift_mod = S.iftCache ? S.iftCache.total : 0;
+  const ift_mod = S.iftLegacyCache ? S.iftLegacyCache.total : 0;
   if(ift_mod > 0 && gco_alto > ift_mod){
     alerts.push({id:'GCO_SOBRE_IFT', nivel:'warn',
       msg:`GCO alto (${(gco_alto/1e6).toFixed(1)}M) supera IFT moderado (${(ift_mod/1e6).toFixed(1)}M). Considera usar el escenario conservador para el argumento.`});
@@ -5632,9 +4422,9 @@ function calcVBE(){
     alerts.push({id:'DCC_ALTO', nivel:'warn',
       msg:`ΔCC supera el 30% de la masa salarial asociada a rotación. Revisa si β_rep_base es adecuado para el sector.`});
   }
-  if(!S.iftCache){
+  if(!S.iftLegacyCache){
     alerts.push({id:'SIN_IFT', nivel:'info',
-      msg:`GCO usa estimación automática de IIE₁ (IIE + 0.15 = ${iie1.toFixed(3)}). Para mayor precisión, ejecuta el Predictor IFT primero.`});
+      msg:`GCO usa estimación automática de IIE₁ (IIE + 0.15 = ${iie1.toFixed(3)}). Para mayor precisión, ejecuta el Predictor IFT (legacy) primero.`});
   }
 
   // ── Escribir al estado S ──────────────────────────────────────────────
@@ -5711,7 +4501,7 @@ function renderVBE(){
 
   // GCO detalle
   setVal('vbe-iie1', gc.iie1.toFixed(3));
-  setVal('vbe-iie1-src', S.iftCache ? 'Fuente: Predictor IFT' : 'Estimación automática: IIE + 0.15');
+  setVal('vbe-iie1-src', S.iftLegacyCache ? 'Fuente: Predictor IFT (legacy)' : 'Estimación automática: IIE + 0.15');
   const phiDesc = gc.phi === 0 ? 'Zona Defensivo — GCO inactiva'
                 : gc.phi < 1   ? 'Zona Transicional — activación parcial (40%)'
                 :                'Zona Regulado — activación completa';
@@ -5735,8 +4525,8 @@ function renderVBE(){
   }
 
   // Argumento total
-  const iftRef = S.iftCache ? S.iftCache.total : 0;
-  setVal('vbe-ift-ref',      iftRef > 0 ? fmt(iftRef) : '— (ejecutar Predictor IFT)');
+  const iftRef = S.iftLegacyCache ? S.iftLegacyCache.total : 0;
+  setVal('vbe-ift-ref',      iftRef > 0 ? fmt(iftRef) : '— (ejecutar Predictor IFT (legacy))');
   setVal('vbe-dcc-ref',      fmt(v.deltaCC));
   setVal('vbe-gco-cons-ref', fmt(gc.conservador));
   const argEl = document.getElementById('vbe-argtotal');
