@@ -1266,7 +1266,7 @@ supa.auth.getSession().then(function(res){
     <div class="icard" style="margin-bottom:16px">
       <div class="icard-tag">PIIO v5 · Bayesiano · Frecuencia mensual · §15.2 Marco EFICIENCIA</div>
       <div class="icard-name">Cómo funciona la calibración bayesiana</div>
-      <div class="icard-desc">Los primeros meses el benchmark viene 100% del sector (ACRIP/ANDI). Conforme ingresas datos reales, el peso se transfiere progresivamente a tu empresa: a los 6 meses es 50/50, a los 12 meses es 100% real. La fórmula es <strong style="color:var(--dorado)">B_ef = w·B_real + (1−w)·B_sector</strong> donde <strong style="color:var(--dorado)">w = min(1, n/12)</strong>. Esto evita que un mes atípico distorsione todo el modelo.</div>
+      <div class="icard-desc">Los primeros meses el benchmark viene mayormente del sector (ACRIP/ANDI). Conforme ingresas datos reales, el peso se transfiere progresivamente a tu empresa — a los 3 meses es 50/50, y sigue acercándose a 100% real sin un tope fijo en el tiempo. La fórmula es <strong style="color:var(--dorado)">μ_post = (n·x̄ + K·μ₀) / (n + K)</strong>, el factor de credibilidad de Bühlmann (1967), con <strong style="color:var(--dorado)">K = 3</strong>. Esto evita que un mes atípico distorsione todo el modelo.</div>
       <div class="icard-meta">
         <span><strong>Frecuencia:</strong> Mensual</span>
         <span><strong>Calibración:</strong> Bayesiana (prior sectorial → datos reales)</span>
@@ -3137,7 +3137,9 @@ function setVal(id,v){const e=document.getElementById(id);if(e)e.textContent=v;}
    ══════════════════════════════════════════════════════════════════
    Arquitectura de 5 capas:
    1. Captura KPIs en unidades reales (rot%, aus días/emp/mes, prod%, acc%)
-   2. Motor bayesiano: B_ef = w·B_real + (1-w)·B_sector  w=min(1,n/12)
+   2. Motor bayesiano: B_ef = μ_post = (n·x̄+K·μ₀)/(n+K) — credibilidad de
+      Bühlmann (1967), K=PIIO_K0=3. w=bench.w=Z=n/(n+K) es solo indicador
+      de confianza para la UI, no un segundo blending (ver marco §12).
    3. Traducción económica: cada desviación → costo mensual concreto
    4. CTD mensual = C_rot + C_aus + C_prod + C_acc
    5. Salidas: DEP expandido, ROI proyectado, EBITDA, VBE calibrado
@@ -3234,9 +3236,17 @@ function piioCalcBayesMean(vals, prior){
 function piioGetBenchmarkEfectivo(){
   const prior = piioGetSectorBench();
   const n = PIIO.historial.length;
-  const w = Math.min(1, n / 12);
+  // Factor de credibilidad de Bühlmann (1967): Z = n/(n+K). Reemplaza al
+  // w=min(1,n/12) anterior — ver marco §12. Se usa SOLO como indicador de
+  // confianza para la UI (bench.w más abajo); no vuelve a mezclarse con el
+  // prior porque piioCalcBayesMean() ya hizo ese único blending.
+  const Z = n / (n + PIIO_K0);
 
-  /* Medias reales de la empresa */
+  /* Medias reales de la empresa — piioCalcBayesMean ya devuelve el valor
+     final (μ_post = Z·x̄ + (1−Z)·μ₀, misma fórmula que Z de arriba con
+     x̄ tomado sobre estos meses) — no se vuelve a mezclar con el prior
+     aquí (ese doble shrinkage era el bug: sobre-encogía el benchmark
+     hacia el sector más de lo que el propio mecanismo pretendía). */
   const rots  = PIIO.historial.map(e=>e.rot).filter(v=>v!=null&&!isNaN(v));
   const auss  = PIIO.historial.map(e=>e.aus).filter(v=>v!=null&&!isNaN(v));
   const prods = PIIO.historial.map(e=>e.prod).filter(v=>v!=null&&!isNaN(v));
@@ -3248,11 +3258,11 @@ function piioGetBenchmarkEfectivo(){
   const mu_acc  = piioCalcBayesMean(accs,  prior.acc);
 
   return {
-    rot:  w * mu_rot  + (1-w) * prior.rot,
-    aus:  w * mu_aus  + (1-w) * prior.aus,
-    prod: w * mu_prod + (1-w) * prior.prod,
-    acc:  w * mu_acc  + (1-w) * prior.acc,
-    w, n,
+    rot:  mu_rot,
+    aus:  mu_aus,
+    prod: mu_prod,
+    acc:  mu_acc,
+    w: Z, n,
     mu_rot, mu_aus, mu_prod, mu_acc,
     prior
   };
