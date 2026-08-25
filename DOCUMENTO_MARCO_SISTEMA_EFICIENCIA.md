@@ -1458,35 +1458,73 @@ riesgo) directamente, antes de que conteste.
 
 ---
 
-## 12. Mecanismo de calibración — motor bayesiano heredado de PIIO, generalizado
+## 12. Mecanismo de calibración — motor bayesiano heredado de PIIO, generalizado (revisado — migración 020)
 
-**Hallazgo (código actual, módulo PIIO):** ya existe un mecanismo de
-shrinkage bayesiano normal-normal conjugado, funcionando y persistiendo
-datos reales acumulados en el tiempo:
+**Hallazgo original (código PIIO, módulo del Workbook, `workbook.html`):**
+ya existía un mecanismo de shrinkage bayesiano normal-normal conjugado,
+funcionando y persistiendo datos reales acumulados en el tiempo — pero
+con un bug real: el resultado ya blendeado con el prior se volvía a
+blendear con el mismo prior una segunda vez, vía un `w=min(1,n/12)`
+aplicado *después* de que `μ_post` ya lo incorporaba. Corregido en
+`piioGetBenchmarkEfectivo()` (workbook.html) — nota aparte: verificado
+que ese código, aunque correcto ahora, vive en un clúster de paneles
+(`p-config`/`p-areas`/`p-piio`/`p-motor`/`p-longitudinal`) sin ningún
+punto de entrada vivo en la navegación actual del Workbook — el fix
+importa como referencia correcta para generalizar, no porque un
+consultor lo esté usando hoy.
+
+**Mecanismo corregido — un solo factor de credibilidad, no dos:**
 
 ```
-μ_post = (n·x̄ + k₀·μ₀) / (n + k₀)
-w = min(1, n/12)
+Z = n / (n + K)                    (factor de credibilidad de Bühlmann)
+μ_post = Z·x̄ + (1−Z)·μ₀             (idéntico a (n·x̄+K·μ₀)/(n+K))
 ```
 
-`μ₀` (prior) es el valor provisional documentado en este marco, `x̄` es el
-promedio de los datos reales acumulados, `n` es el número de meses de
-datos, `k₀=3` es la "equivalencia" del prior en observaciones, y `w` es el
-peso de "lo real" — crece con el tiempo hasta cubrir totalmente el prior a
-los 12 meses. Es, literalmente, el mecanismo de Fase 2 que este documento
-daba por asumido como "esperar al piloto" sin haberlo construido nunca.
+`μ₀` (prior) es el valor provisional documentado en este marco para cada
+parámetro, `x̄` es el promedio de las observaciones reales acumuladas,
+`n` es el número de observaciones, y `K` es la "equivalencia" del prior
+en observaciones — arranca en **K=3** (continuidad con el único valor
+que el sistema ya tenía en producción, `PIIO_K0`), documentado
+explícitamente como *prior sobre la propia fuerza de credibilidad*, no
+como un valor derivado de datos. A diferencia del `w=min(1,n/12)`
+anterior, `Z` no tiene un tope artificial a los 12 meses — se acerca a 1
+asintóticamente, y el punto de 50/50 lo determina `K`, no una fecha fija.
 
-**Decisión: generalizar el mecanismo a todos los parámetros pendientes de
-calibración de este documento**, no solo a los 4 KPIs operativos a los que
-PIIO lo aplicaba originalmente (rotación, ausentismo, productividad,
-accidentalidad):
+Método (no origen de los números): **Bühlmann, H. (1967), teoría de
+credibilidad actuarial** — `K = Varianza_dentro_de_grupo /
+Varianza_entre_grupos`, estimable por método de momentos una vez que
+existan ≥2 organizaciones con ≥2 observaciones cada una del mismo
+parámetro (función `recalcular_k_credibilidad()`, migración 020) — nunca
+se aplica automáticamente, es una sugerencia que requiere promoción
+manual explícita, mismo criterio que el cambio de `umbral_piso` 0.5→0.575
+(migración 013).
 
-- α, γ (sección 6.2)
+**`n` — ámbito global vs. local, decisión explícita (ambigüedad que
+existía en versiones anteriores de esta sección, ahora resuelta):** los
+parámetros de la lista de abajo son compartidos por *todas* las
+organizaciones del sistema — `n` para ellos cuenta **organización-
+períodos agregados de todos los clientes juntos** (régimen jerárquico de
+shrinkage entre muchos grupos con pocas observaciones cada uno — **Efron,
+B. & Morris, C. (1975), "Data Analysis Using Stein's Estimator and its
+Generalizations"**, el resultado que fundamenta por qué agrupar
+observaciones escasas de múltiples organizaciones es estadísticamente
+correcto, no solo conveniente). Esto es distinto de cómo PIIO usaba `n`
+originalmente (meses de *una* empresa, para calibrar el benchmark *de esa
+empresa*) — ese caso sigue siendo válido para lo que calibraba, pero no
+aplica sin adaptar a un parámetro compartido por el sistema. La tabla
+`calibracion_parametros` (migración 020) declara esta distinción en una
+columna (`ambito: 'global'|'local'`), no en un comentario que se pueda
+ignorar.
+
+**Decisión: generalizar el mecanismo a los parámetros pendientes de
+calibración de este documento**, todos de ámbito `global`:
+
+- α, γ (sección 6.2) — `gamma_iao` en `calibracion_parametros`
 - w_neg (sección 4, fórmula del IAO) — sin anclaje externo, prior
   arbitrario sujeto a calibración completa con el piloto.
 - **umbral_piso (sección 4, fórmula del IAO) — actualizado 2026-08-19 de
   0.5 a 0.575, informado por evidencia externa, no calibrado con datos
-  del piloto — revisar cuando haya 12 meses de datos reales.** Mismo
+  del piloto — revisar cuando haya suficientes datos reales.** Mismo
   tratamiento que el resto de esta lista (prior de partida para el
   mecanismo bayesiano de arriba, no un valor validado), pero a
   diferencia de w_neg/γ, este prior ya no es arbitrario: 0.575 es el
@@ -1506,15 +1544,48 @@ accidentalidad):
 - causa_margen (sección 4, desglose por par — clasificación 'mixta' de
   causa_dominante, migración 010 de Supabase; mismo tratamiento que
   w_neg/umbral_piso, no un valor validado)
-- Umbrales de severidad verde/ámbar/rojo (sección 6.4)
-- δ (sección 9.1), umbral rojo del IDA (sección 9.2)
-- λ, F_ext (sección 8.2, 7.3)
-- s_rot, s_aus, s_ret, s_sup (sección 8, 7.1)
-- TasaIneficacia_amenaza (sección 8.1)
+- λ (sección 8.2) — vida media 12 meses, anclado en literatura de cambio
+  organizacional.
+- s_rot, s_aus, s_ret (sección 8, 7.1) — provisional sin calibrar, s=1
+  los tres.
+- δ (sección 9.1) — **GAP: el marco da la fórmula pero nunca documenta un
+  valor numérico**, a diferencia de γ. Fila sembrada en
+  `calibracion_parametros` con `mu0 NULL` — inactiva hasta que Luis
+  decida un valor, no se infiere sin esa decisión.
+- s_sup (sección 7.1) — **GAP: fórmula de Costo_supervisión documentada
+  pero no implementada en ningún migration SQL**, a diferencia de
+  s_rot/s_aus/s_ret. Fila igualmente sembrada con `mu0 NULL`.
 
-Cada parámetro arranca con su valor provisional documentado en este marco
-como prior (`μ₀`), y se actualiza automáticamente conforme se acumulan
-meses de datos reales — con el mismo peso creciente `w=min(1,n/12)`.
+**Fuera de este mecanismo, con motivo explícito (no un olvido):**
+- **F_ext (sección 7.3)** — no es un escalar poblacional único: es juicio
+  cualitativo del consultor *por diagnóstico*, sin un "valor verdadero"
+  del sistema que converja con más datos. No se siembra como fila.
+- **Umbrales de severidad verde/ámbar/rojo (sección 6.4) y umbral rojo
+  del IDA (sección 9.2)** — ya tienen su propio mecanismo de 2 fases
+  (mediana+MAD → luego ROC/Youden), estructuralmente distinto de
+  Bühlmann-shrinkage-de-una-media (son cortes sobre una distribución, no
+  una media que se encoge hacia un prior). Aplicarles este mecanismo
+  sería forzar la herramienta equivocada sobre algo que ya tiene la suya.
+- **TasaIneficacia_amenaza (sección 8.1)** — sin `Costo_innovación_perdida`
+  implementado y sin vía de captura razonable para un dato de resultado
+  real, no se siembra como fila inerte que nadie va a poder alimentar.
+  Se agrega el día que exista una decisión real sobre cómo observarla.
+
+**Infraestructura (migración 020):** 2 tablas nuevas —
+`calibracion_parametros` (caché del posterior actual, sembrada con las 10
+filas de arriba) y `calibracion_observaciones` (formato largo, una fila
+por organización-período-parámetro, alimenta el recálculo automático de
+`calibracion_parametros` vía trigger). **Ninguna fila tiene todavía
+observaciones reales — la migración 020 construye el mecanismo, no lo
+alimenta.** Dos vías de captura están diseñadas pero pendientes de
+implementar como proyectos aparte: observación periódica de
+`s_rot`/`s_aus`/`s_ret` desde actualizaciones de Ficha financiera, y fit
+de `λ` contra trayectorias reales de IAO — este último bloqueado hasta
+resolver que `IAO_target` (usado por `simular_ift()`, migración 019) no
+es un dato histórico persistido, se recalcula en caliente cada vez desde
+el IAO más reciente, y no sirve como ancla para un fit real sin una
+decisión de producto adicional (ver plan de diseño de la migración 020
+para el detalle completo, incluidas las alternativas descartadas).
 
 **Lo que NO se hereda de PIIO — se retira, no se adapta:** la traducción
 específica KPI→costo (`piioKpiToCost()`, la variable CTD). Mantener dos
