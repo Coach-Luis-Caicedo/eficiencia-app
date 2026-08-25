@@ -483,3 +483,202 @@ urgencia — **actualizado**, el punto 1 original quedó retractado:
 Ninguno de estos puntos es una razón para descartar 20%/40%/60% — son
 huecos de especificación que existían antes de este ejercicio y que este
 ejercicio simplemente hizo visibles con números concretos.
+
+---
+
+## 6. F_ext — investigación de moderadores cuantificables, antes de fijar F_ext=1 por descarte
+
+Fecha: 2026-08-22. `DOCUMENTO_MARCO_SISTEMA_EFICIENCIA.md` (sección 8.3) define
+`F_ext ≥ 1` (ajusta la vida media efectiva del IFT: `12 × F_ext` meses),
+evaluado hoy **solo cualitativamente por el consultor**, sin ningún dato que
+pese los 5 factores ya listados (profundidad del cambio/IAO_0 crónico, causa
+sistémica no resuelta, rotación estructural alta del sector,
+corresponsabilidad no genuina del Directivo, rotación del liderazgo que
+impulsa el cambio). Antes de tratar "sin datos, F_ext=1 por descarte" como
+posición por defecto, se investigó explícitamente si existe evidencia
+cuantificable real en la misma literatura ya usada para calibrar `λ`
+(Solinger et al. 2021, McKinsey OHI, Kotter, Prosci) que permitiera construir
+2-3 categorías de `F_ext`, con el mismo criterio que los 3 niveles de
+`IAO_target`.
+
+**Mismo criterio de rigor que el resto del repo:** solo cuenta como evidencia
+usable una cifra con fuente primaria citable (paper con DOI, reporte oficial
+de la consultora) — no un blog de marketing sin atribución. Fuente bloqueada
+(403, PDF ilegible, timeout) se documenta como tal, no se extrapola.
+
+### 6.1 Solinger, Joireman, Vantilborgh & Balliet (2021) — la fuente más fuerte, prueba directa y resultado nulo
+
+DOI `10.1002/job.2523` (bloqueado, HTTP 403 tanto en Wiley como en
+ResearchGate). El PDF completo se localizó en el sitio del laboratorio de uno
+de los autores (`amsterdamcooperationlab.com`, también bloqueado a WebFetch)
+y se descargó vía `curl` con user-agent de navegador (HTTP 200, 3.09 MB),
+convertido a texto con `pdftotext` — lectura palabra por palabra de la fuente
+primaria, no un resumen de terceros.
+
+El paper codifica exactamente 6 características de estudio (sección 3.3):
+tipo de cambio (cost/people/combo), actitudes laborales, apoyo percibido,
+**intervalo de tiempo**, atrición, antigüedad/género. **No codifica tamaño de
+organización, sector/industria ni compromiso de liderazgo como variables** —
+confirmado por búsqueda exhaustiva sobre el texto completo, cero menciones de
+"firm size", "company size", "industry" como moderador.
+
+**Hallazgo directo — el más relevante de toda la investigación:**
+
+> *"Time interval did not significantly impact change in job attitudes, and
+> we controlled for time interval in each analysis. […] time does not heal
+> wounds after cost-oriented interventions."*
+
+> *"Additional analyses indicated that time interval did not moderate any of
+> the estimated relationships."*
+
+Análisis de sensibilidad explícito, probando si el intervalo de tiempo
+interactúa con el tipo de intervención para predecir cambio sostenido
+(T1→T3): **no significativo** — `likelihood-ratio test (df=2) = 1.88, p=.39`.
+
+**Por qué esto pesa más que un simple "no se encontró nada":** el propio
+meta-análisis que ya se usa para calibrar `λ` **probó activamente** si la
+duración del intervalo modera la magnitud del efecto, con N=573 tamaños de
+efecto — el poder estadístico más alto de cualquier fuente usada en este
+proyecto — y el resultado fue negativo, no ausente. No es información faltante:
+es un hallazgo negativo confirmado.
+
+### 6.2 McKinsey OHI — sin curva de velocidad por tamaño, pero con un hallazgo negativo nuevo y cuantificado
+
+La URL primaria del reporte OHI y su PDF fallaron (timeout 60s en WebFetch;
+`curl` directo devolvió HTTP 000, conexión rechazada, sin código de error
+legible). Lo que sigue viene de fragmentos consistentes en múltiples búsquedas
+independientes — **no verificado palabra por palabra contra el PDF primario**,
+misma limitación ya reconocida en el repo para otras fuentes bloqueadas.
+
+Lo ya conocido (sección 3, `INVESTIGACION_VALIDACION_IFT.md`) no incluye
+ninguna variable moderadora de velocidad — solo "6-12 meses" y "5-11 puntos de
+mejora según las prácticas de gestión abordadas" (profundidad, no tamaño).
+
+**Hallazgo nuevo, no citado antes en ningún documento del repo — "The numbers
+behind successful transformations" (McKinsey Quarterly, análisis de 82
+empresas públicas, transformaciones a escala completa con 18 meses de
+historial observable, sobre una base de 200+ transformaciones):**
+
+- Curva de valor realizado por empresas de cuartil superior: **28% a los 3
+  meses, 57% a los 6, 66% a los 9, 74% a los 12**.
+- **Responde de forma directa la pregunta de si el tamaño de empresa modera la
+  velocidad/impacto:** *"no direct correlation between the size of the
+  company and the impact of its transformation program"*, en una muestra de
+  empresas de **$2.000M a $28.000M de ingresos anuales**. Es un hallazgo
+  cuantificado con N=82 — pero el rango de tamaño (grandes/multinacionales) es
+  muy distinto al de los clientes probables de EFICIENCIA, así que
+  extrapolarlo a pymes es una extensión débil, no una confirmación directa.
+- "Alcance amplio" (enterprise-wide vs. por unidad de negocio) correlaciona
+  con éxito financiero, pero ninguna fuente accedida reporta una curva de
+  velocidad comparativa alcance-amplio vs. alcance-estrecho.
+
+**Veredicto de este frente:** un hallazgo negativo cuantificado sobre tamaño
+(factor tangencial a los 5 del marco, pero es la variable que Luis pidió
+revisar explícitamente) y ningún hallazgo positivo sobre ninguna variable que
+acelere o retrase la velocidad.
+
+### 6.3 Kotter — sin datos cuantitativos propios
+
+Fuente primaria (`kotterinc.com/methodology/8-steps/`) accedida sin bloqueo.
+**No contiene ninguna afirmación cuantitativa de duración** — ni por tamaño,
+ni por profundidad de cambio, ni por compromiso de liderazgo. Las cifras que
+circulan ("Pasos 1-7: 12-36 meses, Paso 8: 3-5 años"; "transformación
+enfocada: 6-12m, empresarial: 12-24+m") provienen de blogs de consultoría
+terceros (umbrex.com, whatfix.com) **sin atribución a un pasaje específico**
+de los libros de Kotter (*Leading Change*, *Accelerate*) — no pasan el
+criterio de rigor de este repo.
+
+**Veredicto:** hallazgo negativo limpio. Consistente con que el marco ya
+trata "corresponsabilidad del Directivo" (factor 4 de la sección 8.3) como
+juicio cualitativo, no numérico — no había una cifra de Kotter que se estuviera
+dejando de usar.
+
+### 6.4 Prosci — evidencia cuantificada fuerte, pero de un constructo distinto (éxito, no plazo)
+
+Prosci Best Practices in Change Management (12ª edición, ~25 años de datos,
+N=10.800+ profesionales) y su blog oficial reportan, de forma consistente
+entre publicaciones:
+
+- Sponsor efectivo → **79% de probabilidad de cumplir objetivos**, vs. **27%**
+  con sponsor muy inefectivo.
+- **25%→85%** de probabilidad de lograr los beneficios de negocio con sponsor
+  ejecutivo efectivo (misma línea de investigación, cifra distinta).
+- Efectividad de gestión del cambio: **33%→72%** cuando hay acceso "más que
+  adecuado" al sponsor.
+- `empower.prosci.com` anuncia segmentación por industria/tamaño/ingresos en
+  sus dashboards — **contenido específico detrás de su herramienta paga, no
+  accesible en esta búsqueda**; no se pudo extraer ninguna cifra de duración
+  por tamaño de esa plataforma.
+
+**Por qué esto no resuelve F_ext, aunque mapea directo al factor 4 del
+marco:** todas estas cifras miden **probabilidad de éxito/cumplir
+objetivos**, no **duración o velocidad**. Hay evidencia real y fuerte de que
+el compromiso del sponsor importa — pero convertirla en una categoría de
+`F_ext` (un multiplicador de *tiempo*) requeriría inventar una conversión
+entre "probabilidad de éxito" y "meses de retraso" que ninguna fuente
+proporciona — exactamente el tipo de salto no fundamentado que el marco ya
+evita en otros parámetros (`w_neg`, `δ`, sección "supuestos pendientes",
+línea ~1511 del marco).
+
+### 6.5 Búsqueda abierta — sin meta-análisis dedicado a duración del cambio
+
+Búsquedas adicionales: "predictors of organizational change duration",
+"moderators of change management timeline", severidad de declive corporativo
+como predictor de duración de recuperación (turnaround), rotación/industria
+como moderador de velocidad de cambio cultural.
+
+**Resultado:** ningún meta-análisis con foco específico en duración/plazo. La
+literatura de *turnaround corporativo* trata la severidad del declive como
+variable de contingencia para **elección de estrategia** (más retrenchment en
+casos severos) e **intensidad**, no para una cifra de "% más de tiempo". La
+literatura de rotación-desempeño confirma industria/cultura como moderadores
+documentados de la relación turnover-desempeño, pero sin ninguna cifra de
+plazo de intervención asociada.
+
+### 6.6 Veredicto — F_ext=1/mecanismo cualitativo queda como decisión informada por ausencia real de evidencia
+
+**No hay evidencia cuantificable real que permita construir 2-3 categorías de
+`F_ext`** con el mismo criterio que los 3 niveles de `IAO_target`. No es una
+conclusión por falta de búsqueda — es el resultado de cuatro frentes dirigidos
+contra las mismas fuentes ya validadas para `λ`, más una quinta búsqueda
+abierta:
+
+1. **Solinger et al. — la fuente de mayor N y rigor disponible en todo el
+   proyecto — probó explícitamente si el tiempo modera el efecto, y dio no
+   significativo** (N=573 tamaños de efecto, LR test p=.39). El hallazgo más
+   fuerte de esta ronda: no "no se encontró nada", sino "se probó y no hay
+   nada".
+2. **McKinsey** aporta un hallazgo negativo cuantificado nuevo (tamaño de
+   empresa no correlaciona con impacto de transformación, N=82) — responde en
+   sentido negativo la pregunta específica de Luis sobre tamaño, aunque en una
+   muestra de empresas mucho más grandes que las probables clientas de
+   EFICIENCIA.
+3. **Kotter** no tiene ninguna cifra propia citable, solo paráfrasis de
+   terceros sin atribución.
+4. **Prosci** tiene datos cuantificados fuertes, pero miden **probabilidad de
+   éxito**, no **plazo** — constructo distinto, no convertible en `F_ext` sin
+   inventar una conversión.
+5. La **búsqueda abierta** no encontró ningún meta-análisis dedicado a
+   duración/plazo de cambio organizacional.
+
+**Distinto del hallazgo de mecanismo ya documentado (sección 3.2,
+`INVESTIGACION_VALIDACION_IFT.md`):** aquel hallazgo (Solinger et al.,
+intervención cost-oriented + people-oriented simultánea anula el efecto) es
+sobre **si el proceso avanza o no**; este es sobre **qué tan rápido avanza
+cuando sí avanza**. Son preguntas distintas, con resultados distintos — el
+primero sí encontró algo accionable (una categoría cualitativa nueva sugerida
+para la sección 8.3), este segundo no.
+
+**Conclusión, con el mismo nivel de honestidad que el resto de este
+documento:** `F_ext` permanece como el mecanismo cualitativo ya descrito en el
+marco (juicio experto documentado por el consultor, sin ponderación numérica
+por factor) — **no** porque no se buscó evidencia para ponderarlo, sino
+porque la fuente más rigurosa disponible (Solinger et al., N=573) probó
+activamente la hipótesis más cercana a `F_ext` (tiempo como moderador de la
+magnitud del cambio) y no encontró nada, y ninguna otra fuente ya validada
+para `λ` ofrece una cifra de plazo por factor que no requiera inventar una
+conversión entre constructos distintos (éxito vs. velocidad). Vale la pena
+que `DOCUMENTO_MARCO_SISTEMA_EFICIENCIA.md` (sección 8.3) registre que esto
+**fue investigado y no es una omisión**, citando Solinger et al. (2021) como
+el intento más serio de encontrar esa evidencia, con resultado nulo — cambio
+de documentación, no de código; no implementado en este ejercicio.
