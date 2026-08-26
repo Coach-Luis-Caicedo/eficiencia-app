@@ -1084,7 +1084,8 @@ supa.auth.getSession().then(function(res){
     <div id="dr-status" style="font-size:13px;color:var(--dk-text-2);margin-bottom:16px"></div>
 
     <div id="dr-ficha" class="reg-ficha"></div>
-    <button type="button" class="btn btn-ghost btn-sm" onclick="mostrarFichaFinanciera()" style="margin:-20px 0 20px">⚙ Ficha financiera</button>
+    <button type="button" class="btn btn-ghost btn-sm" onclick="mostrarFichaFinanciera()" style="margin:-20px 8px 20px 0">⚙ Ficha financiera</button>
+    <button type="button" class="btn btn-ghost btn-sm" onclick="mostrarSeguimientoMensual()" style="margin:-20px 0 20px">📈 Seguimiento mensual</button>
 
     <div class="reg-columns">
       <div class="reg-left">
@@ -1096,6 +1097,7 @@ supa.auth.getSession().then(function(res){
           <button type="button" class="reg-tab-btn" onclick="_showRegTab('recom')">Recomendaciones</button>
           <button type="button" class="reg-tab-btn" onclick="_showRegTab('cff')">CFF</button>
           <button type="button" class="reg-tab-btn" onclick="_showRegTab('ift')">IFT</button>
+          <button type="button" class="reg-tab-btn" onclick="_showRegTab('historial')">Historial</button>
         </div>
 
         <div id="reg-variables" class="reg-tabpanel active">
@@ -1164,6 +1166,31 @@ supa.auth.getSession().then(function(res){
         <div id="reg-ift" class="reg-tabpanel">
           <div id="ift-status" style="font-size:13px;color:var(--dk-text-2);margin-bottom:16px"></div>
           <div id="ift-content"></div>
+        </div>
+
+        <!-- Historial — 4 secciones (plan, sección 2.6). Sección D-Parte 1
+             diferida al Anexo (Disparo 2 de migración 022 vuelve tautológica
+             la comparación "asumido vs. real" apenas se recalcula el mismo
+             semestre — confirmado con Luis 2026-08-26, opción 1: diferir,
+             no reabrir 022/023). Solo queda una nota breve en su lugar. -->
+        <div id="reg-historial" class="reg-tabpanel">
+          <div id="historial-status" style="font-size:13px;color:var(--dk-text-2);margin-bottom:16px"></div>
+
+          <div class="card-title" style="margin-bottom:12px">Tendencia IAO / CFF real</div>
+          <div id="historial-seccion-a" style="margin-bottom:28px"></div>
+
+          <div class="card-title" style="margin-bottom:12px">Tendencia de los 8 KPIs</div>
+          <div id="historial-seccion-b" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px;margin-bottom:28px"></div>
+
+          <div class="card-title" style="margin-bottom:12px">SDMO</div>
+          <div id="historial-sdmo-card"></div>
+          <details style="margin-top:12px;margin-bottom:28px">
+            <summary style="cursor:pointer;font-size:12px;color:var(--dk-text-2);font-weight:700;text-transform:uppercase;letter-spacing:.06em">Ver detalle técnico</summary>
+            <div id="historial-sdmo-detalle" style="margin-top:12px;font-size:12px;font-family:'DM Mono',monospace;color:var(--dk-text-2);line-height:1.8"></div>
+          </details>
+
+          <div class="card-title" style="margin-bottom:12px">¿El modelo acertó?</div>
+          <div style="font-size:13px;color:var(--dk-text-2);font-style:italic">Comparación "el modelo acertó" — pendiente de más historial real (diferido al Anexo del plan de diseño).</div>
         </div>
       </div>
 
@@ -1349,6 +1376,35 @@ supa.auth.getSession().then(function(res){
 </div>
 
 
+<!-- ═══ SEGUIMIENTO MENSUAL — captura de los 8 KPIs (calibracion_parametros
+     ambito='local', migración 022). Persistencia real vía
+     calibracion_observaciones — periodo 'YYYY-MM' (formato nuevo,
+     coexiste con el semestral que ya usan otros parametros, plan sección
+     2.3). 5 alimentan el CFF (espejo de Ficha financiera, con COALESCE en
+     vez de sobrescribir), 3 son informativos. ═══ -->
+<div id="p-seguimiento-mensual" class="panel dark-panel">
+  <div class="panel-inner">
+    <div class="ph">
+      <div class="ph-tag">Resultado · Seguimiento</div>
+      <div class="ph-title">Seguimiento mensual</div>
+      <div class="ph-desc">Captura mensual de los KPIs que alimentan el CFF y complementan el diagnóstico — persistencia real, mes a mes, no una fotografía única.</div>
+      <button class="btn btn-ghost btn-sm" onclick="show('p-dash-resultado')" style="margin-top:10px">← Volver al Tablero</button>
+    </div>
+
+    <div id="sm-status" style="font-size:13px;color:var(--dk-text-2);margin-bottom:16px"></div>
+
+    <div style="background:#0a1420;border-radius:10px;padding:14px 16px;margin-bottom:20px;max-width:220px">
+      <label style="font-size:11px;color:#8a94a6;display:block;margin-bottom:6px">Período</label>
+      <input type="month" id="sm-periodo" style="width:100%;background:none;border:none;color:#f5f0e8;font-size:16px;font-weight:500;padding:0;outline:none;font-family:inherit">
+    </div>
+
+    <div id="sm-campos"></div>
+
+    <div class="btn-row" style="margin-top:6px">
+      <button id="sm-guardar-btn" onclick="guardarSeguimientoMensual()" style="background:#5a95e0;border:none;border-radius:8px;padding:10px 18px;color:#0a1420;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit">Guardar mes</button>
+    </div>
+  </div>
+</div>
 
 
 </div><!-- /main -->
@@ -2669,6 +2725,7 @@ function _showRegTab(tab){
   if(tab === 'area'){ _initPorArea(); cargarPorArea(); }
   if(tab === 'cff'){ cargarCFF(); }
   if(tab === 'ift'){ cargarIFT(); }
+  if(tab === 'historial'){ cargarHistorial(); }
 }
 
 function cargarDiagnostico(){
@@ -2711,8 +2768,16 @@ function renderDiagnostico(){
 
 // ── tab SDMO (Tablero Ejecutivo) — tarjeta IDA/tendencia, contenido
 // migrado desde el panel independiente #p-sdmo (retirado) ──────────────
-function _renderSDMONuevo(d){
-  var card = document.getElementById('sdmo-card');
+// cardId/detalleId parametrizados (default = IDs originales del tab SDMO)
+// para poder llamarla una 2da vez apuntando a #historial-sdmo-card/
+// -detalle sin duplicar lógica (plan, Sección C de Historial — "reusar
+// el cálculo que ya existe, no reconstruirlo"). Un solo llamador
+// existente (renderDiagnostico()) sigue funcionando sin cambios, usa
+// los defaults.
+function _renderSDMONuevo(d, cardId, detalleId){
+  cardId = cardId || 'sdmo-card';
+  detalleId = detalleId || 'sdmo-detalle';
+  var card = document.getElementById(cardId);
   if(!card) return;
   var s = d.sdmo || {};
   if(!s.n_suficiente){
@@ -2732,7 +2797,7 @@ function _renderSDMONuevo(d){
       tendTxt + '</div>';
   }
 
-  var det = document.getElementById('sdmo-detalle');
+  var det = document.getElementById(detalleId);
   if(det){
     det.innerHTML =
       'n = ' + (s.n || 0) + ' · IDA promedio = ' + (s.ida_prom != null ? s.ida_prom : '—') +
@@ -3293,6 +3358,172 @@ function guardarFichaFinanciera(){
   });
 }
 
+// ══════════════════════════════════════════════════════════════════
+// Seguimiento mensual — captura de los 8 KPIs (migración 022). Los 5 que
+// alimentan el CFF (orgCol != null) se precargan desde organizaciones,
+// igual que Ficha financiera — es el mismo valor vigente, no una copia
+// separada. Los 3 informativos (orgCol = null) se precargan desde
+// historial_seguimiento_mensual().actual (migración 023) porque no
+// tienen columna propia en organizaciones (plan, sección 2.2).
+// ══════════════════════════════════════════════════════════════════
+var _SM_CAMPOS = [
+  { parametro: 'salario_promedio_real', id: 'sm-salario', orgCol: 'salario_promedio', tam: 20,
+    label: 'Salario promedio', unidad: '(costo total mensual, COP)', step: 100000, min: 0, placeholder: 'Ej. 3500000' },
+  { parametro: 'tasa_rotacion_base_real', id: 'sm-rotacion', orgCol: 'tasa_rotacion_base', tam: 20,
+    label: 'Tasa de rotación', unidad: '(%)', step: 0.5, min: 0, max: 100, placeholder: 'Ej. 22' },
+  { parametro: 'tasa_ausentismo_real', id: 'sm-ausencia', orgCol: 'dias_ausencia_base', tam: 20,
+    label: 'Días de ausencia base', unidad: '(días/año)', step: 0.5, min: 0, placeholder: 'Ej. 8', avisoAnual: true },
+  { parametro: 'costo_operativo_total_real', id: 'sm-costo-operativo', orgCol: 'costo_operativo_total', tam: 20,
+    label: 'Costo operativo total', unidad: '(COP/año)', step: 1000000, min: 0, placeholder: 'Ej. 500000000', avisoAnual: true },
+  { parametro: 'tasa_retrabajo_observada', id: 'sm-retrabajo', orgCol: 'tasa_retrabajo_real', tam: 20,
+    label: 'Tasa de retrabajo', unidad: '(%)', step: 0.5, min: 0, max: 100, placeholder: 'Ej. 8' },
+  { parametro: 'productividad', id: 'sm-productividad', orgCol: null, tam: 20,
+    label: 'Productividad', unidad: '(unidad libre — ventas/empleado, unidades/hora, la que ya uses)', step: 0.01, placeholder: 'Ej. 4.2' },
+  { parametro: 'accidentalidad', id: 'sm-accidentalidad', orgCol: null, tam: 20,
+    label: 'Accidentalidad', unidad: '(Art. 30, Res. 0312/2019 — accidentes/trabajadores × 100)', step: 0.01, min: 0, placeholder: 'Ej. 1.5' },
+  { parametro: 'presentismo', id: 'sm-presentismo', orgCol: null, tam: 20,
+    label: 'Presentismo (presencia vacía)', unidad: '', step: 1, min: 1, max: 5, placeholder: 'Ej. 2', cualitativo: true }
+];
+
+function _smCampoCardHtml(campo){
+  var cardId = campo.id + '-card';
+  var ayudaId = campo.id + '-ayuda';
+  return '<div id="' + cardId + '" style="background:#0a1420;border-radius:10px;padding:14px 16px;border:1px dashed #26344a">' +
+    '<label style="font-size:11px;color:#8a94a6;display:block;margin-bottom:6px">' + campo.label + ' <span style="opacity:.7">' + (campo.unidad || '') + '</span></label>' +
+    '<input type="number" id="' + campo.id + '"' +
+      (campo.step != null ? ' step="' + campo.step + '"' : '') +
+      (campo.min != null ? ' min="' + campo.min + '"' : '') +
+      (campo.max != null ? ' max="' + campo.max + '"' : '') +
+      ' placeholder="' + (campo.placeholder || '') + '"' +
+      ' style="width:100%;background:none;border:none;color:#8a94a6;font-size:' + campo.tam + 'px;padding:0;outline:none;font-family:inherit"' +
+      ' oninput="_ffEstiloFinanciero(\'' + campo.id + '\',\'' + cardId + '\',' + campo.tam + ')">' +
+    '<div id="' + ayudaId + '" style="margin-top:8px"></div>' +
+  '</div>';
+}
+
+// Combina la tarjeta de campo con su sparkline (mismo componente que
+// Historial-Sección B) — si el KPI no está disponible todavía, el campo
+// ocupa el ancho completo, sin dejar un hueco ni un mensaje (pedido
+// explícito de Luis, 2026-08-26).
+function _smFilaHtml(campo, kpi){
+  var campoHtml = _smCampoCardHtml(campo);
+  var sparkHtml = _tarjetaSparklineHtml(campo.parametro, kpi, campo.id + '-spark');
+  if(sparkHtml) return '<div style="display:grid;grid-template-columns:2fr 1fr;gap:14px;margin-bottom:14px">' + campoHtml + sparkHtml + '</div>';
+  return '<div style="margin-bottom:14px">' + campoHtml + '</div>';
+}
+
+function _renderSeguimientoMensualCampos(orgRow, kpis){
+  var wrap = document.getElementById('sm-campos');
+  if(!wrap) return;
+  kpis = kpis || {};
+  wrap.innerHTML = _SM_CAMPOS.map(function(campo){ return _smFilaHtml(campo, kpis[campo.parametro]); }).join('');
+
+  // Ayuda fija — avisoAnual (rojo, siempre visible, no depende de si el
+  // campo está lleno) y cualitativo (atenuado) son textos permanentes,
+  // a diferencia de _ffRenderFinanciero (que alterna neutro/alerta según
+  // si el campo tiene valor) — por eso se escriben una sola vez acá, no
+  // dentro de _smCampoCardHtml ni en cada oninput.
+  _SM_CAMPOS.forEach(function(campo){
+    var ayuda = document.getElementById(campo.id + '-ayuda');
+    if(!ayuda) return;
+    if(campo.avisoAnual){
+      ayuda.innerHTML = '<div style="font-size:10px;color:#f2542d;line-height:1.4">⚠ Reestimación anualizada — actualiza tu proyección del año completo, no el conteo de este mes solo.</div>';
+    } else if(campo.cualitativo){
+      ayuda.innerHTML = '<div style="font-size:10px;color:#8a94a6;font-style:italic;line-height:1.4">Estimación cualitativa del consultor, no medición dura. 1 = presencia genuina (la gente que está, rinde) · 5 = mucha presencia vacía/desconexión.</div>';
+    }
+  });
+
+  // Precarga — los 5 con orgCol leen organizaciones (valor vigente real,
+  // mismo que Ficha financiera); los 3 informativos leen .actual de
+  // historial_seguimiento_mensual() (sin reconvertir unidad — se guardan
+  // crudos, migración 022).
+  _SM_CAMPOS.forEach(function(campo){
+    var el = document.getElementById(campo.id);
+    if(!el) return;
+    var valor = campo.orgCol ? orgRow[campo.orgCol] : (kpis[campo.parametro] && kpis[campo.parametro].actual);
+    el.value = (valor != null) ? valor : '';
+    _ffEstiloFinanciero(campo.id, campo.id + '-card', campo.tam);
+  });
+
+  // Sparklines — después de inyectar el HTML (los <canvas> ya existen).
+  _SM_CAMPOS.forEach(function(campo){
+    var kpi = kpis[campo.parametro];
+    if(kpi && kpi.disponible){
+      _dibujarSparkline(campo.id + '-spark', 'sm-' + campo.parametro, kpi.serie, '#5a95e0', _HIST_KPI_META[campo.parametro].fmt);
+    }
+  });
+}
+
+function mostrarSeguimientoMensual(){
+  show('p-seguimiento-mensual');
+  cargarSeguimientoMensual();
+}
+
+function cargarSeguimientoMensual(){
+  if(!S_ORG.id) return;
+  var status = document.getElementById('sm-status');
+  status.textContent = 'Cargando…';
+
+  var periodoEl = document.getElementById('sm-periodo');
+  if(!periodoEl.value){
+    var hoy = new Date();
+    periodoEl.value = hoy.getFullYear() + '-' + String(hoy.getMonth() + 1).padStart(2, '0');
+  }
+
+  Promise.all([
+    supa.from('organizaciones').select('salario_promedio,tasa_rotacion_base,dias_ausencia_base,costo_operativo_total,tasa_retrabajo_real').eq('id', S_ORG.id).single(),
+    supa.rpc('historial_seguimiento_mensual', { p_organizacion_id: S_ORG.id })
+  ]).then(function(resArr){
+    var resOrg = resArr[0], resKpis = resArr[1];
+    if(resOrg.error){ status.textContent = 'Error al cargar: ' + resOrg.error.message; return; }
+    if(resKpis.error){ status.textContent = 'Error al cargar historial: ' + resKpis.error.message; return; }
+    status.textContent = '';
+    _renderSeguimientoMensualCampos(resOrg.data || {}, resKpis.data || {});
+  }).catch(function(err){
+    status.textContent = 'Error de conexión: ' + (err && err.message || err);
+  });
+}
+
+function guardarSeguimientoMensual(){
+  if(!S_ORG.id) return;
+  var status = document.getElementById('sm-status');
+  var btn = document.getElementById('sm-guardar-btn');
+  var periodo = document.getElementById('sm-periodo').value; // 'YYYY-MM' nativo del input type=month
+  if(!periodo){ status.textContent = 'Selecciona un período.'; return; }
+
+  var num = function(id){ var v = document.getElementById(id).value; return v === '' ? null : parseFloat(v); };
+
+  status.textContent = '';
+  btn.disabled = true; btn.textContent = 'Guardando…';
+
+  supa.rpc('guardar_seguimiento_mensual', {
+    p_organizacion_id: S_ORG.id,
+    p_periodo: periodo,
+    p_salario_promedio: num('sm-salario'),
+    p_tasa_rotacion_base: num('sm-rotacion'),
+    p_dias_ausencia_base: num('sm-ausencia'),
+    p_costo_operativo_total: num('sm-costo-operativo'),
+    p_tasa_retrabajo_real: num('sm-retrabajo'),
+    p_productividad: num('sm-productividad'),
+    p_accidentalidad: num('sm-accidentalidad'),
+    p_presentismo: num('sm-presentismo')
+  }).then(function(res){
+    btn.disabled = false; btn.textContent = 'Guardar mes';
+    if(res.error){ status.textContent = 'Error al guardar: ' + res.error.message; return; }
+    // Refleja si el Disparo 2 (migración 022) realmente recalculó el CFF
+    // del semestre sin error — no solo si lo intentó (ver fix del 2026-08-26).
+    var extra = '';
+    if(res.data && res.data.periodo_semestral_recalculo_intentado){
+      extra = res.data.periodo_semestral_recalculo_ok ? ' CFF del semestre recalculado.' : ' Aviso: el recálculo del CFF del semestre falló — revisar.';
+    }
+    status.textContent = 'Guardado.' + extra;
+    cargarSeguimientoMensual(); // refresca sparklines/precarga con lo recién guardado
+  }).catch(function(err){
+    btn.disabled = false; btn.textContent = 'Guardar mes';
+    status.textContent = 'Error de conexión: ' + (err && err.message || err);
+  });
+}
+
 // ── tab CFF (Tablero Ejecutivo) — consume calcular_cff() directamente,
 // igual que 'area' consume resumen_organizacion_completo() por tab click
 // (no se carga junto con el resto del diagnóstico): cada clic en el tab
@@ -3638,6 +3869,313 @@ function _dibujarIFTCharts(d){
         tooltip: { callbacks: { label: function(ctx){ return ctx.dataset.label + ': ' + _iftFmtCOP(ctx.parsed.x); } } }
       }
     }
+  });
+}
+
+// ══════════════════════════════════════════════════════════════════
+// Seguimiento mensual / Historial — metadatos + componentes compartidos.
+// Usados por el panel "Seguimiento mensual" (captura) y la Sección B del
+// tab Historial (tendencia) — mismo componente de sparkline en los dos
+// lugares, no 2 implementaciones (migraciones 022/023).
+// ══════════════════════════════════════════════════════════════════
+
+// 2 de los 8 parametros se guardan como fracción en calibracion_observaciones
+// (conversión de unidad, plan sección 2.2: dias_ausencia_base/242,
+// tasa_retrabajo_real/100) — fmt() revierte a la unidad que el consultor
+// tipeó, SOLO para mostrar; el valor que viaja al RPC sigue siendo la
+// fracción, sin tocar la migración 022.
+//
+// polaridad: 'mayor_mejor' | 'menor_mejor' | null. null = sin dirección
+// buena/mala definida — salario_promedio y costo_operativo_total son
+// insumos/costos que se rastrean, no indicadores de desempeño (subir no
+// es "empeorar" necesariamente, podría ser simplemente crecimiento del
+// negocio). Esos 2 muestran dirección NEUTRA (Subió/Bajó, gris) en vez
+// de Mejora/Empeora (verde/rojo) — decisión tomada al construir esta
+// pieza; ajustar acá si Luis prefiere asignarles una polaridad.
+var _HIST_KPI_META = {
+  salario_promedio_real:      { label: 'Salario promedio',              polaridad: null,
+    fmt: function(v){ return fmt(v); } },
+  tasa_rotacion_base_real:    { label: 'Tasa de rotación',              polaridad: 'menor_mejor',
+    fmt: function(v){ return v.toFixed(1) + '%'; } },
+  tasa_ausentismo_real:       { label: 'Días de ausencia (anualizado)', polaridad: 'menor_mejor',
+    fmt: function(v){ return (v * 242).toFixed(1) + ' días'; } },
+  costo_operativo_total_real: { label: 'Costo operativo total',        polaridad: null,
+    fmt: function(v){ return fmt(v); } },
+  tasa_retrabajo_observada:   { label: 'Tasa de retrabajo',             polaridad: 'menor_mejor',
+    fmt: function(v){ return (v * 100).toFixed(1) + '%'; } },
+  productividad:               { label: 'Productividad',                 polaridad: 'mayor_mejor',
+    fmt: function(v){ return v.toLocaleString('es-CO'); } },
+  accidentalidad:              { label: 'Accidentalidad',                polaridad: 'menor_mejor',
+    fmt: function(v){ return v.toFixed(1); } },
+  // presentismo mide "presencia vacía" (estar físicamente presente pero
+  // desconectado/sin rendir), NO asistencia — escala 1-5: 1 = mínimo (la
+  // gente que está, rinde), 5 = máximo (mucha presencia vacía). Por eso
+  // polaridad='menor_mejor' — mismo fenómeno negativo al que Luis se
+  // refirió como "Presencia vacía" al proponer este campo. Corregido
+  // 2026-08-26 (estaba mal como 'mayor_mejor' — no confundir con
+  // "presentismo" en el sentido de asistencia, que sería lo opuesto).
+  presentismo:                  { label: 'Presentismo (presencia vacía)', polaridad: 'menor_mejor',
+    fmt: function(v){ return v.toFixed(0) + '/5'; } }
+};
+
+// Dirección — SOLO signo del delta, sin banda de significancia — mismo
+// criterio provisional que historial_cff() (migración 023, confirmado
+// con Luis 2026-08-26). Para KPIs sin polaridad definida (arriba) usa
+// lenguaje neutro (Subió/Bajó) en vez de Mejora/Empeora.
+function _direccionKPI(parametro, actual, anterior){
+  if(actual == null || anterior == null) return null;
+  var meta = _HIST_KPI_META[parametro] || {};
+  var delta = actual - anterior;
+  if(delta === 0) return { label: 'Estable', color: '#8a94a6' };
+  var subio = delta > 0;
+  if(meta.polaridad == null) return subio ? { label: 'Subió', color: '#8a94a6' } : { label: 'Bajó', color: '#8a94a6' };
+  var esMejora = (meta.polaridad === 'mayor_mejor') === subio;
+  return esMejora ? { label: 'Mejora', color: '#4a9d6e' } : { label: 'Empeora', color: '#f2542d' };
+}
+
+function _badgeDireccionHtml(direccion){
+  if(!direccion) return '';
+  return '<span style="display:flex;align-items:center;gap:6px;color:' + direccion.color +
+    ';font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em">' +
+    '<span style="width:7px;height:7px;border-radius:50%;background:' + direccion.color + '"></span>' +
+    direccion.label + '</span>';
+}
+
+// historial_cff() (migración 023) ya devuelve la dirección como string
+// ('mejora'/'empeora'/'estable'/null) en vez de actual/anterior crudos —
+// esto solo traduce ese string al mismo formato {label,color} que
+// _direccionKPI() para poder reusar _badgeDireccionHtml() sin duplicar
+// el mapeo de colores.
+function _direccionDesdeString(direccionStr){
+  var mapa = { mejora: { label: 'Mejora', color: '#4a9d6e' }, empeora: { label: 'Empeora', color: '#f2542d' }, estable: { label: 'Estable', color: '#8a94a6' } };
+  return mapa[direccionStr] || null;
+}
+
+var _sparklineCharts = {};
+function _sparklineDestroy(key){
+  if(_sparklineCharts[key]){ _sparklineCharts[key].destroy(); _sparklineCharts[key] = null; }
+}
+
+// Sparkline compartido — eje Y con 3 etiquetas REALES (mínimo/medio/máximo
+// de la propia serie, vía afterBuildTicks), no valores decorativos ni
+// autogenerados por Chart.js. min===max (serie plana o 1 solo punto) se
+// resuelve con un margen artificial del 10% para que el eje no colapse.
+function _dibujarSparkline(canvasId, key, serie, colorLinea, fmtFn){
+  if(typeof Chart === 'undefined') return;
+  var canvas = document.getElementById(canvasId);
+  if(!canvas) return;
+  _sparklineDestroy(key);
+
+  var valores = serie.map(function(p){ return p.valor; });
+  var min = Math.min.apply(null, valores);
+  var max = Math.max.apply(null, valores);
+  var mid = (min + max) / 2;
+  var margen = (max === min) ? (Math.abs(max) * 0.1 || 1) : 0;
+
+  _sparklineCharts[key] = new Chart(canvas, {
+    type: 'line',
+    data: {
+      labels: serie.map(function(p){ return p.periodo; }),
+      datasets: [{ data: valores, borderColor: colorLinea, backgroundColor: 'transparent', borderWidth: 1.5, pointRadius: 0, tension: 0.15 }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      scales: {
+        x: { display: false },
+        y: {
+          min: min - margen, max: max + margen,
+          afterBuildTicks: function(axis){ axis.ticks = [{ value: max }, { value: mid }, { value: min }]; },
+          ticks: { color: '#8a94a6', font: { size: 9 }, callback: function(v){ return fmtFn(v); } },
+          grid: { color: '#1c2740' }
+        }
+      },
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { title: function(items){ return items[0].label; }, label: function(ctx){ return fmtFn(ctx.parsed.y); } } }
+      }
+    }
+  });
+}
+
+// Tarjeta de sparkline — devuelve '' si el KPI no está disponible (n=0)
+// para que el llamador decida qué hacer con el espacio: el panel deja el
+// campo editable a ancho completo, Historial omite la tarjeta del KPI
+// entero (ver _renderHistorialSeccionB). Con exactamente 1 período
+// disponible=true igual (criterio de la RPC, migración 023) — el
+// sparkline muestra un único punto, sin badge de dirección (no hay
+// "anterior" con qué compararlo).
+function _tarjetaSparklineHtml(parametro, kpi, canvasId){
+  if(!kpi || !kpi.disponible) return '';
+  var direccion = _direccionKPI(parametro, kpi.actual, kpi.anterior);
+  return '<div style="background:#0a1420;border-radius:10px;padding:14px 16px">' +
+    '<div style="font-size:11px;color:#8a94a6;text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">Tendencia</div>' +
+    '<div style="position:relative;height:70px;margin-bottom:10px"><canvas id="' + canvasId + '"></canvas></div>' +
+    (direccion ? _badgeDireccionHtml(direccion) : '') +
+  '</div>';
+}
+
+// ══════════════════════════════════════════════════════════════════
+// Tab "Historial" (Tablero Ejecutivo) — 3 secciones construidas (A/B/C);
+// D es solo una nota (ver comentario junto a #reg-historial en el HTML,
+// y el hallazgo de la tautología del Disparo 2 documentado ahí — Opción
+// 1 aprobada por Luis 2026-08-26: diferir al Anexo, no reabrir 022/023).
+// ══════════════════════════════════════════════════════════════════
+var _historialCharts = {};
+function _historialDestroyChart(key){
+  if(_historialCharts[key]){ _historialCharts[key].destroy(); _historialCharts[key] = null; }
+}
+
+// Mensaje "no disponible aún" — DISTINTO de _sinDatos() (línea ~2651):
+// esa función es específicamente el umbral de confidencialidad N≥8
+// respuestas del cuestionario, un concepto no relacionado. Acá "n" es
+// la cantidad de PERÍODOS históricos ya guardados.
+function _historialSinPeriodos(n, minimo){
+  minimo = minimo || 2;
+  return '<div style="font-size:13px;color:var(--dk-text-2);font-style:italic">Se necesitan al menos ' + minimo + ' períodos para mostrar tendencia — hoy hay ' + (n || 0) + '.</div>';
+}
+
+function _historialTarjetaHtml(label, valorTxt, direccion){
+  return '<div style="background:#0a1420;border-radius:10px;padding:16px 18px">' +
+    '<div style="font-size:11px;color:#8a94a6;text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">' + label + '</div>' +
+    '<div style="font-size:22px;font-weight:600;color:#f5f0e8;margin-bottom:6px">' + valorTxt + '</div>' +
+    (direccion ? _badgeDireccionHtml(direccion) : '<div style="font-size:11px;color:#8a94a6">Sin período anterior para comparar.</div>') +
+  '</div>';
+}
+
+// ── Sección A — tendencia IAO/CFF real (historial_cff(), migración 023).
+function _renderHistorialSeccionA(d){
+  var wrap = document.getElementById('historial-seccion-a');
+  if(!wrap) return;
+  if(!d || !d.disponible){
+    wrap.innerHTML = _historialSinPeriodos(d ? d.n_periodos : 0);
+    return;
+  }
+
+  var html = '<div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:16px">' +
+    _historialTarjetaHtml('IAO', d.iao.actual != null ? d.iao.actual.toFixed(1) + '%' : '—', _direccionDesdeString(d.iao.direccion)) +
+    _historialTarjetaHtml('Costo total', d.costo_total.actual != null ? fmt(d.costo_total.actual) : '—', _direccionDesdeString(d.costo_total.direccion)) +
+  '</div>';
+
+  html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">' +
+    '<div style="background:#0a1420;border-radius:10px;padding:18px 20px">' +
+      '<div style="font-size:12.5px;font-weight:700;color:#f5f0e8;margin-bottom:12px">IAO por período</div>' +
+      '<div style="position:relative;height:200px"><canvas id="historial-chart-iao"></canvas></div>' +
+    '</div>' +
+    '<div style="background:#0a1420;border-radius:10px;padding:18px 20px">' +
+      '<div style="font-size:12.5px;font-weight:700;color:#f5f0e8;margin-bottom:12px">Costo total por período</div>' +
+      '<div style="position:relative;height:200px"><canvas id="historial-chart-costo"></canvas></div>' +
+    '</div>' +
+  '</div>';
+
+  wrap.innerHTML = html;
+  _dibujarHistorialChartsSeccionA(d.serie || []);
+}
+
+function _dibujarHistorialChartsSeccionA(serie){
+  if(typeof Chart === 'undefined') return;
+  var labels = serie.map(function(p){ return p.periodo; });
+  var iaoSerie = serie.map(function(p){ return p.iao_org_usado; });
+  var costoSerie = serie.map(function(p){ return p.costo_total; });
+
+  // IAO en rojo (#f2542d) — mismo color que ESTADO_COLOR.amenaza,
+  // semántica ya establecida en toda la app (estadoDesdeIAO). costo_total
+  // en azul de acento (#5a95e0) — NO tiene un color bueno/malo establecido
+  // en ningún otro lugar (_renderCFFHtml lo pinta neutro por completitud,
+  // no por magnitud), así que no se le inventa uno acá.
+  _historialDestroyChart('iao');
+  _historialCharts.iao = new Chart(document.getElementById('historial-chart-iao'), {
+    type: 'line',
+    data: { labels: labels, datasets: [{ data: iaoSerie, borderColor: '#f2542d', backgroundColor: 'rgba(242,84,45,.12)', pointRadius: 3, borderWidth: 2, tension: 0.15, fill: false }] },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      scales: {
+        x: { ticks: { color: '#8a94a6' }, grid: { color: '#1c2740' } },
+        y: { ticks: { color: '#8a94a6', callback: function(v){ return v + '%'; } }, grid: { color: '#1c2740' } }
+      },
+      plugins: { legend: { display: false }, tooltip: { callbacks: { label: function(ctx){ return 'IAO: ' + ctx.parsed.y.toFixed(1) + '%'; } } } }
+    }
+  });
+
+  _historialDestroyChart('costo');
+  _historialCharts.costo = new Chart(document.getElementById('historial-chart-costo'), {
+    type: 'line',
+    data: { labels: labels, datasets: [{ data: costoSerie, borderColor: '#5a95e0', backgroundColor: 'rgba(90,149,224,.12)', pointRadius: 3, borderWidth: 2, tension: 0.15, fill: false }] },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      scales: {
+        x: { ticks: { color: '#8a94a6' }, grid: { color: '#1c2740' } },
+        y: { ticks: { color: '#8a94a6', callback: function(v){ return fmt(v); } }, grid: { color: '#1c2740' } }
+      },
+      plugins: { legend: { display: false }, tooltip: { callbacks: { label: function(ctx){ return 'Costo total: ' + fmt(ctx.parsed.y); } } } }
+    }
+  });
+}
+
+// ── Sección B — tendencia de los 8 KPIs (historial_seguimiento_mensual(),
+// migración 023). Mismo criterio que el panel "Seguimiento mensual"
+// (2026-08-26): un KPI sin datos no deja hueco ni mensaje individual —
+// simplemente no aparece su tarjeta. Si NINGUNO tiene datos todavía, la
+// sección completa muestra un solo mensaje en vez de una grilla vacía.
+function _historialKpiCardHtml(parametro, kpi){
+  var meta = _HIST_KPI_META[parametro];
+  var canvasId = 'hist-spark-' + parametro;
+  var direccion = _direccionKPI(parametro, kpi.actual, kpi.anterior);
+  return '<div style="background:#0a1420;border-radius:10px;padding:14px 16px">' +
+    '<div style="font-size:11px;color:#8a94a6;text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">' + meta.label + '</div>' +
+    '<div style="font-size:20px;font-weight:500;color:#f5f0e8;margin-bottom:8px">' + meta.fmt(kpi.actual) + '</div>' +
+    '<div style="position:relative;height:60px;margin-bottom:8px"><canvas id="' + canvasId + '"></canvas></div>' +
+    (direccion ? _badgeDireccionHtml(direccion) : '') +
+  '</div>';
+}
+
+function _renderHistorialSeccionB(kpis){
+  var wrap = document.getElementById('historial-seccion-b');
+  if(!wrap) return;
+  kpis = kpis || {};
+  var parametros = Object.keys(_HIST_KPI_META).filter(function(p){ return kpis[p] && kpis[p].disponible; });
+
+  if(!parametros.length){
+    wrap.style.display = 'block';
+    wrap.innerHTML = _historialSinPeriodos(0, 1);
+    return;
+  }
+
+  wrap.style.display = 'grid';
+  wrap.innerHTML = parametros.map(function(p){ return _historialKpiCardHtml(p, kpis[p]); }).join('');
+  parametros.forEach(function(p){
+    _dibujarSparkline('hist-spark-' + p, 'hist-' + p, kpis[p].serie, '#5a95e0', _HIST_KPI_META[p].fmt);
+  });
+}
+
+// ── cargarHistorial() — dispara A y B en paralelo; C reusa S.diagnostico
+// (ya cargado por cargarDiagnostico() al entrar a la organización,
+// entrarConOrganizacion() línea ~934) — cero RPC nuevo para el SDMO
+// embebido, "reusar el cálculo que ya existe" tal como se pidió.
+function cargarHistorial(){
+  if(!S_ORG.id) return;
+  var status = document.getElementById('historial-status');
+  if(status) status.textContent = 'Cargando…';
+
+  Promise.all([
+    supa.rpc('historial_cff', { p_organizacion_id: S_ORG.id }),
+    supa.rpc('historial_seguimiento_mensual', { p_organizacion_id: S_ORG.id })
+  ]).then(function(resArr){
+    var resCff = resArr[0], resKpis = resArr[1];
+    if(resCff.error){ if(status) status.textContent = 'Error al cargar tendencia CFF: ' + resCff.error.message; return; }
+    if(resKpis.error){ if(status) status.textContent = 'Error al cargar tendencia de KPIs: ' + resKpis.error.message; return; }
+    if(status) status.textContent = '';
+
+    _renderHistorialSeccionA(resCff.data);
+    _renderHistorialSeccionB(resKpis.data);
+
+    if(S.diagnostico){
+      _renderSDMONuevo(S.diagnostico, 'historial-sdmo-card', 'historial-sdmo-detalle');
+    } else {
+      var card = document.getElementById('historial-sdmo-card');
+      if(card) card.innerHTML = '<div style="font-size:12px;color:var(--dk-text-2);font-style:italic">Diagnóstico no disponible todavía.</div>';
+    }
+  }).catch(function(err){
+    if(status) status.textContent = 'Error de conexión: ' + (err && err.message || err);
   });
 }
 
