@@ -3446,9 +3446,13 @@ function _renderSeguimientoMensualCampos(orgRow, kpis){
   });
 
   // Sparklines — después de inyectar el HTML (los <canvas> ya existen).
+  // n=1 no tiene <canvas> (_tarjetaSparklineHtml puso _sparklineUnPuntoHtml
+  // en su lugar) — el guard serie.length>=2 evita un _dibujarSparkline()
+  // que de todos modos haría no-op silencioso al no encontrar el canvas,
+  // dejándolo explícito en vez de depender de ese no-op.
   _SM_CAMPOS.forEach(function(campo){
     var kpi = kpis[campo.parametro];
-    if(kpi && kpi.disponible){
+    if(kpi && kpi.disponible && kpi.serie && kpi.serie.length >= 2){
       _dibujarSparkline(campo.id + '-spark', 'sm-' + campo.parametro, kpi.serie, '#5a95e0', _HIST_KPI_META[campo.parametro].fmt);
     }
   });
@@ -3918,37 +3922,60 @@ var _HIST_KPI_META = {
     fmt: function(v){ return v.toFixed(0) + '/5'; } }
 };
 
+// Signo explícito (+/−) sobre un delta ya formateado por fmtFn — necesario
+// porque varios fmtFn (fmt(), usado por salario_promedio_real/costo_
+// operativo_total_real) hacen Math.abs() internamente y perderían el
+// signo si se les pasara el delta crudo. Mismo signo Unicode ('−' U+2212)
+// que fmtSig() ya usa en el resto de la app (línea ~1454) — no se
+// reutiliza fmtSig() directo porque es específica de COP, esto necesita
+// funcionar con cualquier fmtFn de _HIST_KPI_META (%, días, COP, número).
+function _fmtConSigno(delta, fmtFn){
+  return (delta >= 0 ? '+' : '−') + fmtFn(Math.abs(delta));
+}
+
 // Dirección — SOLO signo del delta, sin banda de significancia — mismo
 // criterio provisional que historial_cff() (migración 023, confirmado
 // con Luis 2026-08-26). Para KPIs sin polaridad definida (arriba) usa
-// lenguaje neutro (Subió/Bajó) en vez de Mejora/Empeora.
+// lenguaje neutro (Subió/Bajó) en vez de Mejora/Empeora. deltaTxt viaja
+// junto al badge (2026-08-26, pedido de Luis) — se calcula acá porque
+// ya se tiene meta.fmt a mano, sin recalcularlo en cada llamador.
 function _direccionKPI(parametro, actual, anterior){
   if(actual == null || anterior == null) return null;
   var meta = _HIST_KPI_META[parametro] || {};
   var delta = actual - anterior;
-  if(delta === 0) return { label: 'Estable', color: '#8a94a6' };
+  var deltaTxt = meta.fmt ? _fmtConSigno(delta, meta.fmt) : null;
+  if(delta === 0) return { label: 'Estable', color: '#8a94a6', deltaTxt: deltaTxt };
   var subio = delta > 0;
-  if(meta.polaridad == null) return subio ? { label: 'Subió', color: '#8a94a6' } : { label: 'Bajó', color: '#8a94a6' };
+  if(meta.polaridad == null) return subio ? { label: 'Subió', color: '#8a94a6', deltaTxt: deltaTxt } : { label: 'Bajó', color: '#8a94a6', deltaTxt: deltaTxt };
   var esMejora = (meta.polaridad === 'mayor_mejor') === subio;
-  return esMejora ? { label: 'Mejora', color: '#4a9d6e' } : { label: 'Empeora', color: '#f2542d' };
+  return esMejora ? { label: 'Mejora', color: '#4a9d6e', deltaTxt: deltaTxt } : { label: 'Empeora', color: '#f2542d', deltaTxt: deltaTxt };
 }
 
-function _badgeDireccionHtml(direccion){
+// deltaTxt es opcional (Section A hoy siempre lo pasa, otros llamadores
+// futuros podrían no tenerlo) — se agrega atenuado, sin heredar el
+// uppercase/letter-spacing del label para que se lea como un número, no
+// como parte de la etiqueta.
+function _badgeDireccionHtml(direccion, deltaTxt){
   if(!direccion) return '';
   return '<span style="display:flex;align-items:center;gap:6px;color:' + direccion.color +
     ';font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em">' +
     '<span style="width:7px;height:7px;border-radius:50%;background:' + direccion.color + '"></span>' +
-    direccion.label + '</span>';
+    direccion.label +
+    (deltaTxt ? '<span style="opacity:.75;font-weight:600;text-transform:none;letter-spacing:normal">' + deltaTxt + '</span>' : '') +
+    '</span>';
 }
 
 // historial_cff() (migración 023) ya devuelve la dirección como string
 // ('mejora'/'empeora'/'estable'/null) en vez de actual/anterior crudos —
 // esto solo traduce ese string al mismo formato {label,color} que
 // _direccionKPI() para poder reusar _badgeDireccionHtml() sin duplicar
-// el mapeo de colores.
-function _direccionDesdeString(direccionStr){
+// el mapeo de colores. delta/fmtFn son opcionales — si no se pasan,
+// deltaTxt queda null (mismo comportamiento que antes de este campo).
+function _direccionDesdeString(direccionStr, delta, fmtFn){
   var mapa = { mejora: { label: 'Mejora', color: '#4a9d6e' }, empeora: { label: 'Empeora', color: '#f2542d' }, estable: { label: 'Estable', color: '#8a94a6' } };
-  return mapa[direccionStr] || null;
+  var direccion = mapa[direccionStr] || null;
+  if(direccion && delta != null && fmtFn) direccion.deltaTxt = _fmtConSigno(delta, fmtFn);
+  return direccion;
 }
 
 var _sparklineCharts = {};
@@ -3956,10 +3983,20 @@ function _sparklineDestroy(key){
   if(_sparklineCharts[key]){ _sparklineCharts[key].destroy(); _sparklineCharts[key] = null; }
 }
 
-// Sparkline compartido — eje Y con 3 etiquetas REALES (mínimo/medio/máximo
+// Sparkline compartido — eje Y con etiquetas REALES (mínimo/medio/máximo
 // de la propia serie, vía afterBuildTicks), no valores decorativos ni
-// autogenerados por Chart.js. min===max (serie plana o 1 solo punto) se
-// resuelve con un margen artificial del 10% para que el eje no colapse.
+// autogenerados por Chart.js. Solo se llama con serie.length >= 2 (n=1 se
+// resuelve antes, en _tarjetaSparklineHtml()/_historialKpiCardHtml(), con
+// _sparklineUnPuntoHtml() — un solo punto no tiene "escala" que mostrar).
+//
+// min===max (serie con ≥2 puntos pero sin variación real, ej. mismo
+// salario 2 meses seguidos) SÍ puede pasar acá — investigado 2026-08-26:
+// el margen del 10% solo ensancha el RANGO visible del eje, nunca cambió
+// los 3 VALORES de los ticks (seguían siendo max/mid/min, los 3 iguales
+// cuando la serie es plana) — Chart.js ubica los 3 en el mismo pixel Y y
+// se ven superpuestos/ilegibles, exactamente el bug reportado. Fix: con
+// min===max se muestra un único tick centrado (el dato real, sin inflar
+// con valores fabricados arriba/abajo) en vez de 3 copias idénticas.
 function _dibujarSparkline(canvasId, key, serie, colorLinea, fmtFn){
   if(typeof Chart === 'undefined') return;
   var canvas = document.getElementById(canvasId);
@@ -3970,7 +4007,8 @@ function _dibujarSparkline(canvasId, key, serie, colorLinea, fmtFn){
   var min = Math.min.apply(null, valores);
   var max = Math.max.apply(null, valores);
   var mid = (min + max) / 2;
-  var margen = (max === min) ? (Math.abs(max) * 0.1 || 1) : 0;
+  var plano = (max === min);
+  var margen = plano ? (Math.abs(max) * 0.1 || 1) : 0;
 
   _sparklineCharts[key] = new Chart(canvas, {
     type: 'line',
@@ -3984,7 +4022,7 @@ function _dibujarSparkline(canvasId, key, serie, colorLinea, fmtFn){
         x: { display: false },
         y: {
           min: min - margen, max: max + margen,
-          afterBuildTicks: function(axis){ axis.ticks = [{ value: max }, { value: mid }, { value: min }]; },
+          afterBuildTicks: function(axis){ axis.ticks = plano ? [{ value: mid }] : [{ value: max }, { value: mid }, { value: min }]; },
           ticks: { color: '#8a94a6', font: { size: 9 }, callback: function(v){ return fmtFn(v); } },
           grid: { color: '#1c2740' }
         }
@@ -3997,20 +4035,35 @@ function _dibujarSparkline(canvasId, key, serie, colorLinea, fmtFn){
   });
 }
 
+// Estado explícito para n=1 (investigado 2026-08-26): con un solo punto
+// no hay "escala" real que mostrar (min=medio=máx son el mismo dato) —
+// en vez de forzar un gráfico con 3 etiquetas idénticas superpuestas
+// (bug real, ver _dibujarSparkline), se muestra un punto centrado con el
+// dato y un texto que explica por qué todavía no hay línea de tendencia.
+function _sparklineUnPuntoHtml(){
+  return '<div style="display:flex;align-items:center;justify-content:center;height:100%;text-align:center">' +
+    '<div>' +
+      '<div style="width:6px;height:6px;border-radius:50%;background:#5a95e0;margin:0 auto 6px"></div>' +
+      '<div style="font-size:10px;color:#8a94a6;line-height:1.35">1 período — la escala<br>aparece con el segundo</div>' +
+    '</div>' +
+  '</div>';
+}
+
 // Tarjeta de sparkline — devuelve '' si el KPI no está disponible (n=0)
 // para que el llamador decida qué hacer con el espacio: el panel deja el
 // campo editable a ancho completo, Historial omite la tarjeta del KPI
 // entero (ver _renderHistorialSeccionB). Con exactamente 1 período
-// disponible=true igual (criterio de la RPC, migración 023) — el
-// sparkline muestra un único punto, sin badge de dirección (no hay
-// "anterior" con qué compararlo).
+// disponible=true igual (criterio de la RPC, migración 023) — pero en
+// vez de un canvas se muestra _sparklineUnPuntoHtml() (ver arriba), sin
+// badge de dirección (no hay "anterior" con qué compararlo).
 function _tarjetaSparklineHtml(parametro, kpi, canvasId){
   if(!kpi || !kpi.disponible) return '';
-  var direccion = _direccionKPI(parametro, kpi.actual, kpi.anterior);
+  var unSoloPunto = !kpi.serie || kpi.serie.length < 2;
+  var direccion = unSoloPunto ? null : _direccionKPI(parametro, kpi.actual, kpi.anterior);
   return '<div style="background:#0a1420;border-radius:10px;padding:14px 16px">' +
     '<div style="font-size:11px;color:#8a94a6;text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">Tendencia</div>' +
-    '<div style="position:relative;height:70px;margin-bottom:10px"><canvas id="' + canvasId + '"></canvas></div>' +
-    (direccion ? _badgeDireccionHtml(direccion) : '') +
+    '<div style="position:relative;height:70px;margin-bottom:10px">' + (unSoloPunto ? _sparklineUnPuntoHtml() : '<canvas id="' + canvasId + '"></canvas>') + '</div>' +
+    (direccion ? _badgeDireccionHtml(direccion, direccion.deltaTxt) : '') +
   '</div>';
 }
 
@@ -4038,7 +4091,7 @@ function _historialTarjetaHtml(label, valorTxt, direccion){
   return '<div style="background:#0a1420;border-radius:10px;padding:16px 18px">' +
     '<div style="font-size:11px;color:#8a94a6;text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">' + label + '</div>' +
     '<div style="font-size:22px;font-weight:600;color:#f5f0e8;margin-bottom:6px">' + valorTxt + '</div>' +
-    (direccion ? _badgeDireccionHtml(direccion) : '<div style="font-size:11px;color:#8a94a6">Sin período anterior para comparar.</div>') +
+    (direccion ? _badgeDireccionHtml(direccion, direccion.deltaTxt) : '<div style="font-size:11px;color:#8a94a6">Sin período anterior para comparar.</div>') +
   '</div>';
 }
 
@@ -4052,8 +4105,8 @@ function _renderHistorialSeccionA(d){
   }
 
   var html = '<div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:16px">' +
-    _historialTarjetaHtml('IAO', d.iao.actual != null ? d.iao.actual.toFixed(1) + '%' : '—', _direccionDesdeString(d.iao.direccion)) +
-    _historialTarjetaHtml('Costo total', d.costo_total.actual != null ? fmt(d.costo_total.actual) : '—', _direccionDesdeString(d.costo_total.direccion)) +
+    _historialTarjetaHtml('IAO', d.iao.actual != null ? d.iao.actual.toFixed(1) + '%' : '—', _direccionDesdeString(d.iao.direccion, d.iao.delta, function(v){ return v.toFixed(1) + '%'; })) +
+    _historialTarjetaHtml('Costo total', d.costo_total.actual != null ? fmt(d.costo_total.actual) : '—', _direccionDesdeString(d.costo_total.direccion, d.costo_total.delta, fmt)) +
   '</div>';
 
   html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">' +
@@ -4119,12 +4172,13 @@ function _dibujarHistorialChartsSeccionA(serie){
 function _historialKpiCardHtml(parametro, kpi){
   var meta = _HIST_KPI_META[parametro];
   var canvasId = 'hist-spark-' + parametro;
-  var direccion = _direccionKPI(parametro, kpi.actual, kpi.anterior);
+  var unSoloPunto = !kpi.serie || kpi.serie.length < 2;
+  var direccion = unSoloPunto ? null : _direccionKPI(parametro, kpi.actual, kpi.anterior);
   return '<div style="background:#0a1420;border-radius:10px;padding:14px 16px">' +
     '<div style="font-size:11px;color:#8a94a6;text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">' + meta.label + '</div>' +
     '<div style="font-size:20px;font-weight:500;color:#f5f0e8;margin-bottom:8px">' + meta.fmt(kpi.actual) + '</div>' +
-    '<div style="position:relative;height:60px;margin-bottom:8px"><canvas id="' + canvasId + '"></canvas></div>' +
-    (direccion ? _badgeDireccionHtml(direccion) : '') +
+    '<div style="position:relative;height:60px;margin-bottom:8px">' + (unSoloPunto ? _sparklineUnPuntoHtml() : '<canvas id="' + canvasId + '"></canvas>') + '</div>' +
+    (direccion ? _badgeDireccionHtml(direccion, direccion.deltaTxt) : '') +
   '</div>';
 }
 
@@ -4142,8 +4196,12 @@ function _renderHistorialSeccionB(kpis){
 
   wrap.style.display = 'grid';
   wrap.innerHTML = parametros.map(function(p){ return _historialKpiCardHtml(p, kpis[p]); }).join('');
+  // n=1 no tiene <canvas> (_historialKpiCardHtml puso _sparklineUnPuntoHtml
+  // en su lugar) — mismo guard que _renderSeguimientoMensualCampos().
   parametros.forEach(function(p){
-    _dibujarSparkline('hist-spark-' + p, 'hist-' + p, kpis[p].serie, '#5a95e0', _HIST_KPI_META[p].fmt);
+    if(kpis[p].serie && kpis[p].serie.length >= 2){
+      _dibujarSparkline('hist-spark-' + p, 'hist-' + p, kpis[p].serie, '#5a95e0', _HIST_KPI_META[p].fmt);
+    }
   });
 }
 
