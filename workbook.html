@@ -3164,12 +3164,18 @@ function cargarFichaFinanciera(){
 // (color/weight destacado), vacío en gris — el tamaño (22px Insumos
 // base, 18px Financieros) lo decide el llamador. Pura señal visual, no
 // toca validación ni el payload que se envía al RPC.
+// Color dorado (var(--dorado), #C9A227) en el valor lleno — pedido de
+// Luis 2026-08-26 para que Ficha financiera y Seguimiento mensual
+// compartan el mismo lenguaje visual. Único punto de cambio: las 9
+// tarjetas de Ficha financiera y las 8 de Seguimiento mensual pasan
+// todas por esta función (directo o vía _ffEstiloFinanciero). El estado
+// vacío (#8a94a6, gris) no se toca — no es "el valor", es el placeholder.
 function _ffEstiloValor(id, tam){
   var el = document.getElementById(id);
   if(!el) return;
   var lleno = el.value !== '' && el.value != null;
   el.style.fontSize = tam + 'px';
-  el.style.color = lleno ? '#f5f0e8' : '#8a94a6';
+  el.style.color = lleno ? 'var(--dorado)' : '#8a94a6';
   el.style.fontWeight = lleno ? '500' : '400';
 }
 
