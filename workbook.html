@@ -1190,7 +1190,9 @@ supa.auth.getSession().then(function(res){
           </details>
 
           <div class="card-title" style="margin-bottom:12px">¿El modelo acertó?</div>
-          <div style="font-size:13px;color:var(--dk-text-2);font-style:italic">Comparación "el modelo acertó" — pendiente de más historial real (diferido al Anexo del plan de diseño).</div>
+          <div style="background:var(--dk-card);border-radius:10px;padding:24px 20px;text-align:center">
+            <div style="font-size:13px;color:var(--dk-text-2);font-style:italic">Comparación "el modelo acertó" — pendiente de más historial real (diferido al Anexo del plan de diseño).</div>
+          </div>
         </div>
       </div>
 
@@ -1265,24 +1267,24 @@ supa.auth.getSession().then(function(res){
 
     <div id="ff-status" style="font-size:13px;color:var(--dk-text-2);margin-bottom:16px"></div>
 
-    <div style="background:#0a1420;border-radius:10px;padding:14px 16px;margin-bottom:14px">
+    <div style="background:var(--dk-card);border-radius:10px;padding:14px 16px;margin-bottom:14px">
       <div style="font-size:10px;color:#8a94a6;text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px">Completitud por componente del CFF</div>
       <div id="ff-completitud" style="display:flex;gap:16px;flex-wrap:wrap"></div>
     </div>
 
     <div style="display:grid;grid-template-columns:2fr 1fr;gap:14px;margin-bottom:14px">
-      <div style="background:#0a1420;border-radius:10px;padding:14px 16px">
+      <div style="background:var(--dk-card);border-radius:10px;padding:14px 16px">
         <label style="font-size:11px;color:#8a94a6;display:block;margin-bottom:6px">Nombre de la organización</label>
         <input type="text" id="ff-nombre" placeholder="Ej. Acme S.A.S." style="width:100%;background:none;border:none;color:#f5f0e8;font-size:16px;font-weight:500;padding:0;outline:none;font-family:inherit">
       </div>
-      <div style="background:#0a1420;border-radius:10px;padding:14px 16px">
+      <div style="background:var(--dk-card);border-radius:10px;padding:14px 16px">
         <label style="font-size:11px;color:#8a94a6;display:block;margin-bottom:6px">N° de empleados</label>
         <input type="number" id="ff-n-empleados" min="1" step="1" placeholder="Ej. 120" style="width:100%;background:none;border:none;color:#f5f0e8;font-size:16px;font-weight:500;padding:0;outline:none;font-family:inherit">
       </div>
     </div>
 
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
-      <div style="background:#0a1420;border-radius:10px;padding:12px 16px;display:flex;justify-content:space-between;align-items:center">
+      <div style="background:var(--dk-card);border-radius:10px;padding:12px 16px;display:flex;justify-content:space-between;align-items:center">
         <div style="display:flex;align-items:center;gap:10px">
           <span style="font-size:11px;color:#8a94a6">País</span>
           <select id="ff-pais" style="font-size:16px;font-weight:500;color:#f5f0e8;background:none;border:none;appearance:none;-webkit-appearance:none;padding:0;cursor:pointer">
@@ -1292,7 +1294,7 @@ supa.auth.getSession().then(function(res){
         </div>
         <div id="ff-pais-help" style="font-size:10px;color:#8a94a6">fijo al crear la organización</div>
       </div>
-      <div style="background:#0a1420;border-radius:10px;padding:12px 16px;display:flex;justify-content:space-between;align-items:center">
+      <div style="background:var(--dk-card);border-radius:10px;padding:12px 16px;display:flex;justify-content:space-between;align-items:center">
         <div style="display:flex;align-items:center;gap:10px">
           <span style="font-size:11px;color:#8a94a6">Sector</span>
           <select id="ff-sector" style="font-size:16px;font-weight:500;color:#f5f0e8;background:none;border:none;appearance:none;-webkit-appearance:none;padding:0;cursor:pointer">
@@ -1309,17 +1311,17 @@ supa.auth.getSession().then(function(res){
     </div>
 
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
-      <div style="background:#0a1420;border-radius:10px;padding:14px 16px">
+      <div style="background:var(--dk-card);border-radius:10px;padding:14px 16px">
         <label style="font-size:11px;color:#8a94a6;display:block;margin-bottom:6px">Salario promedio <span style="opacity:.7">(costo total mensual, COP)</span></label>
         <input type="number" id="ff-salario" step="100000" min="0" placeholder="Ej. 3500000" style="width:100%;background:none;border:none;color:#8a94a6;font-size:22px;padding:0;outline:none;font-family:inherit" oninput="_ffRenderInsumo('ff-salario','ff-salario-ayuda',22,'Incluye salario base + carga prestacional (cesantías, prima, vacaciones, salud, pensión, ARL, caja de compensación) — no solo el salario base.','Sin este dato, Desenganche no puede calcularse.')">
         <div id="ff-salario-ayuda" style="margin-top:8px"></div>
       </div>
-      <div style="background:#0a1420;border-radius:10px;padding:14px 16px">
+      <div style="background:var(--dk-card);border-radius:10px;padding:14px 16px">
         <label style="font-size:11px;color:#8a94a6;display:block;margin-bottom:6px">Tasa de rotación base <span style="opacity:.7">(%)</span></label>
         <input type="number" id="ff-rotacion" step="0.5" min="0" max="100" placeholder="Ej. 22" style="width:100%;background:none;border:none;color:#8a94a6;font-size:22px;padding:0;outline:none;font-family:inherit" oninput="_ffRenderInsumo('ff-rotacion','ff-rotacion-ayuda',22,'Se usa directamente en Costo_rotación (marco, sección 8).','Sin este dato, Costo_rotación no puede calcularse.')">
         <div id="ff-rotacion-ayuda" style="margin-top:8px"></div>
       </div>
-      <div style="background:#0a1420;border-radius:10px;padding:14px 16px">
+      <div style="background:var(--dk-card);border-radius:10px;padding:14px 16px">
         <label style="font-size:11px;color:#8a94a6;display:block;margin-bottom:6px">Composición de roles afectados <span style="opacity:.7">(por la rotación)</span></label>
         <select id="ff-multiplicador-rol" style="width:100%;background:none;border:none;color:#8a94a6;font-size:22px;padding:0;outline:none;font-family:inherit;appearance:none;-webkit-appearance:none;cursor:pointer" onchange="_ffRenderInsumo('ff-multiplicador-rol','ff-multiplicador-rol-ayuda',22,'Se usa directamente en Costo_rotación (marco, sección 8).','Sin este dato, Costo_rotación no puede calcularse.')">
           <option value="">Seleccionar...</option>
@@ -1329,12 +1331,12 @@ supa.auth.getSession().then(function(res){
         </select>
         <div id="ff-multiplicador-rol-ayuda" style="margin-top:8px"></div>
       </div>
-      <div style="background:#0a1420;border-radius:10px;padding:14px 16px">
+      <div style="background:var(--dk-card);border-radius:10px;padding:14px 16px">
         <label style="font-size:11px;color:#8a94a6;display:block;margin-bottom:6px">Días de ausencia base <span style="opacity:.7">(días/año)</span></label>
         <input type="number" id="ff-ausencia" step="0.5" min="0" placeholder="Ej. 8" style="width:100%;background:none;border:none;color:#8a94a6;font-size:22px;padding:0;outline:none;font-family:inherit" oninput="_ffEstiloValor('ff-ausencia',22);_ffRenderAusenciaBarra()">
         <div id="ff-ausencia-ayuda" style="margin-top:8px"></div>
       </div>
-      <div style="background:#0a1420;border-radius:10px;padding:14px 16px">
+      <div style="background:var(--dk-card);border-radius:10px;padding:14px 16px">
         <label style="font-size:11px;color:#8a94a6;display:block;margin-bottom:6px">Nivel de reducción del IAO objetivo <span style="opacity:.7">(plan de intervención)</span></label>
         <select id="ff-pct-reduccion" style="width:100%;background:none;border:none;color:#8a94a6;font-size:22px;padding:0;outline:none;font-family:inherit;appearance:none;-webkit-appearance:none;cursor:pointer" onchange="_ffRenderInsumo('ff-pct-reduccion','ff-pct-reduccion-ayuda',22,'Se usa para proyectar el IFT — recuperación y ROI (marco, sección 8.2).','Sin este dato, el IFT no puede proyectarse.')">
           <option value="">Seleccionar...</option>
@@ -1347,22 +1349,22 @@ supa.auth.getSession().then(function(res){
     </div>
 
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:20px">
-      <div id="ff-card-costo-operativo" style="background:#0a1420;border-radius:10px;padding:14px 16px;border:1px dashed #26344a">
+      <div id="ff-card-costo-operativo" style="background:var(--dk-card);border-radius:10px;padding:14px 16px;border:1px dashed #26344a">
         <label style="font-size:11px;color:#8a94a6;display:block;margin-bottom:6px">Costo operativo total <span style="opacity:.7">(COP/año)</span></label>
         <input type="number" id="ff-costo-operativo" step="1000000" min="0" placeholder="Sin dato" style="width:100%;background:none;border:none;color:#8a94a6;font-size:18px;padding:0;outline:none;font-family:inherit" oninput="_ffRenderFinanciero('ff-costo-operativo','ff-card-costo-operativo','ff-costo-operativo-ayuda','Necesario para calcular Costo_retrabajo (marco, sección 8).','Sin este dato, Costo_retrabajo no se incluye en el CFF.')">
         <div id="ff-costo-operativo-ayuda" style="margin-top:8px"></div>
       </div>
-      <div id="ff-card-costo-intervencion" style="background:#0a1420;border-radius:10px;padding:14px 16px;border:1px dashed #26344a">
+      <div id="ff-card-costo-intervencion" style="background:var(--dk-card);border-radius:10px;padding:14px 16px;border:1px dashed #26344a">
         <label style="font-size:11px;color:#8a94a6;display:block;margin-bottom:6px">Costo de intervención <span style="opacity:.7">(COP)</span></label>
         <input type="number" id="ff-costo-intervencion" step="1000000" min="0" placeholder="Sin dato" style="width:100%;background:none;border:none;color:#8a94a6;font-size:18px;padding:0;outline:none;font-family:inherit" oninput="_ffEstiloFinanciero('ff-costo-intervencion','ff-card-costo-intervencion',18)">
         <div style="font-size:10px;color:#8a94a6;line-height:1.4;margin-top:8px">Sin este dato, el IFT no puede proyectar tiempo de recuperación (marco, sección 8.2).</div>
       </div>
-      <div id="ff-card-ebitda" style="background:#0a1420;border-radius:10px;padding:14px 16px;border:1px dashed #26344a">
+      <div id="ff-card-ebitda" style="background:var(--dk-card);border-radius:10px;padding:14px 16px;border:1px dashed #26344a">
         <label style="font-size:11px;color:#8a94a6;display:block;margin-bottom:6px">EBITDA <span style="opacity:.7">(COP/año)</span></label>
         <input type="number" id="ff-ebitda" step="1000000" placeholder="Sin dato" style="width:100%;background:none;border:none;color:#8a94a6;font-size:18px;padding:0;outline:none;font-family:inherit" oninput="_ffEstiloFinanciero('ff-ebitda','ff-card-ebitda',18)">
         <div style="font-size:10px;color:#8a94a6;line-height:1.4;margin-top:8px">Puede ser negativo (pérdida operativa) — no está limitado a valores positivos.</div>
       </div>
-      <div id="ff-card-retrabajo" style="background:#0a1420;border-radius:10px;padding:14px 16px;border:1px dashed #26344a">
+      <div id="ff-card-retrabajo" style="background:var(--dk-card);border-radius:10px;padding:14px 16px;border:1px dashed #26344a">
         <label style="font-size:11px;color:#8a94a6;display:block;margin-bottom:6px">Tasa de retrabajo real <span style="opacity:.7">(%)</span></label>
         <input type="number" id="ff-retrabajo" step="0.5" min="0" max="100" placeholder="Sin dato" style="width:100%;background:none;border:none;color:#8a94a6;font-size:18px;padding:0;outline:none;font-family:inherit" oninput="_ffEstiloFinanciero('ff-retrabajo','ff-card-retrabajo',18)">
         <div style="font-size:10px;color:#8a94a6;line-height:1.4;margin-top:8px">Sin este dato, se usa el benchmark de manufactura (5%-15%) en su lugar.</div>
@@ -1393,7 +1395,7 @@ supa.auth.getSession().then(function(res){
 
     <div id="sm-status" style="font-size:13px;color:var(--dk-text-2);margin-bottom:16px"></div>
 
-    <div style="background:#0a1420;border-radius:10px;padding:14px 16px;margin-bottom:20px;max-width:220px">
+    <div style="background:var(--dk-card);border-radius:10px;padding:14px 16px;margin-bottom:20px;max-width:220px">
       <label style="font-size:11px;color:#8a94a6;display:block;margin-bottom:6px">Período</label>
       <input type="month" id="sm-periodo" style="width:100%;background:none;border:none;color:#f5f0e8;font-size:16px;font-weight:500;padding:0;outline:none;font-family:inherit">
     </div>
@@ -3394,7 +3396,7 @@ var _SM_CAMPOS = [
 function _smCampoCardHtml(campo){
   var cardId = campo.id + '-card';
   var ayudaId = campo.id + '-ayuda';
-  return '<div id="' + cardId + '" style="background:#0a1420;border-radius:10px;padding:14px 16px;border:1px dashed #26344a">' +
+  return '<div id="' + cardId + '" style="background:var(--dk-card);border-radius:10px;padding:14px 16px;border:1px dashed #26344a">' +
     '<label style="font-size:11px;color:#8a94a6;display:block;margin-bottom:6px">' + campo.label + ' <span style="opacity:.7">' + (campo.unidad || '') + '</span></label>' +
     '<input type="number" id="' + campo.id + '"' +
       (campo.step != null ? ' step="' + campo.step + '"' : '') +
@@ -4066,7 +4068,7 @@ function _tarjetaSparklineHtml(parametro, kpi, canvasId){
   if(!kpi || !kpi.disponible) return '';
   var unSoloPunto = !kpi.serie || kpi.serie.length < 2;
   var direccion = unSoloPunto ? null : _direccionKPI(parametro, kpi.actual, kpi.anterior);
-  return '<div style="background:#0a1420;border-radius:10px;padding:14px 16px">' +
+  return '<div style="background:var(--dk-card);border-radius:10px;padding:14px 16px">' +
     '<div style="font-size:11px;color:#8a94a6;text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">Tendencia</div>' +
     '<div style="position:relative;height:70px;margin-bottom:10px">' + (unSoloPunto ? _sparklineUnPuntoHtml() : '<canvas id="' + canvasId + '"></canvas>') + '</div>' +
     (direccion ? _badgeDireccionHtml(direccion, direccion.deltaTxt) : '') +
@@ -4088,13 +4090,19 @@ function _historialDestroyChart(key){
 // esa función es específicamente el umbral de confidencialidad N≥8
 // respuestas del cuestionario, un concepto no relacionado. Acá "n" es
 // la cantidad de PERÍODOS históricos ya guardados.
+// Envuelta en tarjeta (var(--dk-card), mismo fondo que el resto de
+// Historial) — antes era texto plano sin contenedor, a diferencia del
+// estado vacío de CFF/IFT (_cffEstadoVacioHtml/_iftEstadoVacioHtml, que
+// sí usan tarjeta). Corregido 2026-08-26.
 function _historialSinPeriodos(n, minimo){
   minimo = minimo || 2;
-  return '<div style="font-size:13px;color:var(--dk-text-2);font-style:italic">Se necesitan al menos ' + minimo + ' períodos para mostrar tendencia — hoy hay ' + (n || 0) + '.</div>';
+  return '<div style="background:var(--dk-card);border-radius:10px;padding:24px 20px;text-align:center">' +
+    '<div style="font-size:13px;color:var(--dk-text-2);font-style:italic">Se necesitan al menos ' + minimo + ' períodos para mostrar tendencia — hoy hay ' + (n || 0) + '.</div>' +
+  '</div>';
 }
 
 function _historialTarjetaHtml(label, valorTxt, direccion){
-  return '<div style="background:#0a1420;border-radius:10px;padding:16px 18px">' +
+  return '<div style="background:var(--dk-card);border-radius:10px;padding:16px 18px">' +
     '<div style="font-size:11px;color:#8a94a6;text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">' + label + '</div>' +
     '<div style="font-size:22px;font-weight:600;color:#f5f0e8;margin-bottom:6px">' + valorTxt + '</div>' +
     (direccion ? _badgeDireccionHtml(direccion, direccion.deltaTxt) : '<div style="font-size:11px;color:#8a94a6">Sin período anterior para comparar.</div>') +
@@ -4116,11 +4124,11 @@ function _renderHistorialSeccionA(d){
   '</div>';
 
   html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">' +
-    '<div style="background:#0a1420;border-radius:10px;padding:18px 20px">' +
+    '<div style="background:var(--dk-card);border-radius:10px;padding:18px 20px">' +
       '<div style="font-size:12.5px;font-weight:700;color:#f5f0e8;margin-bottom:12px">IAO por período</div>' +
       '<div style="position:relative;height:200px"><canvas id="historial-chart-iao"></canvas></div>' +
     '</div>' +
-    '<div style="background:#0a1420;border-radius:10px;padding:18px 20px">' +
+    '<div style="background:var(--dk-card);border-radius:10px;padding:18px 20px">' +
       '<div style="font-size:12.5px;font-weight:700;color:#f5f0e8;margin-bottom:12px">Costo total por período</div>' +
       '<div style="position:relative;height:200px"><canvas id="historial-chart-costo"></canvas></div>' +
     '</div>' +
@@ -4180,7 +4188,7 @@ function _historialKpiCardHtml(parametro, kpi){
   var canvasId = 'hist-spark-' + parametro;
   var unSoloPunto = !kpi.serie || kpi.serie.length < 2;
   var direccion = unSoloPunto ? null : _direccionKPI(parametro, kpi.actual, kpi.anterior);
-  return '<div style="background:#0a1420;border-radius:10px;padding:14px 16px">' +
+  return '<div style="background:var(--dk-card);border-radius:10px;padding:14px 16px">' +
     '<div style="font-size:11px;color:#8a94a6;text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">' + meta.label + '</div>' +
     '<div style="font-size:20px;font-weight:500;color:#f5f0e8;margin-bottom:8px">' + meta.fmt(kpi.actual) + '</div>' +
     '<div style="position:relative;height:60px;margin-bottom:8px">' + (unSoloPunto ? _sparklineUnPuntoHtml() : '<canvas id="' + canvasId + '"></canvas>') + '</div>' +
