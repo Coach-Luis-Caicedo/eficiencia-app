@@ -3837,7 +3837,7 @@ function _renderPiioChips(config){
     var estilo = 'display:inline-block;padding:6px 12px;margin:0 6px 6px 0;border-radius:14px;font-size:11px;font-weight:600;cursor:pointer;border:1px solid ' +
       (sel ? 'var(--dorado)' : '#26344a') + ';color:' + (sel ? 'var(--dorado)' : (k.activo ? 'var(--dk-text)' : 'var(--dk-text-3)')) +
       ';background:' + (sel ? 'rgba(201,162,39,.12)' : 'none');
-    return '<span style="' + estilo + '" onclick="_piioSelKpi(' + JSON.stringify(k.kpi) + ')">' + meta.label + (k.activo ? '' : ' (inactivo)') + '</span>';
+    return '<span style="' + estilo + '" onclick="_piioSelKpi(' + JSON.stringify(k.kpi).replace(/"/g, '&quot;') + ')">' + meta.label + (k.activo ? '' : ' (inactivo)') + '</span>';
   }).join('');
 }
 
@@ -3885,7 +3885,7 @@ function _renderPiioAreaGrid(data){
       var periodo = data.anio + '-' + m.periodo;
       var valor = a.meses[periodo];
       return '<td><input type="number" class="piio-cell-input" value="' + (valor != null ? valor : '') + '" ' +
-        'onblur="_piioGuardarCelda(this,' + JSON.stringify(a.area_id) + ',' + JSON.stringify(periodo) + ',' + JSON.stringify(data.kpi) + ')"></td>';
+        'onblur="_piioGuardarCelda(this,' + JSON.stringify(a.area_id).replace(/"/g, '&quot;') + ',' + JSON.stringify(periodo).replace(/"/g, '&quot;') + ',' + JSON.stringify(data.kpi).replace(/"/g, '&quot;') + ')"></td>';
     }).join('');
     return '<tr><td>' + a.nombre + '</td>' + celdas + '</tr>';
   }).join('');
@@ -4041,8 +4041,8 @@ function _gaFilaHtml(area){
   return '<div id="ga-row-' + area.id + '" style="display:flex;align-items:center;gap:10px;background:var(--dk-card);border-radius:8px;padding:10px 14px;margin-bottom:8px">' +
     '<div id="ga-nombre-' + area.id + '" style="flex:1;font-size:13px;color:var(--dk-text)">' + area.nombre + '</div>' +
     '<div id="ga-acciones-' + area.id + '" style="display:flex;gap:8px;flex-shrink:0">' +
-      '<button type="button" onclick="_gaEditar(' + JSON.stringify(area.id) + ')" title="Renombrar" style="background:none;border:none;color:#8a94a6;cursor:pointer;font-size:14px;padding:4px">✎</button>' +
-      '<button type="button" onclick="_gaEliminarClick(' + JSON.stringify(area.id) + ')" style="background:none;border:1px solid #26344a;border-radius:6px;color:#f2542d;cursor:pointer;font-size:11px;padding:5px 10px;font-family:inherit">Eliminar</button>' +
+      '<button type="button" onclick="_gaEditar(' + JSON.stringify(area.id).replace(/"/g, '&quot;') + ')" title="Renombrar" style="background:none;border:none;color:#8a94a6;cursor:pointer;font-size:14px;padding:4px">✎</button>' +
+      '<button type="button" onclick="_gaEliminarClick(' + JSON.stringify(area.id).replace(/"/g, '&quot;') + ')" style="background:none;border:1px solid #26344a;border-radius:6px;color:#f2542d;cursor:pointer;font-size:11px;padding:5px 10px;font-family:inherit">Eliminar</button>' +
     '</div>' +
   '</div>';
 }
@@ -4057,7 +4057,7 @@ function _gaEditar(areaId){
   var actual = div.textContent;
   div.innerHTML = '<input type="text" id="ga-input-' + areaId + '" value="' + actual.replace(/"/g, '&quot;') + '" ' +
     'style="width:100%;background:var(--dk-bg);border:1px solid var(--dorado);border-radius:6px;color:var(--dk-text);padding:5px 8px;font-size:13px;font-family:inherit" ' +
-    'onkeydown="if(event.key===\'Enter\')this.blur()" onblur="_gaRenombrar(' + JSON.stringify(areaId) + ',this)">';
+    'onkeydown="if(event.key===\'Enter\')this.blur()" onblur="_gaRenombrar(' + JSON.stringify(areaId).replace(/"/g, '&quot;') + ',this)">';
   var input = document.getElementById('ga-input-' + areaId);
   if(input){ input.focus(); input.select(); }
 }
@@ -4092,7 +4092,7 @@ function _gaEliminarClick(areaId){
   if(!acciones) return;
   acciones.innerHTML =
     '<span style="font-size:11px;color:var(--dk-text-2)">¿Seguro?</span>' +
-    '<button type="button" onclick="_gaEliminarConfirmar(' + JSON.stringify(areaId) + ')" style="background:none;border:1px solid #f2542d;border-radius:6px;color:#f2542d;cursor:pointer;font-size:11px;padding:5px 10px;font-family:inherit">Sí, eliminar</button>' +
+    '<button type="button" onclick="_gaEliminarConfirmar(' + JSON.stringify(areaId).replace(/"/g, '&quot;') + ')" style="background:none;border:1px solid #f2542d;border-radius:6px;color:#f2542d;cursor:pointer;font-size:11px;padding:5px 10px;font-family:inherit">Sí, eliminar</button>' +
     '<button type="button" onclick="cargarAreas()" style="background:none;border:1px solid #26344a;border-radius:6px;color:#8a94a6;cursor:pointer;font-size:11px;padding:5px 10px;font-family:inherit">Cancelar</button>';
 }
 
