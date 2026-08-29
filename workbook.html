@@ -284,6 +284,29 @@ table.dt td{color:var(--ink)}
 .reg-tab-btn.active{color:var(--dorado);border-bottom-color:var(--dorado)}
 .reg-tabpanel{display:none}
 .reg-tabpanel.active{display:block}
+
+/* ── PIIO (panel Seguimiento mensual renombrado, migración 026) — 3
+   pestañas internas propias (Consolidado por meses/Por área/Organización),
+   mismo lenguaje visual que .reg-tabs pero en namespace separado porque
+   viven dentro de un panel .dark-panel distinto, no del Tablero. ── */
+.piio-tabs{display:flex;gap:4px;border-bottom:1px solid #26344a;margin-bottom:20px;flex-wrap:wrap}
+.piio-tab-btn{padding:9px 14px;font-size:12px;font-weight:600;color:var(--dk-text-2);background:none;border:none;border-bottom:2px solid transparent;cursor:pointer;transition:all var(--tr)}
+.piio-tab-btn:hover{color:var(--dk-text)}
+.piio-tab-btn.active{color:var(--dorado);border-bottom-color:var(--dorado)}
+.piio-view{display:none}
+.piio-view.active{display:block}
+.piio-grid-wrap{overflow-x:auto;border-radius:10px;border:1px solid #26344a}
+.piio-grid{border-collapse:collapse;width:100%;font-size:12px}
+.piio-grid th,.piio-grid td{padding:8px 10px;text-align:center;border-bottom:1px solid #1c2740;white-space:nowrap}
+.piio-grid th{background:var(--dk-elevated);color:var(--dk-text-2);font-weight:700;text-transform:uppercase;font-size:10px;letter-spacing:.05em}
+/* Primera columna (nombre de KPI/área) fijada al hacer scroll horizontal —
+   la grilla de "Por área" puede tener 12 meses + acumulado/delta, más
+   ancha que el viewport en pantallas medianas. */
+.piio-grid td:first-child,.piio-grid th:first-child{position:sticky;left:0;background:var(--dk-card);text-align:left;font-weight:600;color:var(--dk-text);z-index:1}
+.piio-grid th:first-child{background:var(--dk-elevated);z-index:2}
+.piio-cell-input{width:64px;background:none;border:1px solid transparent;border-radius:4px;color:var(--dk-text);font-size:12px;text-align:center;padding:4px;font-family:inherit}
+.piio-cell-input:hover{border-color:#26344a}
+.piio-cell-input:focus{border-color:var(--dorado);outline:none;background:var(--dk-bg)}
 /* .reg-right ya no lleva el sticky directamente — con align-self:start
    (como venía) el item de grid se encoge al alto de su propio contenido
    (5 tarjetas cortas), y position:sticky sobre un item ya encogido no
@@ -1085,7 +1108,7 @@ supa.auth.getSession().then(function(res){
 
     <div id="dr-ficha" class="reg-ficha"></div>
     <button type="button" class="btn btn-ghost btn-sm" onclick="mostrarFichaFinanciera()" style="margin:-20px 8px 20px 0">⚙ Ficha financiera</button>
-    <button type="button" class="btn btn-ghost btn-sm" onclick="mostrarSeguimientoMensual()" style="margin:-20px 0 20px">📈 Seguimiento mensual</button>
+    <button type="button" class="btn btn-ghost btn-sm" onclick="mostrarSeguimientoMensual()" style="margin:-20px 0 20px">📈 PIIO</button>
 
     <div class="reg-columns">
       <div class="reg-left">
@@ -1378,32 +1401,80 @@ supa.auth.getSession().then(function(res){
 </div>
 
 
-<!-- ═══ SEGUIMIENTO MENSUAL — captura de los 8 KPIs (calibracion_parametros
-     ambito='local', migración 022). Persistencia real vía
-     calibracion_observaciones — periodo 'YYYY-MM' (formato nuevo,
-     coexiste con el semestral que ya usan otros parametros, plan sección
-     2.3). 5 alimentan el CFF (espejo de Ficha financiera, con COALESCE en
-     vez de sobrescribir), 3 son informativos. ═══ -->
+<!-- ═══ PIIO — captura mensual de los 8 KPIs (migración 026, sobre la base
+     de calibracion_parametros ambito='local', migración 022). "PIIO" es
+     marca de UI, no prefijo técnico (mismo criterio que "Seguimiento
+     mensual" antes) — el panel sigue siendo #p-seguimiento-mensual y las
+     RPCs siguen siendo guardar_seguimiento_mensual/guardar_seguimiento_area.
+     3 pestañas internas:
+       "Consolidado por meses" — los 8 KPIs a nivel organización, año
+         completo (seguimiento_consolidado_anual). Overlay ◑ = mes
+         provisional (roll-up por área aún no alcanza el umbral).
+       "Por área" — captura y completitud por área de los 6 KPIs
+         capturables (seguimiento_area_anual + guardar_seguimiento_area,
+         autosave por celda) + configuración de qué KPIs trackear
+         (configurar_seguimiento_kpi).
+       "Organización" — el panel mensual original (migración 022), sin
+         cambios; ids sm-* intactos. ═══ -->
 <div id="p-seguimiento-mensual" class="panel dark-panel">
   <div class="panel-inner">
     <div class="ph">
-      <div class="ph-tag">Resultado · Seguimiento</div>
-      <div class="ph-title">Seguimiento mensual</div>
-      <div class="ph-desc">Captura mensual de los KPIs que alimentan el CFF y complementan el diagnóstico — persistencia real, mes a mes, no una fotografía única.</div>
+      <div class="ph-tag">Resultado · PIIO</div>
+      <div class="ph-title">PIIO</div>
+      <div class="ph-desc">Captura mensual de los KPIs que alimentan el CFF y complementan el diagnóstico — consolidado organizacional, captura por área con roll-up automático al CFF, y el panel de organización original.</div>
       <button class="btn btn-ghost btn-sm" onclick="show('p-dash-resultado')" style="margin-top:10px">← Volver al Tablero</button>
     </div>
 
-    <div id="sm-status" style="font-size:13px;color:var(--dk-text-2);margin-bottom:16px"></div>
-
-    <div style="background:var(--dk-card);border-radius:10px;padding:14px 16px;margin-bottom:20px;max-width:220px">
-      <label style="font-size:11px;color:#8a94a6;display:block;margin-bottom:6px">Período</label>
-      <input type="month" id="sm-periodo" style="width:100%;background:none;border:none;color:#f5f0e8;font-size:16px;font-weight:500;padding:0;outline:none;font-family:inherit">
+    <div class="piio-tabs">
+      <button type="button" class="piio-tab-btn active" onclick="_piioTab('consolidado')">Consolidado por meses</button>
+      <button type="button" class="piio-tab-btn" onclick="_piioTab('area')">Por área</button>
+      <button type="button" class="piio-tab-btn" onclick="_piioTab('org')">Organización</button>
     </div>
 
-    <div id="sm-campos"></div>
+    <!-- Vista: Consolidado por meses -->
+    <div id="piio-consolidado" class="piio-view active">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">
+        <button type="button" class="btn btn-ghost btn-sm" onclick="_piioAnio('consolidado',-1)">‹</button>
+        <input type="number" id="pc-anio" style="width:80px;text-align:center;background:var(--dk-card);border:1px solid #26344a;border-radius:8px;color:var(--dk-text);padding:8px;font-size:14px;font-family:inherit" onchange="cargarPiioConsolidado()">
+        <button type="button" class="btn btn-ghost btn-sm" onclick="_piioAnio('consolidado',1)">›</button>
+      </div>
+      <div id="pc-status" style="font-size:13px;color:var(--dk-text-2);margin-bottom:16px"></div>
+      <div id="pc-content"></div>
+    </div>
 
-    <div class="btn-row" style="margin-top:6px">
-      <button id="sm-guardar-btn" onclick="guardarSeguimientoMensual()" style="background:#5a95e0;border:none;border-radius:8px;padding:10px 18px;color:#0a1420;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit">Guardar mes</button>
+    <!-- Vista: Por área -->
+    <div id="piio-area" class="piio-view">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap">
+        <button type="button" class="btn btn-ghost btn-sm" onclick="_piioAnio('area',-1)">‹</button>
+        <input type="number" id="pa-anio" style="width:80px;text-align:center;background:var(--dk-card);border:1px solid #26344a;border-radius:8px;color:var(--dk-text);padding:8px;font-size:14px;font-family:inherit" onchange="cargarPiioAreaGrid()">
+        <button type="button" class="btn btn-ghost btn-sm" onclick="_piioAnio('area',1)">›</button>
+        <button type="button" class="btn btn-ghost btn-sm" onclick="_piioAbrirConfig()" style="margin-left:auto">⚙ Configurar KPIs</button>
+      </div>
+      <div id="pa-chips" style="margin-bottom:14px"></div>
+      <div id="pa-status" style="font-size:13px;color:var(--dk-text-2);margin-bottom:16px"></div>
+      <div id="pa-content"></div>
+
+      <div id="pa-config" style="display:none;background:var(--dk-card);border-radius:10px;padding:16px 18px;margin-top:18px;border:1px solid #26344a">
+        <div style="font-size:12.5px;font-weight:700;color:#f5f0e8;margin-bottom:10px">Configurar KPIs por área</div>
+        <div id="pa-config-body"></div>
+      </div>
+    </div>
+
+    <!-- Vista: Organización (panel mensual original, migración 022 — sin
+         cambios, ids sm-* intactos) -->
+    <div id="piio-org" class="piio-view">
+      <div id="sm-status" style="font-size:13px;color:var(--dk-text-2);margin-bottom:16px"></div>
+
+      <div style="background:var(--dk-card);border-radius:10px;padding:14px 16px;margin-bottom:20px;max-width:220px">
+        <label style="font-size:11px;color:#8a94a6;display:block;margin-bottom:6px">Período</label>
+        <input type="month" id="sm-periodo" style="width:100%;background:none;border:none;color:#f5f0e8;font-size:16px;font-weight:500;padding:0;outline:none;font-family:inherit">
+      </div>
+
+      <div id="sm-campos"></div>
+
+      <div class="btn-row" style="margin-top:6px">
+        <button id="sm-guardar-btn" onclick="guardarSeguimientoMensual()" style="background:#5a95e0;border:none;border-radius:8px;padding:10px 18px;color:#0a1420;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit">Guardar mes</button>
+      </div>
     </div>
   </div>
 </div>
@@ -3367,12 +3438,14 @@ function guardarFichaFinanciera(){
 }
 
 // ══════════════════════════════════════════════════════════════════
-// Seguimiento mensual — captura de los 8 KPIs (migración 022). Los 5 que
-// alimentan el CFF (orgCol != null) se precargan desde organizaciones,
-// igual que Ficha financiera — es el mismo valor vigente, no una copia
-// separada. Los 3 informativos (orgCol = null) se precargan desde
-// historial_seguimiento_mensual().actual (migración 023) porque no
-// tienen columna propia en organizaciones (plan, sección 2.2).
+// Seguimiento mensual — captura de los 8 KPIs (migración 022). Vive ahora
+// bajo la pestaña "Organización" del panel PIIO (#piio-org, migración
+// 026) — sin cambios de fondo, solo un contenedor nuevo alrededor. Los 5
+// que alimentan el CFF (orgCol != null) se precargan desde
+// organizaciones, igual que Ficha financiera — es el mismo valor
+// vigente, no una copia separada. Los 3 informativos (orgCol = null) se
+// precargan desde historial_seguimiento_mensual().actual (migración 023)
+// porque no tienen columna propia en organizaciones (plan, sección 2.2).
 // ══════════════════════════════════════════════════════════════════
 var _SM_CAMPOS = [
   { parametro: 'salario_promedio_real', id: 'sm-salario', orgCol: 'salario_promedio', tam: 20,
@@ -3468,7 +3541,15 @@ function _renderSeguimientoMensualCampos(orgRow, kpis){
 
 function mostrarSeguimientoMensual(){
   show('p-seguimiento-mensual');
-  cargarSeguimientoMensual();
+  // Solo inicializa si está vacío — mismo criterio que sm-periodo (línea
+  // ~3480): preserva el año elegido si el consultor ya navegó estas
+  // vistas y vuelve a entrar al panel dentro de la misma sesión.
+  var anioActual = new Date().getFullYear();
+  var pcAnio = document.getElementById('pc-anio');
+  var paAnio = document.getElementById('pa-anio');
+  if(pcAnio && !pcAnio.value) pcAnio.value = anioActual;
+  if(paAnio && !paAnio.value) paAnio.value = anioActual;
+  _piioTab('consolidado');
 }
 
 function cargarSeguimientoMensual(){
@@ -3533,6 +3614,362 @@ function guardarSeguimientoMensual(){
   }).catch(function(err){
     btn.disabled = false; btn.textContent = 'Guardar mes';
     status.textContent = 'Error de conexión: ' + (err && err.message || err);
+  });
+}
+
+// ══════════════════════════════════════════════════════════════════
+// PIIO — pestañas "Consolidado por meses" y "Por área" (migración 026).
+//
+// _PIIO_KPI_META vs _HIST_KPI_META (línea ~3980) — a propósito separados,
+// NO el mismo objeto. _HIST_KPI_META formatea valores de
+// calibracion_observaciones, que guarda FRACCIÓN (÷242 días, ÷100 %) —
+// sus fmt() reconvierten (v*242, v*100). seguimiento_consolidado_anual()
+// y seguimiento_area_anual() (migración 026) ya devuelven todo en UNIDAD
+// DE CAPTURA (la migración normaliza server-side, sección 10.3 del
+// archivo) — reusar _HIST_KPI_META aplicaría esa conversión una segunda
+// vez (el mismo bug de escala /242//100 que ya se evitó al diseñar la
+// migración). Los 8 KPIs, keyed por el nombre `kpi` que usan las RPCs de
+// esta migración (no por `parametro`, que es el nombre distinto que usa
+// calibracion_observaciones).
+var _PIIO_KPI_META = {
+  salario_promedio:      { label: 'Salario promedio',                  polaridad: null,
+    fmt: function(v){ return fmt(v); } },
+  costo_operativo_total: { label: 'Costo operativo total',             polaridad: null,
+    fmt: function(v){ return fmt(v); } },
+  tasa_rotacion_base:    { label: 'Tasa de rotación',                  polaridad: 'menor_mejor',
+    fmt: function(v){ return v.toFixed(1) + '%'; } },
+  dias_ausencia_base:    { label: 'Días de ausencia base',             polaridad: 'menor_mejor',
+    fmt: function(v){ return v.toFixed(1) + ' días'; } },
+  tasa_retrabajo_real:   { label: 'Tasa de retrabajo',                 polaridad: 'menor_mejor',
+    fmt: function(v){ return v.toFixed(1) + '%'; } },
+  productividad:          { label: 'Productividad',                     polaridad: 'mayor_mejor',
+    fmt: function(v){ return v.toLocaleString('es-CO'); } },
+  accidentalidad:         { label: 'Accidentalidad',                    polaridad: 'menor_mejor',
+    fmt: function(v){ return v.toFixed(1); } },
+  presentismo:            { label: 'Presentismo (presencia vacía)',     polaridad: 'menor_mejor',
+    fmt: function(v){ return v.toFixed(0) + '/5'; } }
+};
+
+// Los 6 capturables por área (decisión 1, migración 026) — subconjunto de
+// _PIIO_KPI_META sin salario_promedio/costo_operativo_total (org-only).
+var _PIIO_KPIS_AREA = ['tasa_rotacion_base', 'dias_ausencia_base', 'tasa_retrabajo_real', 'productividad', 'accidentalidad', 'presentismo'];
+
+var _PIIO_MESES = [
+  { periodo: '01', label: 'Ene' }, { periodo: '02', label: 'Feb' }, { periodo: '03', label: 'Mar' },
+  { periodo: '04', label: 'Abr' }, { periodo: '05', label: 'May' }, { periodo: '06', label: 'Jun' },
+  { periodo: '07', label: 'Jul' }, { periodo: '08', label: 'Ago' }, { periodo: '09', label: 'Sep' },
+  { periodo: '10', label: 'Oct' }, { periodo: '11', label: 'Nov' }, { periodo: '12', label: 'Dic' }
+];
+
+// Estado de las 2 vistas cargadas por RPC (Organización sigue su propio
+// estado sm-* sin cambios). config = último resultado de
+// seguimiento_kpi_config_listar (reusado por chips + panel de config sin
+// re-pedirlo dos veces por interacción).
+var _piioState = { tab: 'consolidado', kpi: null, config: null };
+
+function _piioTab(tab){
+  document.querySelectorAll('.piio-view').forEach(function(p){ p.classList.remove('active'); });
+  document.querySelectorAll('.piio-tab-btn').forEach(function(b){ b.classList.remove('active'); });
+  var panel = document.getElementById('piio-' + tab);
+  if(panel) panel.classList.add('active');
+  document.querySelectorAll('.piio-tab-btn').forEach(function(b){
+    if((b.getAttribute('onclick') || '').indexOf("'" + tab + "'") !== -1) b.classList.add('active');
+  });
+  _piioState.tab = tab;
+  if(tab === 'consolidado') cargarPiioConsolidado();
+  if(tab === 'area') cargarPiioArea();
+  if(tab === 'org') cargarSeguimientoMensual();
+}
+
+// view: 'consolidado' | 'area' — mismo botón ‹ › en ambas franjas de año,
+// apunta al input correspondiente (pc-anio / pa-anio).
+function _piioAnio(view, delta){
+  var elId = view === 'area' ? 'pa-anio' : 'pc-anio';
+  var el = document.getElementById(elId);
+  if(!el) return;
+  el.value = (parseInt(el.value, 10) || new Date().getFullYear()) + delta;
+  if(view === 'area') cargarPiioAreaGrid(); else cargarPiioConsolidado();
+}
+
+// ── Consolidado por meses ────────────────────────────────────────────
+function cargarPiioConsolidado(){
+  if(!S_ORG.id) return;
+  var status = document.getElementById('pc-status');
+  var anioEl = document.getElementById('pc-anio');
+  var anio = parseInt(anioEl && anioEl.value, 10) || new Date().getFullYear();
+  if(status) status.textContent = 'Cargando…';
+
+  supa.rpc('seguimiento_consolidado_anual', { p_organizacion_id: S_ORG.id, p_anio: anio }).then(function(res){
+    if(res.error){ if(status) status.textContent = 'Error al cargar: ' + res.error.message; return; }
+    if(status) status.textContent = '';
+    _renderPiioConsolidado(res.data);
+  }).catch(function(err){
+    if(status) status.textContent = 'Error de conexión: ' + (err && err.message || err);
+  });
+}
+
+// Dirección local, análoga a _direccionKPI (línea ~3970) pero sobre
+// _PIIO_KPI_META y a partir de un delta ya calculado server-side (la RPC
+// ya trae 'delta', no hace falta actual/anterior acá).
+function _piioDireccion(kpi, delta){
+  var meta = _PIIO_KPI_META[kpi] || {};
+  if(delta === 0) return { label: 'Estable', color: '#8a94a6' };
+  var subio = delta > 0;
+  if(meta.polaridad == null) return subio ? { label: 'Subió', color: '#8a94a6' } : { label: 'Bajó', color: '#8a94a6' };
+  var esMejora = (meta.polaridad === 'mayor_mejor') === subio;
+  return esMejora ? { label: 'Mejora', color: '#4a9d6e' } : { label: 'Empeora', color: '#f2542d' };
+}
+
+function _piioDeltaHtml(delta, kpi){
+  if(delta == null) return '<td style="color:var(--dk-text-3)">—</td>';
+  var meta = _PIIO_KPI_META[kpi];
+  return '<td>' + _badgeDireccionHtml(_piioDireccion(kpi, delta), _fmtConSigno(delta, meta.fmt)) + '</td>';
+}
+
+// mes = { valor, estado: 'consolidado'|'provisional', reportando, umbral }
+// o null (sin dato consolidado ni provisional ese mes). ◑ = overlay
+// "provisional" (decisión 9b) — tooltip nativo (title=), copy confirmada
+// con Luis en esta misma conversación.
+function _piioCeldaConsolidada(mes, meta){
+  if(!mes) return '<td style="color:var(--dk-text-3)">—</td>';
+  if(mes.estado === 'provisional'){
+    return '<td><span style="color:var(--dk-text-2)">' + meta.fmt(mes.valor) + '</span> ' +
+      '<span title="Provisional — ' + mes.reportando + ' de ' + mes.umbral + ' áreas reportaron este mes. Se consolidará automáticamente cuando se complete." style="cursor:help;opacity:.8">◑</span></td>';
+  }
+  return '<td style="color:#f5f0e8">' + meta.fmt(mes.valor) + '</td>';
+}
+
+function _renderPiioConsolidado(data){
+  var wrap = document.getElementById('pc-content');
+  if(!wrap) return;
+  if(!data || !data.kpis || !data.kpis.length){ wrap.innerHTML = ''; return; }
+
+  var encabezado = '<tr><th>KPI</th>' + _PIIO_MESES.map(function(m){ return '<th>' + m.label + '</th>'; }).join('') + '<th>Acumulado</th><th>Delta</th></tr>';
+
+  var filas = data.kpis.map(function(k){
+    var meta = _PIIO_KPI_META[k.kpi] || { label: k.kpi, fmt: function(v){ return v; } };
+    var celdas = _PIIO_MESES.map(function(m){
+      return _piioCeldaConsolidada(k.meses[data.anio + '-' + m.periodo], meta);
+    }).join('');
+    return '<tr><td>' + meta.label + '</td>' + celdas +
+      '<td style="color:var(--dorado);font-weight:600">' + (k.acumulado != null ? meta.fmt(k.acumulado) : '—') + '</td>' +
+      _piioDeltaHtml(k.delta, k.kpi) +
+    '</tr>';
+  }).join('');
+
+  wrap.innerHTML = '<div class="piio-grid-wrap"><table class="piio-grid"><thead>' + encabezado + '</thead><tbody>' + filas + '</tbody></table></div>';
+}
+
+// ── Por área ──────────────────────────────────────────────────────────
+// Carga primero la config (qué KPIs están activos + n_areas_total) para
+// poblar los chips y decidir el KPI por defecto; solo entonces pide la
+// grilla del KPI seleccionado. Dos RPCs, no uno — seguimiento_area_anual
+// necesita un p_kpi puntual, no puede traer los 6 a la vez.
+function cargarPiioArea(){
+  if(!S_ORG.id) return;
+  var status = document.getElementById('pa-status');
+  if(status) status.textContent = 'Cargando…';
+
+  supa.rpc('seguimiento_kpi_config_listar', { p_organizacion_id: S_ORG.id }).then(function(res){
+    if(res.error){ if(status) status.textContent = 'Error al cargar configuración: ' + res.error.message; return; }
+    if(status) status.textContent = '';
+    _piioState.config = res.data;
+    _renderPiioChips(res.data);
+
+    var activos = (res.data.kpis || []).filter(function(k){ return k.activo; });
+    if(!activos.length){
+      _piioState.kpi = null;
+      var content = document.getElementById('pa-content');
+      if(content) content.innerHTML = _piioSinKpisHtml();
+      return;
+    }
+    if(!_piioState.kpi || !activos.some(function(k){ return k.kpi === _piioState.kpi; })){
+      _piioState.kpi = activos[0].kpi;
+    }
+    cargarPiioAreaGrid();
+  }).catch(function(err){
+    if(status) status.textContent = 'Error de conexión: ' + (err && err.message || err);
+  });
+}
+
+// Chips = único selector de KPI en esta vista (mismo criterio que
+// _renderFilaComparacionAreas en Por área del Tablero — sin <select>
+// redundante). KPIs inactivos se muestran atenuados y seleccionables
+// igual (permite revisar datos ya cargados aunque el roll-up esté
+// apagado), etiquetados "(inactivo)".
+function _renderPiioChips(config){
+  var wrap = document.getElementById('pa-chips');
+  if(!wrap) return;
+  var kpis = (config && config.kpis) || [];
+  wrap.innerHTML = kpis.map(function(k){
+    var meta = _PIIO_KPI_META[k.kpi] || { label: k.kpi };
+    var sel = k.kpi === _piioState.kpi;
+    var estilo = 'display:inline-block;padding:6px 12px;margin:0 6px 6px 0;border-radius:14px;font-size:11px;font-weight:600;cursor:pointer;border:1px solid ' +
+      (sel ? 'var(--dorado)' : '#26344a') + ';color:' + (sel ? 'var(--dorado)' : (k.activo ? 'var(--dk-text)' : 'var(--dk-text-3)')) +
+      ';background:' + (sel ? 'rgba(201,162,39,.12)' : 'none');
+    return '<span style="' + estilo + '" onclick="_piioSelKpi(' + JSON.stringify(k.kpi) + ')">' + meta.label + (k.activo ? '' : ' (inactivo)') + '</span>';
+  }).join('');
+}
+
+function _piioSelKpi(kpi){
+  _piioState.kpi = kpi;
+  _renderPiioChips(_piioState.config);
+  cargarPiioAreaGrid();
+}
+
+function cargarPiioAreaGrid(){
+  if(!S_ORG.id || !_piioState.kpi) return;
+  var status = document.getElementById('pa-status');
+  var anioEl = document.getElementById('pa-anio');
+  var anio = parseInt(anioEl && anioEl.value, 10) || new Date().getFullYear();
+  if(status) status.textContent = 'Cargando…';
+
+  supa.rpc('seguimiento_area_anual', { p_organizacion_id: S_ORG.id, p_kpi: _piioState.kpi, p_anio: anio }).then(function(res){
+    if(res.error){ if(status) status.textContent = 'Error al cargar: ' + res.error.message; return; }
+    if(status) status.textContent = '';
+    _renderPiioAreaGrid(res.data);
+  }).catch(function(err){
+    if(status) status.textContent = 'Error de conexión: ' + (err && err.message || err);
+  });
+}
+
+// Grilla editable: una fila por área, un <input> por mes (autosave onblur
+// → _piioGuardarCelda). Fila final de completitud (N reportando/umbral)
+// para que el consultor vea qué falta sin abrir Configurar KPIs.
+function _renderPiioAreaGrid(data){
+  var wrap = document.getElementById('pa-content');
+  if(!wrap) return;
+  if(!data){ wrap.innerHTML = ''; return; }
+  if(!data.areas || !data.areas.length){
+    wrap.innerHTML = '<div style="font-size:12px;color:var(--dk-text-2);font-style:italic;padding:16px">Esta organización no tiene áreas configuradas todavía.</div>';
+    return;
+  }
+
+  var aviso = data.activo ? '' :
+    '<div style="font-size:11px;color:#f2542d;margin-bottom:10px">⚠ Este KPI no está activo para roll-up automático — los datos se guardan pero no se consolidan al CFF/Consolidado. Actívalo en "⚙ Configurar KPIs".</div>';
+
+  var encabezado = '<tr><th>Área</th>' + _PIIO_MESES.map(function(m){ return '<th>' + m.label + '</th>'; }).join('') + '</tr>';
+
+  var filas = data.areas.map(function(a){
+    var celdas = _PIIO_MESES.map(function(m){
+      var periodo = data.anio + '-' + m.periodo;
+      var valor = a.meses[periodo];
+      return '<td><input type="number" class="piio-cell-input" value="' + (valor != null ? valor : '') + '" ' +
+        'onblur="_piioGuardarCelda(this,' + JSON.stringify(a.area_id) + ',' + JSON.stringify(periodo) + ',' + JSON.stringify(data.kpi) + ')"></td>';
+    }).join('');
+    return '<tr><td>' + a.nombre + '</td>' + celdas + '</tr>';
+  }).join('');
+
+  var filaCompletitud = '<tr style="font-size:10px;color:var(--dk-text-2)"><td>Completitud</td>' +
+    _PIIO_MESES.map(function(m){
+      var c = data.completitud[data.anio + '-' + m.periodo];
+      if(!c || !c.n_reportando) return '<td>—</td>';
+      return '<td>' + c.n_reportando + '/' + c.umbral + (c.completo ? ' ✓' : '') + '</td>';
+    }).join('') +
+  '</tr>';
+
+  wrap.innerHTML = aviso + '<div class="piio-grid-wrap"><table class="piio-grid"><thead>' + encabezado + '</thead><tbody>' + filas + filaCompletitud + '</tbody></table></div>';
+}
+
+function _piioSinKpisHtml(){
+  return '<div style="background:var(--dk-card);border-radius:10px;padding:24px 20px;text-align:center">' +
+    '<div style="font-size:13px;color:var(--dk-text-2);font-style:italic;margin-bottom:12px">Ningún KPI está configurado para captura por área todavía.</div>' +
+    '<button type="button" class="btn btn-ghost btn-sm" onclick="_piioAbrirConfig()">⚙ Configurar KPIs</button>' +
+  '</div>';
+}
+
+// Autosave por celda — un solo p_<kpi> no-nulo por llamada (decisión 7,
+// migración 026). El toast solo aparece si el roll-up REALMENTE se
+// aplicó (v_comp.completo, no solo "se guardó el dato") — resuelve la
+// preocupación de que el CFF cambie sin que nadie se entere en el
+// momento, sin reintroducir un paso de confirmación previo.
+function _piioGuardarCelda(input, areaId, periodo, kpi){
+  if(!S_ORG.id) return;
+  var v = input.value === '' ? null : parseFloat(input.value);
+  var params = { p_organizacion_id: S_ORG.id, p_area_id: areaId, p_periodo: periodo };
+  params['p_' + kpi] = v;
+  input.disabled = true;
+
+  supa.rpc('guardar_seguimiento_area', params).then(function(res){
+    input.disabled = false;
+    if(res.error){ try{ showToast('<strong>Error al guardar</strong> — ' + res.error.message, 'bad'); }catch(e){} return; }
+
+    ((res.data && res.data.rollups) || []).forEach(function(r){
+      if(!r.rollup_aplicado) return;
+      var meta = _PIIO_KPI_META[r.kpi] || { label: r.kpi };
+      var msg = '<strong>Roll-up automático</strong> — ' + meta.label + ' consolidada (' + r.n_reportando + '/' + r.umbral + ' áreas).';
+      if(r.cff_recalculo_intentado) msg += r.cff_recalculo_ok ? ' CFF del semestre recalculado.' : ' Aviso: el recálculo del CFF falló — revisar.';
+      try{ showToast(msg, 'good'); }catch(e){}
+    });
+
+    cargarPiioAreaGrid(); // refresca fila de completitud (y valores si el roll-up promedió)
+  }).catch(function(err){
+    input.disabled = false;
+    try{ showToast('<strong>Error de conexión</strong> — ' + (err && err.message || err), 'bad'); }catch(e){}
+  });
+}
+
+// ── Configurar KPIs ──────────────────────────────────────────────────
+function _piioAbrirConfig(){
+  var panel = document.getElementById('pa-config');
+  if(!panel) return;
+  panel.style.display = 'block';
+  _renderPiioConfig(_piioState.config);
+}
+
+function _piioCerrarConfig(){
+  var panel = document.getElementById('pa-config');
+  if(panel) panel.style.display = 'none';
+}
+
+function _renderPiioConfig(config){
+  var wrap = document.getElementById('pa-config-body');
+  if(!wrap) return;
+  var kpis = (config && config.kpis) || [];
+  var nAreas = (config && config.n_areas_total) || 0;
+
+  wrap.innerHTML =
+    '<div style="font-size:11px;color:var(--dk-text-2);margin-bottom:12px">Esta organización tiene ' + nAreas + ' área(s). "Áreas mínimas" vacío = todas.</div>' +
+    kpis.map(function(k){
+      var meta = _PIIO_KPI_META[k.kpi] || { label: k.kpi };
+      return '<div style="display:flex;align-items:center;gap:12px;padding:8px 0;border-bottom:1px solid #1c2740">' +
+        '<label style="flex:1;font-size:12px;color:var(--dk-text);display:flex;align-items:center;gap:8px">' +
+          '<input type="checkbox" id="pa-cfg-activo-' + k.kpi + '"' + (k.activo ? ' checked' : '') + '> ' + meta.label +
+        '</label>' +
+        '<input type="number" id="pa-cfg-min-' + k.kpi + '" min="1" placeholder="todas" value="' + (k.min_areas != null ? k.min_areas : '') + '" style="width:70px;background:var(--dk-bg);border:1px solid #26344a;border-radius:6px;color:var(--dk-text);padding:5px 8px;font-size:12px;font-family:inherit">' +
+      '</div>';
+    }).join('') +
+    '<div class="btn-row" style="margin-top:14px">' +
+      '<button type="button" class="btn btn-ghost btn-sm" onclick="_piioCerrarConfig()">Cancelar</button>' +
+      '<button type="button" id="pa-cfg-guardar-btn" onclick="_piioGuardarConfig()" style="background:#5a95e0;border:none;border-radius:8px;padding:8px 16px;color:#0a1420;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit">Guardar configuración</button>' +
+    '</div>';
+}
+
+// Un configurar_seguimiento_kpi() por KPI (6 llamadas) — no hay RPC batch
+// y no hace falta uno: cada llamada ya dispara su propia reconsolidación
+// retroactiva (decisión 9, migración 026) de forma independiente.
+function _piioGuardarConfig(){
+  if(!S_ORG.id) return;
+  var btn = document.getElementById('pa-cfg-guardar-btn');
+  var kpis = (_piioState.config && _piioState.config.kpis) || [];
+  if(btn){ btn.disabled = true; btn.textContent = 'Guardando…'; }
+
+  Promise.all(kpis.map(function(k){
+    var activoEl = document.getElementById('pa-cfg-activo-' + k.kpi);
+    var minEl = document.getElementById('pa-cfg-min-' + k.kpi);
+    var activo = activoEl ? activoEl.checked : k.activo;
+    var minVal = (minEl && minEl.value !== '') ? parseInt(minEl.value, 10) : null;
+    return supa.rpc('configurar_seguimiento_kpi', { p_organizacion_id: S_ORG.id, p_kpi: k.kpi, p_activo: activo, p_min_areas: minVal });
+  })).then(function(resultados){
+    if(btn){ btn.disabled = false; btn.textContent = 'Guardar configuración'; }
+    var error = resultados.find(function(r){ return r.error; });
+    if(error){ try{ showToast('<strong>Error al guardar configuración</strong> — ' + error.error.message, 'bad'); }catch(e){} return; }
+    try{ showToast('<strong>Configuración guardada</strong>', 'good'); }catch(e){}
+    _piioCerrarConfig();
+    cargarPiioArea();
+  }).catch(function(err){
+    if(btn){ btn.disabled = false; btn.textContent = 'Guardar configuración'; }
+    try{ showToast('<strong>Error de conexión</strong> — ' + (err && err.message || err), 'bad'); }catch(e){}
   });
 }
 
