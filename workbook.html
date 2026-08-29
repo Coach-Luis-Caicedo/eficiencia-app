@@ -1109,6 +1109,7 @@ supa.auth.getSession().then(function(res){
     <div id="dr-ficha" class="reg-ficha"></div>
     <button type="button" class="btn btn-ghost btn-sm" onclick="mostrarFichaFinanciera()" style="margin:-20px 8px 20px 0">⚙ Ficha financiera</button>
     <button type="button" class="btn btn-ghost btn-sm" onclick="mostrarSeguimientoMensual()" style="margin:-20px 0 20px">📈 PIIO</button>
+    <button type="button" class="btn btn-ghost btn-sm" onclick="mostrarGestionAreas()" style="margin:-20px 0 20px 8px">⚙ Áreas</button>
 
     <div class="reg-columns">
       <div class="reg-left">
@@ -1474,6 +1475,35 @@ supa.auth.getSession().then(function(res){
 
       <div class="btn-row" style="margin-top:6px">
         <button id="sm-guardar-btn" onclick="guardarSeguimientoMensual()" style="background:#5a95e0;border:none;border-radius:8px;padding:10px 18px;color:#0a1420;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit">Guardar mes</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══ ÁREAS — agregar/renombrar/eliminar (migración 027). Panel propio,
+     no un campo más en Ficha financiera (ya contemplado así en el marco).
+     Renombrar re-etiqueta también respuestas_cuestionario.area/
+     respuestas_sdmo.area en el backend — el toast muestra el conteo real
+     de filas afectadas. ═══ -->
+<div id="p-gestion-areas" class="panel dark-panel">
+  <div class="panel-inner">
+    <div class="ph">
+      <div class="ph-tag">Resultado · Áreas</div>
+      <div class="ph-title">Áreas</div>
+      <div class="ph-desc">Agrega, renombra o elimina las áreas/departamentos de esta organización — alimentan el selector del cuestionario/SD-MO, la comparación "Por área" del Tablero y PIIO por área.</div>
+      <button class="btn btn-ghost btn-sm" onclick="show('p-dash-resultado')" style="margin-top:10px">← Volver al Tablero</button>
+    </div>
+
+    <div id="ga-status" style="font-size:13px;color:var(--dk-text-2);margin-bottom:16px"></div>
+
+    <div id="ga-lista" style="margin-bottom:20px"></div>
+
+    <div style="background:var(--dk-card);border-radius:10px;padding:14px 16px;max-width:360px">
+      <label style="font-size:11px;color:#8a94a6;display:block;margin-bottom:6px">Nueva área</label>
+      <div style="display:flex;gap:8px">
+        <input type="text" id="ga-nueva" placeholder="Ej. Bodega" style="flex:1;background:var(--dk-bg);border:1px solid #26344a;border-radius:8px;color:var(--dk-text);padding:9px 12px;font-size:13px;font-family:inherit" onkeydown="if(event.key==='Enter')_gaAgregar()">
+        <button type="button" onclick="_gaAgregar()" style="background:#5a95e0;border:none;border-radius:8px;padding:9px 16px;color:#0a1420;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit">Agregar</button>
       </div>
     </div>
   </div>
@@ -3969,6 +3999,139 @@ function _piioGuardarConfig(){
     cargarPiioArea();
   }).catch(function(err){
     if(btn){ btn.disabled = false; btn.textContent = 'Guardar configuración'; }
+    try{ showToast('<strong>Error de conexión</strong> — ' + (err && err.message || err), 'bad'); }catch(e){}
+  });
+}
+
+// ══════════════════════════════════════════════════════════════════
+// Áreas — agregar/renombrar/eliminar (migración 027). Lectura directa de
+// la tabla (select id,nombre) en vez de un RPC de listado — mismo camino
+// que ya usa _initPorArea() para areas_organizacion (GRANT SELECT +
+// RLS por consultor_organizacion desde la migración 006, sin necesidad
+// de una función nueva solo para leer).
+// ══════════════════════════════════════════════════════════════════
+
+function mostrarGestionAreas(){
+  show('p-gestion-areas');
+  cargarAreas();
+}
+
+function cargarAreas(){
+  if(!S_ORG.id) return;
+  var status = document.getElementById('ga-status');
+  if(status) status.textContent = 'Cargando…';
+  supa.from('areas_organizacion').select('id,nombre').eq('organizacion_id', S_ORG.id).order('nombre').then(function(res){
+    if(res.error){ if(status) status.textContent = 'Error al cargar: ' + res.error.message; return; }
+    if(status) status.textContent = '';
+    _renderAreasLista(res.data || []);
+  });
+}
+
+function _renderAreasLista(areas){
+  var wrap = document.getElementById('ga-lista');
+  if(!wrap) return;
+  if(!areas.length){
+    wrap.innerHTML = '<div style="font-size:12px;color:var(--dk-text-2);font-style:italic;padding:12px 0">Esta organización no tiene áreas todavía.</div>';
+    return;
+  }
+  wrap.innerHTML = areas.map(_gaFilaHtml).join('');
+}
+
+function _gaFilaHtml(area){
+  return '<div id="ga-row-' + area.id + '" style="display:flex;align-items:center;gap:10px;background:var(--dk-card);border-radius:8px;padding:10px 14px;margin-bottom:8px">' +
+    '<div id="ga-nombre-' + area.id + '" style="flex:1;font-size:13px;color:var(--dk-text)">' + area.nombre + '</div>' +
+    '<div id="ga-acciones-' + area.id + '" style="display:flex;gap:8px;flex-shrink:0">' +
+      '<button type="button" onclick="_gaEditar(' + JSON.stringify(area.id) + ')" title="Renombrar" style="background:none;border:none;color:#8a94a6;cursor:pointer;font-size:14px;padding:4px">✎</button>' +
+      '<button type="button" onclick="_gaEliminarClick(' + JSON.stringify(area.id) + ')" style="background:none;border:1px solid #26344a;border-radius:6px;color:#f2542d;cursor:pointer;font-size:11px;padding:5px 10px;font-family:inherit">Eliminar</button>' +
+    '</div>' +
+  '</div>';
+}
+
+// Nombre → <input> inline, autosave onblur — mismo lenguaje que las
+// celdas de PIIO Por área (_piioGuardarCelda). Sin cancelar con Escape
+// (ningún otro lugar de la app lo implementa); Enter simplemente hace
+// blur() y deja que el guardado normal se encargue.
+function _gaEditar(areaId){
+  var div = document.getElementById('ga-nombre-' + areaId);
+  if(!div) return;
+  var actual = div.textContent;
+  div.innerHTML = '<input type="text" id="ga-input-' + areaId + '" value="' + actual.replace(/"/g, '&quot;') + '" ' +
+    'style="width:100%;background:var(--dk-bg);border:1px solid var(--dorado);border-radius:6px;color:var(--dk-text);padding:5px 8px;font-size:13px;font-family:inherit" ' +
+    'onkeydown="if(event.key===\'Enter\')this.blur()" onblur="_gaRenombrar(' + JSON.stringify(areaId) + ',this)">';
+  var input = document.getElementById('ga-input-' + areaId);
+  if(input){ input.focus(); input.select(); }
+}
+
+function _gaRenombrar(areaId, inputEl){
+  var nuevo = inputEl.value.trim();
+  if(!S_ORG.id || !nuevo){ cargarAreas(); return; }
+  inputEl.disabled = true;
+
+  supa.rpc('renombrar_area_organizacion', { p_organizacion_id: S_ORG.id, p_area_id: areaId, p_nombre_nuevo: nuevo }).then(function(res){
+    if(res.error){
+      try{ showToast('<strong>Error al renombrar</strong> — ' + res.error.message, 'bad'); }catch(e){}
+      cargarAreas();
+      return;
+    }
+    var d = res.data || {};
+    var nCuest = d.respuestas_cuestionario_reetiquetadas || 0;
+    var nSdmo  = d.respuestas_sdmo_reetiquetadas || 0;
+    var extra = (nCuest || nSdmo) ? (' — ' + nCuest + ' respuesta(s) de cuestionario y ' + nSdmo + ' de SD-MO actualizadas.') : '';
+    try{ showToast('<strong>Área renombrada</strong>' + extra, 'good'); }catch(e){}
+    cargarAreas();
+  }).catch(function(err){
+    try{ showToast('<strong>Error de conexión</strong> — ' + (err && err.message || err), 'bad'); }catch(e){}
+    cargarAreas();
+  });
+}
+
+// Confirmación de borrado inline (2 clics), no window.confirm() — ningún
+// otro lugar de la app usa diálogos nativos del navegador.
+function _gaEliminarClick(areaId){
+  var acciones = document.getElementById('ga-acciones-' + areaId);
+  if(!acciones) return;
+  acciones.innerHTML =
+    '<span style="font-size:11px;color:var(--dk-text-2)">¿Seguro?</span>' +
+    '<button type="button" onclick="_gaEliminarConfirmar(' + JSON.stringify(areaId) + ')" style="background:none;border:1px solid #f2542d;border-radius:6px;color:#f2542d;cursor:pointer;font-size:11px;padding:5px 10px;font-family:inherit">Sí, eliminar</button>' +
+    '<button type="button" onclick="cargarAreas()" style="background:none;border:1px solid #26344a;border-radius:6px;color:#8a94a6;cursor:pointer;font-size:11px;padding:5px 10px;font-family:inherit">Cancelar</button>';
+}
+
+function _gaEliminarConfirmar(areaId){
+  if(!S_ORG.id) return;
+  supa.rpc('eliminar_area_organizacion', { p_organizacion_id: S_ORG.id, p_area_id: areaId }).then(function(res){
+    if(res.error){
+      // Incluye el guard de seguimiento_area_observaciones (migración 027,
+      // sección 3) — el mensaje del backend ya es legible tal cual.
+      try{ showToast('<strong>No se pudo eliminar</strong> — ' + res.error.message, 'bad'); }catch(e){}
+      cargarAreas();
+      return;
+    }
+    try{ showToast('<strong>Área eliminada</strong>', 'good'); }catch(e){}
+    cargarAreas();
+  }).catch(function(err){
+    try{ showToast('<strong>Error de conexión</strong> — ' + (err && err.message || err), 'bad'); }catch(e){}
+    cargarAreas();
+  });
+}
+
+function _gaAgregar(){
+  if(!S_ORG.id) return;
+  var input = document.getElementById('ga-nueva');
+  var nombre = input.value.trim();
+  if(!nombre) return;
+  input.disabled = true;
+
+  supa.rpc('agregar_area_organizacion', { p_organizacion_id: S_ORG.id, p_nombre: nombre }).then(function(res){
+    input.disabled = false;
+    if(res.error){
+      try{ showToast('<strong>Error al agregar</strong> — ' + res.error.message, 'bad'); }catch(e){}
+      return;
+    }
+    input.value = '';
+    try{ showToast('<strong>Área agregada</strong> — ' + nombre, 'good'); }catch(e){}
+    cargarAreas();
+  }).catch(function(err){
+    input.disabled = false;
     try{ showToast('<strong>Error de conexión</strong> — ' + (err && err.message || err), 'bad'); }catch(e){}
   });
 }
