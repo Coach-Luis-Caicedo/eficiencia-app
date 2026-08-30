@@ -195,7 +195,7 @@ body.cover-active .main{background:var(--azul)}
 .dark-panel .acr-tag-ieh{color:var(--ieh)}
 
 /* ══ INTERIOR PANELS ══ */
-.panel-inner{padding:32px 36px 56px;max-width:980px}
+.panel-inner{padding:32px 36px 56px;max-width:none}
 
 /* ── SPLIT layout ── */
 .split{display:grid;grid-template-columns:1fr 300px;gap:24px;align-items:start}
@@ -1296,7 +1296,7 @@ supa.auth.getSession().then(function(res){
       <div id="ff-completitud" style="display:flex;gap:16px;flex-wrap:wrap"></div>
     </div>
 
-    <div style="display:grid;grid-template-columns:2fr 1fr;gap:14px;margin-bottom:14px">
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px;margin-bottom:14px">
       <div style="background:var(--dk-card);border-radius:10px;padding:14px 16px">
         <label style="font-size:11px;color:#8a94a6;display:block;margin-bottom:6px">Nombre de la organización</label>
         <input type="text" id="ff-nombre" placeholder="Ej. Acme S.A.S." style="width:100%;background:none;border:none;color:#f5f0e8;font-size:16px;font-weight:500;padding:0;outline:none;font-family:inherit">
@@ -1307,7 +1307,7 @@ supa.auth.getSession().then(function(res){
       </div>
     </div>
 
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px;margin-bottom:14px">
       <div style="background:var(--dk-card);border-radius:10px;padding:12px 16px;display:flex;justify-content:space-between;align-items:center">
         <div style="display:flex;align-items:center;gap:10px">
           <span style="font-size:11px;color:#8a94a6">País</span>
@@ -1334,7 +1334,7 @@ supa.auth.getSession().then(function(res){
       </div>
     </div>
 
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px;margin-bottom:14px">
       <div style="background:var(--dk-card);border-radius:10px;padding:14px 16px">
         <label style="font-size:11px;color:#8a94a6;display:block;margin-bottom:6px">Salario promedio <span style="opacity:.7">(costo total mensual, COP)</span></label>
         <input type="number" id="ff-salario" step="100000" min="0" placeholder="Ej. 3500000" style="width:100%;background:none;border:none;color:#8a94a6;font-size:22px;padding:0;outline:none;font-family:inherit" oninput="_ffRenderInsumo('ff-salario','ff-salario-ayuda',22,'Incluye salario base + carga prestacional (cesantías, prima, vacaciones, salud, pensión, ARL, caja de compensación) — no solo el salario base.','Sin este dato, Desenganche no puede calcularse.')">
@@ -1372,7 +1372,7 @@ supa.auth.getSession().then(function(res){
       </div>
     </div>
 
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:20px">
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px;margin-bottom:20px">
       <div id="ff-card-costo-operativo" style="background:var(--dk-card);border-radius:10px;padding:14px 16px;border:1px dashed #26344a">
         <label style="font-size:11px;color:#8a94a6;display:block;margin-bottom:6px">Costo operativo total <span style="opacity:.7">(COP/año)</span></label>
         <input type="number" id="ff-costo-operativo" step="1000000" min="0" placeholder="Sin dato" style="width:100%;background:none;border:none;color:#8a94a6;font-size:18px;padding:0;outline:none;font-family:inherit" oninput="_ffRenderFinanciero('ff-costo-operativo','ff-card-costo-operativo','ff-costo-operativo-ayuda','Necesario para calcular Costo_retrabajo (marco, sección 8).','Sin este dato, Costo_retrabajo no se incluye en el CFF.')">
