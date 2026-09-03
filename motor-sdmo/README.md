@@ -5,7 +5,7 @@ No toca ningún código de producción (encuestas de clima / pulso incluidas). N
 implementa IAO ni el AIE. No se integra a producción hasta aprobación explícita
 tras revisar la verificación.
 
-- **Fuente de verdad:** [`../DOCUMENTO_TECNICO_SDMO_IAO_v1.md`](../DOCUMENTO_TECNICO_SDMO_IAO_v1.md),
+- **Fuente de verdad:** [`../docs/DOCUMENTO_TECNICO_SDMO_IAO_v1.md`](../docs/DOCUMENTO_TECNICO_SDMO_IAO_v1.md),
   **secciones 2.1–2.10** (la sección 3+ es IAO — fuera de alcance).
 - **Nomenclatura:** solo `ACU / COM / INV / PEN` (ACTUAR / COMUNICAR /
   INVOLUCRARSE / PENSAR). La nomenclatura histórica

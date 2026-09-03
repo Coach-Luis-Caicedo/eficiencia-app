@@ -3,7 +3,7 @@
  *  MOTOR DE CÁLCULO — SDMO (Sensor Diario de Modo Operativo) + IDA
  * ============================================================================
  *
- *  Fuente de verdad: DOCUMENTO_TECNICO_SDMO_IAO_v1.md, secciones 2.1–2.10.
+ *  Fuente de verdad: docs/DOCUMENTO_TECNICO_SDMO_IAO_v1.md, secciones 2.1–2.10.
  *  (La sección 3 en adelante es IAO — NO forma parte de este módulo.)
  *
  *  MÓDULO AISLADO — mismo criterio que motor-ice-ieh/:
