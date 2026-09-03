@@ -3,7 +3,7 @@
  *  MOTOR DE CÁLCULO — Instrumento ICE–IEH v2 (31 preguntas)
  * ============================================================================
  *
- *  Fuente única de verdad: DOCUMENTO_TECNICO_ICE_IEH_v2.md
+ *  Fuente única de verdad: docs/DOCUMENTO_TECNICO_ICE_IEH_v2.md
  *  Secciones implementadas: 2.3 (numeración global), 2.4 (códigos de sensor),
  *  3.7 / 4.7 / 5.8 / 6.7 / 7.8 (matrices canónicas por bloque),
  *  8.2 (clasificación por tipo), 8.3 (regla de agregación),

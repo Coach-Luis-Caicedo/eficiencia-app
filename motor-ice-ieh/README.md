@@ -4,7 +4,7 @@ Módulo **aislado**. No toca el motor de 25 preguntas que hoy calcula el
 cuestionario en `workbook.html`. No se integra a producción hasta aprobación
 explícita tras revisar esta verificación.
 
-- **Fuente de verdad:** [`../DOCUMENTO_TECNICO_ICE_IEH_v2.md`](../DOCUMENTO_TECNICO_ICE_IEH_v2.md)
+- **Fuente de verdad:** [`../docs/DOCUMENTO_TECNICO_ICE_IEH_v2.md`](../docs/DOCUMENTO_TECNICO_ICE_IEH_v2.md)
   (secciones 2.3, 2.4, 3.7, 4.7, 5.8, 6.7, 7.8, 8.2–8.7).
 - **NO** usa `CUESTIONARIO_25_PREGUNTAS_EFICIENCIA.md` ni el acróstico plano viejo.
 
@@ -160,11 +160,10 @@ variables de cada plano pesan **igual** en el promedio de ICE/IEH. Asimetría
 aceptada por diseño (§8.5). Una variable de 2 ítems mueve ICE/IEH lo mismo que
 una de 4. El motor lo implementa así, a propósito.
 
-### 5. Ubicación del documento fuente — **sin cambio por ahora**
+### 5. Ubicación del documento fuente — **resuelto**
 
-`DOCUMENTO_TECNICO_ICE_IEH_v2.md` está en la **raíz** del repo, no en `docs/`
-(que no existe). Se deja en la raíz por ahora; `git mv` a `docs/` en un commit
-aparte más adelante, sin prisa.
+`DOCUMENTO_TECNICO_ICE_IEH_v2.md` vive en [`../docs/`](../docs/) (movido con
+`git mv` en un commit aparte, sin cambios de contenido).
 
 ## Qué NO hace este módulo (fuera de alcance, §10.2)
 
