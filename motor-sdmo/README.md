@@ -240,6 +240,15 @@ individual combinada**, no los resúmenes de nodo.
   IAO global). Un nodo con `n < minReportableN` **no expone estadísticas** ahí
   (§2.10): solo `nAportadoAlPool`.
 
+> **Sutileza — un nodo sub-umbral NUNCA se excluye del pool.** Los IDA de un
+> nodo con `n < minReportableN` (p. ej. B, con 4, en el Caso 9) **sí entran** al
+> pool organizacional — son 4 de los 34. Lo único que la confidencialidad impide
+> es que ese nodo pequeño tenga un **reporte propio** (`perfilPorNodo` no expone
+> sus estadísticas). La regla §2.10 protege la *exposición* de un nodo chico, no
+> su *contribución* al agregado superior — de hecho el propósito del roll-up es
+> precisamente que esa contribución no se pierda. Alguien leyendo el código
+> rápido podría asumir lo contrario; no es así.
+
 **Mecanismo de anonimización (decisión explícita).**
 
 1. El pool es **plano y anónimo**: **no viaja `nodo_origen`** ni ningún otro
