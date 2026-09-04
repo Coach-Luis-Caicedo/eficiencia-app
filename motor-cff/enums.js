@@ -66,7 +66,16 @@ var ENUMS = {
   ORGANIZATIONAL_CORRESPONDENCE: ['MATCH', 'MISMATCH', 'UNCLEAR'],
   OPERATIONAL_EVIDENCE: ['DIRECT', 'INDIRECT', 'NONE'],
   SYSTEM_CONVERGENCE: ['CONVERGENT', 'MIXED', 'ABSENT', 'NOT_APPLICABLE'],
-  ALTERNATIVE_EXPLANATION: ['NONE_DOMINANT', 'COMPETING', 'DOMINANT', 'UNKNOWN']
+  ALTERNATIVE_EXPLANATION: ['NONE_DOMINANT', 'COMPETING', 'DOMINANT', 'UNKNOWN'],
+
+  // §7.1 "Realización económica" — EXTENSIÓN de Fase 1, aprobada por Luis.
+  // El documento define este enum en prosa (§7.1) pero §22.2 ECONOMIC_COMPONENT
+  // nunca le da un campo en el contrato — es un vacío del documento, no una
+  // omisión de Fase 0. Se agrega aquí y el campo correspondiente se agrega a
+  // ESQUEMA_ECONOMIC_COMPONENT en contratos.js (recovery_realization_type?,
+  // opcional). No modifica el CFF observado (§7.1: "únicamente preserva la
+  // naturaleza de una eventual recuperación").
+  RECOVERY_REALIZATION_TYPE: ['CASH_COST_AVOIDANCE', 'CAPTURED_MARGIN', 'CAPACITY_RELEASE', 'OTHER_VALIDATED']
 
   // RUN_STATUS (§22.9 CFF_RUN.run_status) — deliberadamente NO registrado
   // aquí. El documento nunca enumera sus valores posibles en ningún lugar

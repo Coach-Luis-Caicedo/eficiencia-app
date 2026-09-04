@@ -91,7 +91,7 @@ ok(!C.validarCFFEvent(null).valido, 'CFF_EVENT null → inválido, no lanza');
 ok(!C.validarCFFEvent('no-es-objeto').valido, 'CFF_EVENT no-objeto → inválido, no lanza');
 
 // ═══════════════════════════════════════════════════════════════════════
-seccion('§22.2 ECONOMIC_COMPONENT — esquema + 2 reglas condicionales');
+seccion('§22.2 ECONOMIC_COMPONENT — esquema + 4 reglas condicionales (2 de Fase 0, 2 extensiones de Fase 1)');
 // ═══════════════════════════════════════════════════════════════════════
 
 function componenteBase(extra) {
@@ -133,6 +133,44 @@ ok(!rMecanismoMalo.valido, 'primary_mechanism fuera de PRIMARY_MECHANISM → inv
 
 var rFaltaCampo = C.validarEconomicComponent({ component_id: 'C1' });
 ok(!rFaltaCampo.valido && rFaltaCampo.faltantes.length > 10, 'objeto casi vacío → decenas de campos en faltantes, ninguno imputado');
+
+// ── Fase 1, regla 7: original_value XOR (original_value_min Y original_value_max) ──
+
+function componenteRango(extra) {
+  var c = componenteBase(extra);
+  delete c.original_value; // el caso base fija original_value=1000; para probar el rango hay que quitarlo
+  return c;
+}
+
+ok(!C.validarEconomicComponent(componenteRango()).valido,
+  'sin original_value ni rango → inválido (ninguna representación de valor presente)');
+ok(C.validarEconomicComponent(componenteRango({ original_value_min: 900, original_value_max: 1100, monetization_status: 'ESTIMATED' })).valido,
+  'solo rango completo (sin original_value), con monetization_status=ESTIMATED → válido');
+ok(!C.validarEconomicComponent(componenteRango({ original_value_min: 900 })).valido,
+  'solo original_value_min sin original_value_max → inválido (rango incompleto)');
+ok(!C.validarEconomicComponent(componenteBase({ original_value_min: 900, original_value_max: 1100 })).valido,
+  'original_value (del caso base) + rango completo a la vez → inválido (mutuamente excluyentes)');
+
+// ── Fase 1, regla 8: rango presente ⇒ monetization_status ≠ OBSERVED ──
+
+var rRangoObserved = C.validarEconomicComponent(componenteRango({
+  original_value_min: 900, original_value_max: 1100, monetization_status: 'OBSERVED'
+}));
+ok(!rRangoObserved.valido, 'rango + monetization_status=OBSERVED → inválido (un rango no es "observado", §10)');
+ok(rRangoObserved.invalidos.some(function (m) { return m.indexOf('OBSERVED') !== -1; }), 'el mensaje explica por qué');
+ok(C.validarEconomicComponent(componenteRango({ original_value_min: 900, original_value_max: 1100, monetization_status: 'EXPOSURE' })).valido,
+  'rango + monetization_status=EXPOSURE → válido (solo OBSERVED está prohibido con rango)');
+ok(C.validarEconomicComponent(componenteRango({ original_value_min: 900, original_value_max: 1100, monetization_status: 'N_A' })).valido,
+  'rango + monetization_status=N_A → válido (completa los 4 valores de MONETIZATION_STATUS contra la regla: únicamente OBSERVED queda excluido)');
+
+// ── Fase 1: recovery_realization_type (§7.1, campo nuevo — extensión del contrato) ──
+
+ok(C.validarEconomicComponent(componenteBase({ recovery_realization_type: 'CASH_COST_AVOIDANCE' })).valido,
+  'recovery_realization_type con valor válido del enum → válido');
+ok(C.validarEconomicComponent(componenteBase()).valido,
+  'recovery_realization_type ausente → sigue válido (campo opcional, §7.1 no lo exige)');
+ok(!C.validarEconomicComponent(componenteBase({ recovery_realization_type: 'GANANCIA_INVENTADA' })).valido,
+  'recovery_realization_type fuera de RECOVERY_REALIZATION_TYPE → inválido');
 
 var rIncludeString = C.validarEconomicComponent(componenteBase({ include_in_cff: 'true' }));
 ok(!rIncludeString.valido, 'include_in_cff como string "true" → inválido por tipo (se exige boolean real)');

@@ -17,8 +17,8 @@ del núcleo CFF"). No se integra a producción hasta aprobación explícita.
 
 | Fase | Alcance | Estado |
 |---|---|---|
-| **0** | Contratos como validadores (§22, 10 contratos) + registro de enums (§21/§23) + `resolve_status()` (§21) como función pura | **✅ Esta entrega** |
-| 1 | Monetización: 4 mecanismos (§6, §8), naturaleza financiera + `recovery_realization_type` (§7, §7.1), bases monetarias (§9), calidad de monetización (§10) | Pendiente |
+| 0 | Contratos como validadores (§22, 10 contratos) + registro de enums (§21/§23) + `resolve_status()` (§21) como función pura | ✅ |
+| **1** | Monetización: 4 mecanismos (§6, §8), naturaleza financiera + `recovery_realization_type` (§7, §7.1), bases monetarias (§9), calidad de monetización (§10) | **✅ Esta entrega** |
 | 2 | Atribución: motor determinista (§11), profundización y genealogía (§12) | Pendiente |
 | 3 | Relaciones, dedup, jerarquía: relaciones económicas + grafo + ciclos (§13), costos compartidos/transferencias (§14), nodos y alcance (§15) | Pendiente |
 | 4a | Normalización: temporalidad/frecuencia (§16), moneda/FX/NOMINAL-REAL (§17) | Pendiente |
@@ -31,14 +31,16 @@ del núcleo por declaración explícita del documento (§33.1); los invariantes 
 tocan esa frontera (`INV-CFF-37..40`, `56..60`, `69`) sí se verifican, como
 pruebas negativas, distribuidos en las fases donde corresponden.
 
-## Archivos (Fase 0)
+## Archivos
 
 | Archivo | Qué es |
 |---|---|
-| `enums.js` | Registro canónico de enums, combinando §21 + §23 + los inline-only de §22 tratados como autoritativos. |
+| `enums.js` | Registro canónico de enums, combinando §21 + §23 + los inline-only de §22 tratados como autoritativos. Fase 1 agregó `RECOVERY_REALIZATION_TYPE` (§7.1). |
 | `estados.js` | `resolveStatus()` — la función pura de propagación de calidad del §21. **No** está cableada a ningún pipeline todavía (eso es Fase 4b/5). |
-| `contratos.js` | Los 10 validadores de contrato (§22.1-22.10): campos obligatorios/opcionales, tipos, enums, y las 5 reglas condicionales aprobadas. Sin lógica de negocio. |
-| `contratos.test.js` | Batería de verificación. `node motor-cff/contratos.test.js` → **67 asserts OK, 0 fallos**. |
+| `contratos.js` | Los 10 validadores de contrato (§22.1-22.10): campos obligatorios/opcionales, tipos, enums, y 8 reglas condicionales (5 de Fase 0 + 3 extensiones de Fase 1). Sin lógica de negocio. |
+| `contratos.test.js` | Batería de contratos. `node motor-cff/contratos.test.js` → **81 asserts OK, 0 fallos**. |
+| `monetizacion.js` | **Fase 1.** Los 4 mecanismos (§6), `resolverValorComponente` (calcula solo en `UNIT_RATE`), `calcularLostCapacity` (§8.2, reconstrucción obligatoria), `agregarPorMecanismo` (§35, CA/VCP/CR/VNC), `preferirBaseMonetaria` (§8.5). |
+| `monetizacion.test.js` | Batería de monetización. `node motor-cff/monetizacion.test.js` → **49 asserts OK, 0 fallos**, incluida verificación por mutación de la regla de §8.2. |
 
 ## Las 5 reglas condicionales (aprobadas antes de implementar)
 
@@ -121,13 +123,114 @@ corregirlas si el alcance que tomé no es el que querías:
    evaluarlas en Fase 3 (relaciones), que sí construye la lógica de resolución
    de relaciones.
 
-## Qué NO hace esta fase
+## Fase 1 — monetización
 
-- No calcula nada (ni mecanismos, ni consolidación, ni CFF_TOTAL).
-- No resuelve admisibilidad (§18) ni relaciones (§13) — solo valida que un
-  objeto individual sea internamente coherente.
+### Extensiones al contrato (declaradas explícitamente — §22 no las contempla)
+
+Mismo patrón que otras adiciones ya aceptadas en el proyecto (`attribution` en
+el AIE, `basis_value_min/max` en CFF §22.3): el documento define el concepto
+en prosa pero nunca le da un lugar en el contrato de datos — se completa aquí,
+no se calla el vacío ni se fabrica silenciosamente.
+
+- **`ECONOMIC_COMPONENT.recovery_realization_type?`** (nuevo, opcional) — §7.1
+  define el enum (`CASH_COST_AVOIDANCE | CAPTURED_MARGIN | CAPACITY_RELEASE |
+  OTHER_VALIDATED`) pero §22.2 nunca le da un campo. Se agrega como opcional;
+  no modifica el CFF observado (§7.1 lo dice explícitamente).
+- **`ECONOMIC_COMPONENT.original_value` se vuelve condicional** — regla 7:
+  XOR con (`original_value_min` y `original_value_max`, también nuevos). Nace
+  de que `calculation_mode=UNIT_RATE` puede resolver contra una
+  `MONETARY_BASIS` que solo trae rango (§9) — el resultado se propaga como
+  rango, nunca se promedia ni se elige un extremo.
+- **Regla 8** — un componente con `original_value_min/max` (resultado en
+  rango) no puede declarar `monetization_status=OBSERVED`: un valor con
+  incertidumbre estructural no es "observado" en el sentido de §10 (`OBSERVED`
+  = "respaldado directamente por registros verificables y base monetaria
+  válida"; `ESTIMATED` = "uno o más componentes requieren estimación
+  sustentada y reproducible" — un rango es, por definición, lo segundo).
+  Probada contra los 4 valores de `MONETIZATION_STATUS` (no solo 3):
+  `OBSERVED` → inválido, `ESTIMATED` / `EXPOSURE` / `N_A` → válido — confirma
+  que únicamente `OBSERVED` queda excluido, no un subconjunto más amplio que
+  nadie hubiera notado.
+
+  **Una sola fuente de verdad, dos puntos de entrada.** La regla vive como
+  función pura exportada, `contratos.rangoIncompatibleConObserved(
+  tieneRangoCompleto, monetizationStatus)`. La llaman tanto
+  `reglasCondicionalesEconomicComponent()` (valida cualquier objeto que entre
+  al sistema) como `monetizacion.aplicarResultadoAComponente()` (rechaza en
+  el momento en que el rango se origina, antes de que el objeto exista
+  siquiera) — **no** hay una segunda implementación de la regla escrita por
+  separado que pudiera divergir si alguien actualiza una y olvida la otra.
+  Esto no era así en la primera versión de esta fase (la misma condición
+  estaba copiada en los dos archivos) — corregido antes del commit, a pedido
+  explícito de Luis. Verificado por mutación **en la función compartida**
+  (no en cada archivo por separado): una sola línea mutada, y las dos
+  baterías (`contratos.test.js` y `monetizacion.test.js`) fallan a la vez —
+  la prueba de que ya es una sola fuente, no dos.
+
+### Qué calcula el motor, y qué no (corrección de un error mío en el enunciado de la tarea)
+
+`calculation_mode` (§22.2, cómo se obtuvo el valor de UN componente) y las 4
+fórmulas de §35 (`CA/VCP/CR/VNC`, que **suman** varios componentes que
+comparten mecanismo) son dos niveles distintos — mi formulación original de
+la tarea los mezclaba. Corregido:
+
+- **`DIRECT_VALUE` y `DERIVED_FORMULA`** — el motor **no calcula nada**, solo
+  transporta un valor ya determinado externamente (a mano, o por una fórmula
+  interna específica de la organización que este módulo no evalúa — eso
+  requeriría el motor de fórmulas genérico que ya se descartó). La diferencia
+  entre los dos modos es metadata de trazabilidad, no ejecución distinta.
+- **`UNIT_RATE`** — el único modo donde `resolverValorComponente` calcula:
+  `original_value = quantity × tarifa`. Si la `MONETARY_BASIS` es un punto,
+  resultado punto; si es un rango, resultado en rango (propagado
+  matemáticamente, nunca promediado).
+- **`agregarPorMecanismo`** (§35) — función **separada**, no parte de
+  `calculation_mode`: suma componentes ya valorados (por cualquier modo) que
+  comparten `primary_mechanism`. Rechaza mezclar `original_currency`
+  (INV-CFF-28 — normalizar monedas es Fase 4a, no algo que esta suma decida
+  silenciosamente). Si algún componente del grupo es un rango, todo el
+  agregado se reporta en rango.
+
+### §8.2 — reconstrucción obligatoria para `LOST_CAPACITY` (INV-CFF-46)
+
+`calcularLostCapacity(componente, base, opts)` exige `opts.reconstruccion:
+{tipo, descripcion?}` (tipo ∈ `COBERTURA | REDISTRIBUCION |
+PRODUCCION_NO_REALIZADA | RETRASO | OTRO`, literal de §8.2) cuando
+`resource_type` ∈ `RECURSOS_QUE_EXIGEN_RECONSTRUCCION` (`AUSENTISMO |
+TIEMPO_OCIOSO | INTERRUPCION`, también literal de §8.2). Sin ella, **rechaza**
+el cálculo (`{rechazado: true, monetization_status: 'N_A'}`) — no se limita a
+"no ofrecer un atajo con nombre bonito", bloquea la ruta general.
+
+**Verificado por prueba de mutación** (mismo estándar exigido para
+`include_in_cff` en Fase 0): se degradó temporalmente
+`RECURSOS_QUE_EXIGEN_RECONSTRUCCION` quitando `AUSENTISMO`, se confirmó que el
+caso exacto pedido (`LOST_CAPACITY`, `resource_type=AUSENTISMO`, cantidad en
+días, `MONETARY_BASIS` tipo tarifa/salario, sin reconstrucción) **dejaba de
+rechazarse**, y se revirtió. La regla depende genuinamente del assert, no de
+una casualidad del resto de la batería.
+
+### §8.5 — preferencia `COMPONENT_BASED` sobre benchmark agregado
+
+`preferirBaseMonetaria(candidatas)` — dada una lista de `MONETARY_BASIS` para
+el mismo concepto, prefiere la primera que no sea `EXTERNAL_BENCHMARK`; si
+todas lo son, la usa y marca `flags: ['SOLO_BENCHMARK_DISPONIBLE']`. No
+implementa el juicio de "si la transferencia es admisible" (§8.5) — eso excede
+lo que esta función puede decidir sin más contexto (candidato a fase
+posterior si hace falta).
+
+## Qué NO hace Fase 1
+
+- No evalúa `DERIVED_FORMULA` de verdad — transporta el valor ya calculado
+  externamente (no se construye el motor de fórmulas genérico, descartado
+  desde el plan de fases).
+- No resuelve admisibilidad (§18), relaciones (§13) ni consolidación (§19) —
+  `agregarPorMecanismo` suma por mecanismo, no decide qué componentes son
+  admisibles ni resuelve duplicados/contención.
 - No construye el grafo económico ni detecta ciclos (§13.3, `AC15`) — eso es
   Fase 3.
+- No normaliza moneda (§17) — `agregarPorMecanismo` rechaza mezclar
+  `original_currency` en vez de convertir.
+- No implementa el juicio de admisibilidad de un benchmark como transferencia
+  (§8.5) — solo la preferencia mecánica sobre `EXTERNAL_BENCHMARK`.
 - No define el contrato de jerarquía de nodos (§15 lo exige pero no lo
   especifica) — se construirá en Fase 3, como adición explícita documentada
   ahí (`NODE_HIERARCHY: [{node_id, parent_id}]`, aprobado por Luis), no aquí.

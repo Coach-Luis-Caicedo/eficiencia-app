@@ -36,12 +36,29 @@
  *      (normalización), que sí ve el conjunto. Aquí solo se garantiza que
  *      el objeto no declare uno sin el otro.
  *
- * Ninguna otra regla condicional se implementó en esta fase aunque el
- * texto del documento sugiera candidatas (p.ej. quantified_overlap_value
- * cuando containment_scope=PARTIAL_QUANTIFIED, o selected_primary cuando
- * relation_type∈{DUPLICATE,ALTERNATIVE_VALUATION}) — quedan señaladas en
- * el README como candidatas de Fase 3 (relaciones), no fabricadas aquí
- * sin aprobación explícita.
+ * Ninguna otra regla condicional se implementó en Fase 0 aunque el texto del
+ * documento sugiera candidatas (p.ej. quantified_overlap_value cuando
+ * containment_scope=PARTIAL_QUANTIFIED, o selected_primary cuando
+ * relation_type∈{DUPLICATE,ALTERNATIVE_VALUATION}) — quedan señaladas en el
+ * README como candidatas de Fase 3 (relaciones), no fabricadas aquí sin
+ * aprobación explícita.
+ *
+ * ── Extensiones de Fase 1 (aprobadas por Luis, documentadas como tales
+ *    porque §22.2 no las contempla literalmente) ──────────────────────────
+ *
+ *   6. ECONOMIC_COMPONENT.recovery_realization_type — campo NUEVO, opcional.
+ *      §7.1 define el enum en prosa pero nunca le da un campo en el
+ *      contrato; se completa aquí.
+ *   7. ECONOMIC_COMPONENT.original_value se vuelve CONDICIONAL: XOR con
+ *      (original_value_min Y original_value_max) — mismo patrón que
+ *      MONETARY_BASIS.basis_value (regla 4), para el caso en que
+ *      calculation_mode=UNIT_RATE resuelve contra una MONETARY_BASIS que
+ *      solo trae rango (nunca se promedia, nunca se elige un extremo —
+ *      motor-cff/monetizacion.js). original_value_min/max también son
+ *      campos NUEVOS, no están en el §22.2 literal.
+ *   8. Cuando original_value_min/max están presentes (resultado en rango),
+ *      monetization_status NO puede ser OBSERVED — un valor con
+ *      incertidumbre estructural no es "observado" en el sentido de §10.
  */
 
 'use strict';
@@ -49,6 +66,22 @@
 var ENUMS = require('./enums');
 
 // ── Validador genérico ─────────────────────────────────────────────────
+
+/**
+ * rangoIncompatibleConObserved(tieneRangoCompleto, monetizationStatus)
+ *
+ * Regla 8 (Fase 1) como función pura, exportada — ÚNICA fuente de verdad.
+ * La usan tanto reglasCondicionalesEconomicComponent() de este archivo
+ * (valida cualquier objeto que entre al sistema) como
+ * monetizacion.aplicarResultadoAComponente() (rechaza en el momento en que
+ * el rango se origina, antes de que el objeto exista siquiera). Es defensa
+ * en profundidad genuina — dos puntos de entrada, una sola regla — no dos
+ * implementaciones que puedan divergir: si esto cambia, cambia para los
+ * dos llamadores a la vez.
+ */
+function rangoIncompatibleConObserved(tieneRangoCompleto, monetizationStatus) {
+  return !!(tieneRangoCompleto && monetizationStatus === 'OBSERVED');
+}
 
 function tipoValido(tipo, valor) {
   if (tipo === 'array') return Array.isArray(valor);
@@ -150,7 +183,9 @@ var ESQUEMA_ECONOMIC_COMPONENT = [
   { name: 'formula_version', required: false, type: 'string' },
   { name: 'input_variables', required: true, type: 'array' },
   { name: 'monetary_basis_id', required: true, type: 'string' },
-  { name: 'original_value', required: true, type: 'number' },
+  { name: 'original_value', required: false, type: 'number' }, // Fase 1: condicional — ver regla 7 (XOR con el rango)
+  { name: 'original_value_min', required: false, type: 'number' }, // NUEVO, Fase 1 — no está en §22.2 literal
+  { name: 'original_value_max', required: false, type: 'number' }, // NUEVO, Fase 1 — no está en §22.2 literal
   { name: 'original_currency', required: true, type: 'string' },
   { name: 'normalized_value', required: false, type: 'number' },
   { name: 'reporting_currency', required: false, type: 'string' },
@@ -165,7 +200,8 @@ var ESQUEMA_ECONOMIC_COMPONENT = [
   { name: 'dependency_refs', required: true, type: 'array' },
   { name: 'include_in_cff', required: true, type: 'boolean' },
   { name: 'exclusion_reason', required: false, type: 'string' },
-  { name: 'flags', required: true, type: 'array' }
+  { name: 'flags', required: true, type: 'array' },
+  { name: 'recovery_realization_type', required: false, type: 'string', enum: 'RECOVERY_REALIZATION_TYPE' } // NUEVO, Fase 1 — §7.1 sin campo en §22.2
 ];
 
 function reglasCondicionalesEconomicComponent(obj) {
@@ -182,6 +218,30 @@ function reglasCondicionalesEconomicComponent(obj) {
     var tieneRepCur = obj.reporting_currency != null;
     if (tieneNorm !== tieneRepCur) {
       extra.push('normalized_value y reporting_currency deben declararse juntos o ninguno de los dos (coherencia de Fase 0)');
+    }
+  }
+  if (obj) {
+    // Regla 7 (Fase 1): original_value XOR (original_value_min Y original_value_max).
+    var tieneValor = obj.original_value != null;
+    var tieneMin = obj.original_value_min != null;
+    var tieneMax = obj.original_value_max != null;
+    var tieneRangoCompleto = tieneMin && tieneMax;
+    var tieneRangoParcial = tieneMin !== tieneMax;
+    if (tieneRangoParcial) {
+      extra.push('original_value_min y original_value_max deben declararse juntos (rango completo) o ninguno');
+    }
+    if (tieneValor && tieneRangoCompleto) {
+      extra.push('original_value y original_value_min/max son mutuamente excluyentes — no declarar ambos, no promediar (mismo principio que MONETARY_BASIS.basis_value, §9)');
+    }
+    if (!tieneValor && !tieneRangoCompleto) {
+      extra.push('debe declararse original_value, o original_value_min y original_value_max — ninguna representación de valor presente');
+    }
+    // Regla 8 (Fase 1): un resultado en rango no puede declararse OBSERVED.
+    // Ver también motor-cff/monetizacion.js (aplicarResultadoAComponente) —
+    // ambos llaman a rangoIncompatibleConObserved(), no hay una segunda
+    // implementación que pueda divergir.
+    if (rangoIncompatibleConObserved(tieneRangoCompleto, obj.monetization_status)) {
+      extra.push('monetization_status no puede ser OBSERVED cuando el valor es un rango (original_value_min/max) — un valor con incertidumbre estructural no es "observado" (§10); debe ser ESTIMATED (o EXPOSURE/N_A)');
     }
   }
   return extra;
@@ -440,5 +500,7 @@ module.exports = {
   validarObjeto: validarObjeto,
   BASIS_TYPES: BASIS_TYPES,
   RELACIONES_DIRIGIDAS: RELACIONES_DIRIGIDAS,
-  RELACIONES_SIMETRICAS: RELACIONES_SIMETRICAS
+  RELACIONES_SIMETRICAS: RELACIONES_SIMETRICAS,
+  // regla 8 (Fase 1), única fuente de verdad — también la usa monetizacion.js
+  rangoIncompatibleConObserved: rangoIncompatibleConObserved
 };
