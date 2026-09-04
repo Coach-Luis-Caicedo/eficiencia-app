@@ -18,8 +18,8 @@ del núcleo CFF"). No se integra a producción hasta aprobación explícita.
 | Fase | Alcance | Estado |
 |---|---|---|
 | 0 | Contratos como validadores (§22, 10 contratos) + registro de enums (§21/§23) + `resolve_status()` (§21) como función pura | ✅ |
-| **1** | Monetización: 4 mecanismos (§6, §8), naturaleza financiera + `recovery_realization_type` (§7, §7.1), bases monetarias (§9), calidad de monetización (§10) | **✅ Esta entrega** |
-| 2 | Atribución: motor determinista (§11), profundización y genealogía (§12) | Pendiente |
+| 1 | Monetización: 4 mecanismos (§6, §8), naturaleza financiera + `recovery_realization_type` (§7, §7.1), bases monetarias (§9), calidad de monetización (§10) | ✅ |
+| **2** | Atribución: motor determinista (§11), profundización y genealogía (§12) | **✅ Esta entrega** |
 | 3 | Relaciones, dedup, jerarquía: relaciones económicas + grafo + ciclos (§13), costos compartidos/transferencias (§14), nodos y alcance (§15) | Pendiente |
 | 4a | Normalización: temporalidad/frecuencia (§16), moneda/FX/NOMINAL-REAL (§17) | Pendiente |
 | 4b | Consolidación end-to-end: admisibilidad (§18), fórmula de consolidación (§19), cobertura (§20), algoritmo `runCFF()` (§24) | Pendiente |
@@ -41,6 +41,8 @@ pruebas negativas, distribuidos en las fases donde corresponden.
 | `contratos.test.js` | Batería de contratos. `node motor-cff/contratos.test.js` → **81 asserts OK, 0 fallos**. |
 | `monetizacion.js` | **Fase 1.** Los 4 mecanismos (§6), `resolverValorComponente` (calcula solo en `UNIT_RATE`), `calcularLostCapacity` (§8.2, reconstrucción obligatoria), `agregarPorMecanismo` (§35, CA/VCP/CR/VNC), `preferirBaseMonetaria` (§8.5). |
 | `monetizacion.test.js` | Batería de monetización. `node motor-cff/monetizacion.test.js` → **49 asserts OK, 0 fallos**, incluida verificación por mutación de la regla de §8.2. |
+| `atribucion.js` | **Fase 2.** `clasificarAtribucion` (§11, 6 dimensiones → `CONFIRMED`/`SUPPORTED`/`UNRESOLVED`), `profundizar` (§12, nueva versión + inmutabilidad de la anterior). |
+| `atribucion.test.js` | Batería de atribución. `node motor-cff/atribucion.test.js` → **41 asserts OK, 0 fallos**, incluidas 3 mutaciones (precedencia `CONFIRMED`/`SUPPORTED`, lectura ampliada de convergencia). |
 
 ## Las 5 reglas condicionales (aprobadas antes de implementar)
 
@@ -217,6 +219,99 @@ implementa el juicio de "si la transferencia es admisible" (§8.5) — eso exced
 lo que esta función puede decidir sin más contexto (candidato a fase
 posterior si hace falta).
 
+## Fase 2 — atribución
+
+### §11.1 `CONFIRMED` — texto literal, sin interpretación
+
+`operational_correspondence=YES` **y** `temporal_correspondence=COMPATIBLE`
+**y** `organizational_correspondence=MATCH` **y** `operational_evidence=DIRECT`
+**y** `alternative_explanation=NONE_DOMINANT`. `system_convergence` no se
+exige en ningún valor particular (§11.1, literal). Probado con los 4 valores
+de `SYSTEM_CONVERGENCE` — sigue `CONFIRMED` con cualquiera de ellos si las
+otras 5 dimensiones son exactas.
+
+### §11.2 `SUPPORTED` — 3 operacionalizaciones acordadas explícitamente
+
+El texto de §11.2 es cualitativo, a diferencia del literal de §11.1. Se
+acordaron 3 lecturas concretas antes de codificar, cada una verificada:
+
+1. **"Correspondencias compatibles"** = ninguna de las tres en su valor
+   **negativo** explícito (`NO`/`INCOMPATIBLE`/`MISMATCH`); `UNCLEAR` sí se
+   admite — a diferencia de `CONFIRMED`, que exige el positivo exacto. Es la
+   lectura que deja espacio real entre las dos categorías en más de un eje.
+2. **"Convergencia independiente cuando sea necesaria"** = `CONVERGENT`
+   exigido si `operational_evidence=INDIRECT` **o** si **cualquiera** de las
+   tres correspondencias es `UNCLEAR` — no solo atada al tipo de evidencia.
+   **Decisión interpretativa deliberadamente conservadora**, corregida en
+   revisión: la lectura descartada (convergencia solo por evidencia débil)
+   permitía que `operational_evidence=DIRECT` compensara una correspondencia
+   genuinamente incierta sin ninguna corroboración — caso límite construido
+   y verificado (`atribucion.test.js`, sección "operacionalización 2").
+   Respaldo textual de la lectura adoptada: §25, "ante evidencia
+   insuficiente, CFF debe perder cobertura antes que inventar valor" — entre
+   dos lecturas compatibles con "cuando sea necesaria", esta es la que cae
+   del lado conservador de esa declaración explícita del documento.
+3. **"Las explicaciones competidoras no dominantes deben quedar
+   explícitas"** = cuando `alternative_explanation=COMPETING`,
+   `conflicting_evidence[]` no puede estar vacío — ancla la prosa a un campo
+   real de `ATTRIBUTION_ASSESSMENT` (§22.4), no inventa uno nuevo.
+
+### §11.3 `UNRESOLVED` — catch-all
+
+Cualquier caso que no alcance `CONFIRMED` ni `SUPPORTED`. Los disparadores
+que el documento enumera (relación insostenible, evidencia insuficiente,
+incompatibilidad temporal/organizacional, alternativa dominante) ya hacen
+fallar `SUPPORTED` cada uno por su cuenta — no hace falta una tabla propia.
+
+### Precedencia `CONFIRMED` antes que `SUPPORTED` — verificada, no accidental
+
+Un caso puede satisfacer **ambas** fórmulas a la vez (evidencia `DIRECT` +
+correspondencias exactas + `NONE_DOMINANT` cumple literalmente la de
+`SUPPORTED` también). El orden de evaluación es una decisión explícita de
+`clasificarAtribucion`, no un efecto colateral de cómo quedó escrito el
+código — verificado por mutación: invertir el orden (`esSupported` antes que
+`esConfirmed`) rompe 7 asserts, todos los que involucran un solapamiento
+real; revertido y re-verificado en verde.
+
+### §11.4 no circularidad — verificada por firma de función
+
+`clasificarAtribucion` **no recibe** `diagnostic_context` como parámetro de
+decisión — mismo patrón que `calcularIAO` sin brecha en `motor-iao`: es
+estructuralmente imposible que un `cfg_ref`/`dyn_ref`/`efo_ref`/`aie_ref`
+mueva el veredicto, porque la función ni siquiera los usa (se probó pasando
+`diagnostic_context` favorable y desfavorable junto a las mismas 6
+dimensiones — mismo resultado en los 3 casos).
+
+### §12 profundización — mecánica, verificada
+
+`profundizar(evaluacionPrevia, cambios)` incrementa `assessment_version`
+(`vN` → `v(N+1)`; si no matchea ese patrón, anexa `-profundizada` en vez de
+fallar silenciosamente), nunca muta la evaluación previa —
+`Object.freeze()` la protege, y un intento de mutación después lanza en vez
+de corromper la genealogía en silencio (probado, no solo diseñado así).
+
+### `alternative_explanation=UNKNOWN` — ambigüedad detectada y cerrada en la misma revisión
+
+`UNKNOWN` es un valor **documentado y deliberado** del enum (aparece en la
+tabla de §11 y en el contrato `ATTRIBUTION_ASSESSMENT` de §22.4) — no un
+vacío de contrato como `recovery_realization_type`. Lo que sí es cierto es
+que ni §11.2 (`SUPPORTED`) ni §11.3 (`UNRESOLVED`) lo mencionan al describir
+las categorías: el enum lo define, la prosa de clasificación es silenciosa
+sobre él — mismo silencio que con `UNCLEAR` en las correspondencias.
+
+Se detectó al escribir la primera versión de esta fase (implementación
+inicial: `UNKNOWN` se comportaba igual que `NONE_DOMINANT`, pasando libre sin
+ninguna exigencia adicional) y se cerró de inmediato, no se dejó como
+pendiente para Fase 5: por el mismo principio que motivó la operacionalización
+2 (§25 — "ante evidencia insuficiente, CFF debe perder cobertura antes que
+inventar valor"), `alternative_explanation=UNKNOWN` se sumó a las condiciones
+que exigen `system_convergence=CONVERGENT` — es el mismo estado de "no lo
+sabemos" que `UNCLEAR`, y tratarlo distinto sin razón habría sido inconsistente
+con la regla que ya se había aplicado dos líneas más arriba. Verificado por
+mutación: quitar la extensión rompe el caso específico (`DIRECT` +
+`alternative_explanation=UNKNOWN` + `system_convergence=ABSENT` pasaba a
+`SUPPORTED` sin la regla; con ella, `UNRESOLVED`), revertido y re-verificado.
+
 ## Qué NO hace Fase 1
 
 - No evalúa `DERIVED_FORMULA` de verdad — transporta el valor ya calculado
@@ -237,3 +332,16 @@ posterior si hace falta).
 - No cablea `resolveStatus()` a ningún pipeline — existe y está probada como
   función pura; su uso real en `resolve_coverage_and_status()` es Fase 4b/5.
 - No toca `workbook.html` ni ningún otro módulo de producción.
+
+## Qué NO hace Fase 2
+
+- No conecta `clasificarAtribucion`/`profundizar` con `ATTRIBUTION_ASSESSMENT`
+  como contrato completo (§22.4) — opera sobre las 6 dimensiones y la
+  genealogía de versión directamente; el ensamblado del contrato completo
+  (assessment_id, created_at, etc.) es del arnés de integración.
+- No implementa `system_convergence`/`alternative_explanation` como
+  resultado de comparar CFG/DYN/EFO/AIE de verdad — recibe esos valores ya
+  clasificados como entrada; calcularlos a partir de datos reales de esos
+  sistemas no es responsabilidad de este módulo (§11.4, no-circularidad).
+- No implementa evaluación causal experimental, contrafactual ni nada de
+  §27-29 (fuera de núcleo, §33.1).
