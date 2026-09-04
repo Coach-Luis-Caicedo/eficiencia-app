@@ -91,8 +91,22 @@
   // ══════════════════════════════════════════════════════════════════════════
   //
   //  Escala 0–100 (las variables YA calculadas por el instrumento ICE–IEH).
-  //  Mismos códigos que ICE–IEH: es un contrato COMPARTIDO, no una colisión —
-  //  el IAO consume exactamente esas variables.
+  //  Los códigos cortos (EST, FOR...) son vocabulario COMPARTIDO a nivel de
+  //  metadata — motor-ice-ieh.js declara ese mismo código en `prefijo` por
+  //  cada pregunta (PREGUNTAS[i].prefijo) — no una colisión de nombres.
+  //
+  //  ESO NO SIGNIFICA que las claves coincidan directamente al conectar los
+  //  dos módulos: `motor-ice-ieh.calcular().variables` expone las 10
+  //  variables con claves en ESPAÑOL COMPLETO (estructura, fortaleza,
+  //  coherencia...), no con estos códigos cortos. Cualquier código que
+  //  conecte motor-ice-ieh con este módulo necesita un adaptador explícito
+  //  claves-largas → códigos-cortos — NO puede asumir que basta con pasar
+  //  el objeto `variables` de motor-ice-ieh tal cual. Verificado con datos
+  //  reales (no sintéticos) en el primer arnés de integración real entre
+  //  ambos módulos: motor-integracion/pipeline.js, commit bcaea53 — el
+  //  adaptador ahí construido se deriva de motor-ice-ieh.PREGUNTAS/PARES,
+  //  no está hardcodeado, así que sigue automáticamente cualquier cambio de
+  //  nombre de variable en motor-ice-ieh.
   //
   var VARIABLES_SISTEMA     = ['EST', 'INE', 'IMP', 'NEX', 'ITG'];
   var VARIABLES_EXPERIENCIA = ['FOR', 'COH', 'EQU', 'CNF', 'ACT'];
