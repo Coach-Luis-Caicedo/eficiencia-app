@@ -55,6 +55,8 @@ pruebas negativas, distribuidos en las fases donde corresponden.
 | `moneda.test.js` | Batería de moneda. `node motor-cff/moneda.test.js` → **18 asserts OK, 0 fallos**, incluida mutación de la precisión computacional completa (§17.2). |
 | `admisibilidad.js` | **Fase 4b (i).** `evaluarAdmisibilidad` (§18, compuerta AND estricta sobre 7 condiciones ya resueltas por fases anteriores — no las recalcula). |
 | `admisibilidad.test.js` | Batería de admisibilidad. `node motor-cff/admisibilidad.test.js` → **44 asserts OK, 0 fallos**, incluidas 2 mutaciones (AND ≠ score; par desincronizado vs. salvaguarda) y la prueba dirigida de `verificarConsistenciaInterna`. |
+| `consolidacion.js` | **Fase 4b (ii).** `consolidarPeriodoYAlcance` (§19, los 6 pasos `VALIDAR→NORMALIZAR→RELACIONAR→RESOLVER→SELECCIONAR→SUMAR` en orden estricto, delegando en fases previas) + `verificarReconciliacionCuadrantes` (AC45). |
+| `consolidacion.test.js` | Batería de consolidación. `node motor-cff/consolidacion.test.js` → **46 asserts OK, 0 fallos**, incluidas las 2 mutaciones (orden RESOLVER↔SELECCIONAR: 20000→30000; AC45: reconciliación bloquea), el Paso 3 (INV-CFF-20 en totales secundarios) y la prueba dirigida de `verificarReconciliacionCuadrantes`. |
 
 ## Las 5 reglas condicionales (aprobadas antes de implementar)
 
@@ -550,11 +552,11 @@ a `99.99` — confirmado, revertido.
 
 Consolidado en un solo lugar (a pedido de Luis, para que quien integre
 este módulo no tenga que reconstruir la lista releyendo el historial de
-varias fases). En los cinco casos, el documento exige algo que su propio
+varias fases). En los siete casos, el documento exige algo que su propio
 contrato de §22 no le da un campo para representar — la extensión vive
 como **parámetro explícito de función**, nunca como campo nuevo en
-`contratos.js`, porque ninguna de las cinco fue pedida explícitamente como
-extensión de contrato (mismo criterio en los cinco: se pide, no se
+`contratos.js`, porque ninguna fue pedida explícitamente como
+extensión de contrato (mismo criterio en todos: se pide, no se
 anticipa).
 
 | # | Parámetro | Fase | Por qué no es un campo de contrato |
@@ -564,6 +566,8 @@ anticipa).
 | 3 | `period_start`/`period_end` (por componente, en las funciones de `temporalidad.js`) | 4a (§16.2) | Solo `CFF_EVENT` tiene período propio (§22.1); `ECONOMIC_COMPONENT` (§22.2) no, aunque §16.2 exige saber a qué período pertenece cada componente de un evento multi-período. |
 | 4 | `transformacionValidada: boolean` + `valorFlujoEquivalente: number` (por componente STOCK/RATE) | 4a (§16) | El documento exige "transformación validada a flujo" sin dar el algoritmo (depende del fenómeno) — no se fabrica una fórmula genérica. |
 | 5 | `{tasa, fuente, fecha, metodo, monedaDestino}` (objeto FX completo, por conversión) | 4a (§17.1) | `MONETARY_BASIS.fx_reference?` (§22.3) es un puntero/string, no el objeto estructurado que §17.1 exige declarar en cada conversión. |
+| 6 | `nodeRaiz: node_id` (nodo de referencia del alcance) | 4b-ii (§15) | `nodos.clasificarAlcance` necesita el nodo raíz contra el que se clasifica el `nodeSet`. `CFF_RESULT` (§22.8) trae `scope` y `node_set[]` pero no un id de nodo raíz — mismo patrón que `NODE_HIERARCHY`, que tampoco está en §22. |
+| 7 | `toleranciaReconciliacion?: number` (§19.2) | 4b-ii (§19.2) | §19.2 exige "tolerancias técnicas por moneda/precisión" sin dar valor. Sin aportarlo se usa solo una guarda de drift (`1e-9`) y se marca `PENDIENTE_VALIDACION` en `flags[]` — nunca una tolerancia material inventada. |
 
 ## Qué NO hace Fase 4a
 
@@ -642,3 +646,132 @@ correcto nunca se dispara por la ruta pública — está expuesta en
 `atribucion.js`) para poder probarla directamente con datos manipulados:
 `{admisible:true, exclusion_reason:'algo'}` y `{admisible:false, exclusion_reason:null}`
 lanzan; `{admisible:'quizás', ...}` lanza (no hay tercer estado).
+
+## Fase 4b (ii) — fórmula y orden de consolidación (`consolidacion.js`, §19)
+
+`consolidarPeriodoYAlcance(entrada)` ejecuta la secuencia obligatoria de §19
+
+```
+VALIDAR → NORMALIZAR → RELACIONAR → RESOLVER → SELECCIONAR → SUMAR
+```
+
+como seis funciones nombradas (`_paso1Validar` … `_paso6Sumar`) llamadas
+en ese orden dentro del orquestador — no seis funciones sueltas que dan
+lo mismo en cualquier secuencia. Cada paso delega en el módulo de la fase
+que corresponde (`temporalidad`, `relaciones`, `costos_compartidos`,
+`nodos`, `admisibilidad`); `consolidacion.js` no reimplementa nada, solo
+ordena. Devuelve los campos numéricos de `CFF_RESULT` + `coverageInput`;
+**no** arma el `CFF_RESULT` completo (eso es `runCFF`, 4b-iv) ni clasifica
+`COVERAGE_STATUS` (eso es `cobertura.js`, 4b-iii).
+
+### La dependencia de orden RESOLVER → SELECCIONAR es de datos, no de estilo
+
+`_paso4Resolver` **escribe** `ctx.permiteInclusion[component_id]` a partir
+de `relaciones.resolverRelacion`, los costos compartidos `UNALLOCATED` y
+las transferencias internas eliminadas. `_paso5Seleccionar` **lee** esa
+señal como la 7ª condición de `admisibilidad.evaluarAdmisibilidad` (§18).
+Si SELECCIONAR corre antes, la señal no existe y el guardia de 4b-i lanza
+(las 7 señales son obligatorias) — el pipeline no se puede correr en el
+orden equivocado sin manipular además el ensamblado de señales.
+
+### Componente con doble falla `EXPOSURE` + `UNRESOLVED` — Opción D
+
+Un componente puede traer `monetization_status=EXPOSURE` **y**
+`attribution_status=UNRESOLVED`. Ya está fuera de `CFF_TOTAL` por la
+condición 3 de admisibilidad. Para los totales de diagnóstico se aplica la
+**Opción D**, decidida tras verificar contra el texto que **el denominador
+de cobertura sí incluye lo excluido**:
+
+- **§20**: *"La cobertura expresa cuánto del universo operativo material
+  dentro del alcance pudo evaluarse económicamente."* — el denominador es
+  el universo material, no "lo que llegó a un total". El criterio `FULL`
+  exige que **todo** lo material se haya evaluado.
+- **§22.7**: `material_events_total` es un campo distinto de
+  `material_events_evaluable`, y existe `excluded_material_events[]` — la
+  estructura solo tiene sentido si `total ≥ evaluable` y lo excluido se
+  cuenta en el total.
+
+Por tanto el componente con doble falla **no** se suma a `exposure_total`
+ni a `unresolved_impact_total` (evitar contar su valor dos veces entre los
+dos lentes de diagnóstico), se marca en `flags[]` a nivel de resultado, y
+cuenta como material-no-evaluado para el insumo de cobertura. No queda
+oculto — **INV-CFF-55** (*"ausencia de evidencia no se imputa como
+ausencia de costo"*) y **INV-CFF-50** (*"toda exclusión conserva motivo y
+trazabilidad"*): es visible por cobertura degradada + `flags[]` + su
+registro de exclusión con las dos condiciones que fallan. **No se crea una
+tercera categoría/enum** — el documento no la insinúa en ningún lado (a
+diferencia de `recovery_realization_type` o el rango de `basis_value`, que
+sí estaban insinuados sin campo).
+
+### Exclusión por relación de riesgo + estado `EXPOSURE`/`UNRESOLVED` (Paso 3)
+
+El mismo principio se extiende a los totales secundarios: un componente
+excluido por una relación **con riesgo de solapamiento** (`DUPLICATE`,
+`ALTERNATIVE_VALUATION`, `UNKNOWN`, `CONTAINS`) que además sea `EXPOSURE`
+o `UNRESOLVED` **no** se suma a `exposure_total` ni a
+`unresolved_impact_total`. Dos duplicados `EXPOSURE` de 6000 c/u darían
+`exposure_total = 12000` — el mismo doble conteo que **INV-CFF-20** existe
+para evitar en el total principal, ni más ni menos real por ir a un total
+de diagnóstico; reportar 16000 de exposición cuando el hecho real expone
+8000 es tan defectuoso como reportar 30000 de CFF confirmado cuando vale
+20000. Tampoco se elige "uno" (6000) — sería la misma
+invención-de-selección-sin-evidencia rechazada para el total principal.
+Ambos quedan fuera, registrados con motivo (categoría `RELACION`) y
+marcados en `flags[]`. Verificado: `exposure_total = 0` para el par
+`DUPLICATE`-sin-resolver-ambos-`EXPOSURE`-6000; control sin la relación →
+`exposure_total = 12000` (cada uno una vez, correcto). Decisión explícita
+de Luis.
+
+### Invariante AC45 — `verificarReconciliacionCuadrantes`
+
+`CFF_TOTAL` debe coincidir con la suma de los 4 cuadrantes
+(`confirmed_observed` + `confirmed_estimated` + `supported_observed` +
+`supported_estimated`). Si no coincide → lanza (AC45: *"Bloquear
+publicación"*). Expuesta para prueba dirigida (convención
+`verificarConsistenciaInterna`). `EXPOSURE`/`UNRESOLVED`/`N_A` no entran a
+`CFF_TOTAL` (§19) — si la diferencia viene de sumarlos, ese es el defecto
+que este invariante detecta.
+
+**Tolerancia (§19.2)**: sin valor de negocio aportado, se usa solo una
+guarda de drift de punto flotante (`1e-9`, igual que `EPS` en
+`moneda.test.js`) y se marca `TOLERANCIA_RECONCILIACION_PENDIENTE_VALIDACION`
+en `flags[]` — nunca una tolerancia material inventada (§19.2: *"la
+tolerancia no puede utilizarse para ocultar diferencias materiales"*).
+
+### Dos mutaciones ejecutadas
+
+1. **Orden RESOLVER↔SELECCIONAR.** (1a, en la batería) correr
+   `_paso5Seleccionar` antes de `_paso4Resolver` → `evaluarAdmisibilidad`
+   lanza (falta la 7ª señal): el orden es una dependencia real. (1b, edición
+   de código) intercambiar las dos llamadas en el orquestador **y**
+   defaultear la señal ausente a `true` (el workaround plausible de quien
+   ignora la dependencia) → con `C_ind=20000` + `C_dup_a=C_dup_b=5000` en
+   `DUPLICATE` sin resolver, `cff_total` pasa de **20000 a 30000**,
+   diferencia **10000 exacta** = el hecho `DUPLICATE` contado dos veces.
+
+   *Por qué el resultado correcto es `20000` y no `25000`* (mantener una de
+   las dos representaciones, que preservaría el valor real una sola vez):
+   sin `selected_primary` confirmado no hay forma de saber cuál de las dos
+   representaciones mantener sin arriesgar el doble conteo, y el sesgo del
+   documento es explícito — **§25**: *"Ante evidencia insuficiente, CFF
+   debe perder cobertura antes que inventar valor."* Se excluyen ambas del
+   total pleno (mismo criterio que ya se aplicó a `SUPPORTED`/`UNKNOWN` en
+   Fase 2 y que `relaciones.resolverRelacion` ya implementa para
+   `DUPLICATE` sin resolver); quedan visibles en el registro con su motivo
+   (INV-CFF-50), y la cobertura refleja la exclusión.
+2. **AC45 / exclusión de `EXPOSURE` y `UNRESOLVED`.** Sumar
+   `exposure_total + unresolved_impact_total` a `cff_total` → con
+   `C_conf=12000` + `C_exp=8000` + `C_unr=3000`, `cff_total` pasa a
+   **23000** mientras los cuadrantes siguen en **12000** →
+   `verificarReconciliacionCuadrantes` lanza (diferencia 11000, bloquea
+   publicación).
+
+Revertidas ambas, 39/39 asserts en verde.
+
+### Extensión de invocación #6 — `nodeRaiz`
+
+`nodos.clasificarAlcance(nodeSet, nodeRaiz, nodeHierarchy)` necesita el
+nodo de referencia contra el que se clasifica el `nodeSet`. `CFF_RESULT`
+(§22.8) trae `scope` y `node_set[]` pero no un "id del nodo raíz del
+alcance". Se recibe explícito — mismo patrón que `NODE_HIERARCHY` (que
+tampoco está en §22). Ver la tabla de parámetros de invocación abajo.
