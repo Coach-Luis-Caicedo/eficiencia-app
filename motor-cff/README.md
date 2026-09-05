@@ -63,6 +63,8 @@ pruebas negativas, distribuidos en las fases donde corresponden.
 | `runCFF.test.js` | Batería de runCFF. `node motor-cff/runCFF.test.js` → **41 asserts OK, 0 fallos**, incluidos AC51 (determinismo byte a byte), la indemnización $7.000.000 COP end-to-end, `resolveStatus` reflejando una degradación, el caso N_A (regla 9), los 7 parámetros de invocación y las 2 mutaciones. |
 | `versionamiento.js` | **Fase 5** (§25-26). `evaluarShortCircuit` (severidad WARNING/DEGRADED/BLOCKING, local vs. global), `aplicarTecho`, `cambioRequiereNuevaCorrida` (§26/INV-51), `crearNuevaVersion` (INV-65), `marcarStale` (§26.2/INV-66). Funciones puras, no cableadas a `runCFF` (mismo criterio que `estados.js`). |
 | `versionamiento.test.js` | Batería de versionamiento. `node motor-cff/versionamiento.test.js` → **48 asserts OK, 0 fallos**, incluidas 4 mutaciones (BLOCKING→DEGRADED; global→local; `crearNuevaVersion` mutando el histórico; quitar la condición `modificaResultado`). |
+| `invariantes_arquitectonicos.test.js` | **Fase 5.** Los 12 invariantes ARQ (INV-16/17/37-40/52/53/58-60/69) verificados por inspección de la superficie del módulo. `node motor-cff/invariantes_arquitectonicos.test.js` → **12 asserts OK, 0 fallos** + 1 mutación (`aie_state` como export → INV-16 lo atrapa). |
+| `gate_32.test.js` | **Fase 5.** Los 10 puntos del acceptance gate de §32, cada uno con su verificación. `node motor-cff/gate_32.test.js` → **27 asserts OK, 0 fallos — 10/10 puntos**. |
 
 ## Las 5 reglas condicionales (aprobadas antes de implementar)
 
@@ -986,10 +988,22 @@ cobertura `FULL` pase a validar indebidamente.
 
 Los 3 `*_coverage_status` de capa (operacional / monetización /
 atribución) se clasifican por separado con `clasificarCobertura`;
-`overall_coverage_status` = `rollupCobertura([los 3])` = el **peor**
+`overall_coverage_status` = `rollupCobertura([...])` = el **peor**
 (`INSUFFICIENT > LIMITED > PARTIAL > FULL`). Misma idea de propagación
 que `resolveStatus` pero sobre `COVERAGE_STATUS` — **nombre distinto a
 propósito** para que nadie las confunda.
+
+**Fase 5 — 4ª entrada al roll-up** (reapertura de 4b-iv, ver "Hallazgo"
+abajo): además de las 3 capas del embudo de S3, `overall_coverage_status`
+también toma la clasificación de `cons.coverageInput` — las exclusiones de
+la **etapa de consolidación** (`DUPLICATE` sin resolver, admisibilidad
+§18, costo compartido `UNALLOCATED`, doble falla). Sin esto, esas
+exclusiones quedaban en `coverage.limitations` pero no degradaban el
+`overall` — inconsistente con la Opción D ya cerrada en `consolidacion.js`
+(§20 + §22.7: el denominador incluye TODO lo excluido, sea cual sea la
+razón). Los 3 `*_coverage_status` **almacenados** en `CFF_COVERAGE` (§22.7)
+siguen siendo operacional/monetización/atribución; la 4ª es solo un insumo
+del `overall`.
 
 ### Determinismo (AC51)
 
@@ -1034,20 +1048,92 @@ Cuadrantes`, con `flag PENDIENTE_VALIDACION` si no se aporta.
 
 Revertidas ambas, 41/41 en verde.
 
-## Estado consolidado — `motor-cff` con Fase 4b completa
+## Fase 5 — versionamiento, mapeo de cobertura, acceptance gate
+
+### §25-26 — `versionamiento.js` (ver fila en la tabla de archivos)
+
+`evaluarShortCircuit` (severidad + local/global), `aplicarTecho`,
+`cambioRequiereNuevaCorrida` (§26/INV-51), `crearNuevaVersion` (INV-65),
+`marcarStale` (§26.2/INV-66). Módulo aislado, no cableado a `runCFF`.
+
+### Mapeo de cobertura — 70 invariantes + 60 casos AC
+
+Antes de escribir la batería de cierre se mapeó cada invariante y cada
+caso contra las baterías existentes (criterio: si la regla se rompiera,
+¿algún assert fallaría de forma que apunte a ella, o el fallo sería
+genérico?).
+
+- **Invariantes (70):** 47 con test dedicado (18 con mutación) · 6
+  estructurales (campo obligatorio / enum único) · **12 arquitectónicos**
+  → `invariantes_arquitectonicos.test.js` (12 aserciones nombradas + 1
+  mutación: agregar un export `aie_state` y confirmar que la aserción de
+  INV-16 lo atrapa específicamente) · 5 huecos cerrados en Fase 5 (INV-01,
+  62, 70 con test dedicado; INV-43/44/45 con las compuertas §8.3/§8.4).
+- **Casos AC (60):** 38 con test dedicado (11 con mutación) · 12
+  arquitectónicos / lado del consumidor · huecos cerrados: AC01/02 (no hay
+  ruta sin `CFF_EVENT`), AC05 (ESTIMATED+CONFIRMED end-to-end), AC20
+  (mon=N_A no inventa cifra), AC33/34/35 (compuertas §8.3/§8.4), AC36
+  (decisión: el motor marca `SOLO_BENCHMARK_DISPONIBLE`, no emite un
+  veredicto `NOT_ADMISSIBLE` que §9 no define y que requeriría contexto
+  externo), AC55 (subconjunto seguro consolida).
+
+**AC36 — por qué el motor no juzga "compatibilidad" de un benchmark:**
+mismo principio que rechazar coeficientes subjetivos de atribución — si un
+benchmark es "compatible" depende de contexto (sector, tamaño, momento)
+que el motor no tiene. Lo que sí constata: que *solo* hay benchmark
+(`SOLO_BENCHMARK_DISPONIBLE`).
+
+### Acceptance gate §32 — `gate_32.test.js`, 10/10 puntos
+
+Cada uno de los 10 puntos con su verificación específica (no una
+afirmación general): (1) sin ruta KPI→dinero sin `CFF_EVENT` · (2)
+atribución categórica sin pesos · (3) `DUPLICATE` sin resolver → 0 no 200;
+`nodeSet` padre+hijo lanza antes de sumar · (4) `convertirMoneda` sin los
+4 datos lanza; monedas/frecuencias mixtas lanzan · (5) cobertura
+insuficiente → `null` no 0; `agregarPorMecanismo([])` → `null` · (6)
+`TRACE_PATH` valida contra §22.10 · (7) Σ 4 cuadrantes = `cff_total`;
+`verificarReconciliacionCuadrantes` lanza si no · (8) `EXPOSURE`/`UNRESOLVED`
+en sus totales, fuera de `cff_total` · (9) dos corridas idénticas;
+`crearNuevaVersion`/`marcarStale` no tocan el histórico · (10) ninguna
+función nombra CFG/DYN/EFO/AIE; `runCFF` solo devuelve `result/run/trace`.
+
+### Hallazgo abierto (Fase 5) — cobertura por capa en `runCFF`
+
+Las 3 capas de cobertura de `runCFF` (operacional / monetización /
+atribución) se calculan del embudo de S3 (resolución de valor + estado de
+monetización/atribución). **No ven las exclusiones de la etapa de
+consolidación** (`DUPLICATE` sin resolver, admisibilidad, costo compartido
+`UNALLOCATED`): esos componentes quedan en `coverage.limitations` pero no
+degradan `overall_coverage_status`. Un `DUPLICATE` material irresoluble
+puede dejar la cobertura en `FULL` cuando §20 pediría `PARTIAL`.
+Reportado; corrección pendiente de decisión (tocaría `runCFF`, Fase 4b-iv
+comiteada).
+
+### Reaperturas de código ya cerrado (las 3, juntas)
+
+Tres veces una fase posterior reabrió trabajo comiteado. Cada una fue una
+decisión explícita, no un descuido; se listan juntas para que auditar el
+historial no exija rastrear tres mensajes de commit por separado.
+
+| Qué se reabrió | Desde | Por qué | Commit |
+|---|---|---|---|
+| `contratos.js` — regla 9: `cff_total` condicionalmente nulable | Fase 4b-iv (§24) | §24 exige `return CFF_RESULT` también para N_A y AC46 exige `value=null` ahí; el contrato de Fase 0 lo tenía `required:number` | `f1f2e25` |
+| `monetizacion.js` + `contratos.js` — compuertas §8.3/§8.4 + regla 10 (`salary_basis_kind`) | Fase 1 (§8) | el mapeo de cobertura de Fase 5 reveló que Fase 1 construyó solo el gate de §8.2; §8.3 y §8.4 no tenían enforcement | `204fc88` |
+| `runCFF.js` — 4ª entrada al roll-up de cobertura | Fase 4b-iv (§24) | las 3 capas de S3 no veían las exclusiones de la etapa de consolidación → `overall_coverage_status` no degradaba (inconsistente con la Opción D ya cerrada); verificado `FULL → PARTIAL` en el caso de 2 duplicados material | `fix(motor-cff): Fase 5` |
+
+## Estado consolidado — `motor-cff` completo (Fases 0-5)
 
 | Fase | Archivos | Asserts | Commit |
 |---|---|---|---|
-| 0 · contratos + `resolveStatus` | `enums` `estados` `contratos` | 81 | `e37ba92` |
-| 1 · monetización (§6-10) | `monetizacion` | 49 | `9e87ec1` |
+| 0 · contratos + `resolveStatus` (§21-23) | `enums` `estados` `contratos` | 87 | `e37ba92` (+reglas 9/10) |
+| 1 · monetización (§6-10) + compuertas §8.3/§8.4 | `monetizacion` | 68 | `9e87ec1` (+`204fc88`) |
 | 2 · atribución (§11-12) | `atribucion` | 41 | `2063e0a` |
-| 3 · relaciones / dedup / jerarquía (§13-15) | `relaciones` `costos_compartidos` `nodos` | 58 | `534579d` |
+| 3 · relaciones / dedup / jerarquía (§13-15) | `relaciones` `costos_compartidos` `nodos` | 60 | `534579d` |
 | 4a · temporalidad / moneda (§16-17) | `temporalidad` `moneda` | 42 | `061c06c` |
 | 4b-i · admisibilidad (§18) | `admisibilidad` | 44 | `5be5ad4` |
 | 4b-ii · consolidación / AC45 (§19) | `consolidacion` | 46 | `2f936bc` |
 | 4b-iii · cobertura (§20) | `cobertura` | 41 | `99fe212` |
-| 4b-iv · `runCFF` end-to-end (§24) | `runCFF` | 41 | *este commit* |
-| **Total** | **24 archivos** | **443** | |
-
-Falta **Fase 5**: versionamiento / auditoría (§25-26) y la batería completa
-de los 70 invariantes + 60 casos AC + acceptance gate §32.
+| 4b-iv · `runCFF` end-to-end (§24) + 4ª capa de cobertura | `runCFF` | 53 | `f1f2e25` (+*este commit*) |
+| 5 · versionamiento (§25-26) | `versionamiento` | 48 | `533f3ca` |
+| 5 · invariantes arquitectónicos + gate §32 | `invariantes_arquitectonicos` `gate_32` | 12 + 27 | *este commit* |
+| **Total** | **17 archivos de código + 15 de batería** | **569** | 0 fallos |

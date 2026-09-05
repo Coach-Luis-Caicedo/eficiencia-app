@@ -244,6 +244,22 @@ eq(rVNCok.valor, 30000, 'VNC = 10 unidades × 3000 (MC_u) = 30000');
 lanza(function () { M.calcularValorNoCapturado({ primary_mechanism: 'REPLACEMENT' }, baseVNC, condTodas); }, 'mecanismo distinto de UNCAPTURED_VALUE → lanza');
 
 // ═══════════════════════════════════════════════════════════════════════
+seccion('AC36 — benchmark incompatible: el motor marca la limitación, NO juzga compatibilidad');
+// ═══════════════════════════════════════════════════════════════════════
+
+// Decisión (aprobada): el motor no puede juzgar si un benchmark es "compatible"
+// (¿con qué sector, qué tamaño, qué momento?) — ese juicio necesita contexto
+// externo. Lo que sí constata: que SOLO hay benchmark disponible. Mismo
+// principio que rechazar coeficientes subjetivos de atribución.
+var rSoloBench = M.preferirBaseMonetaria([
+  { basis_type: 'EXTERNAL_BENCHMARK', source: 'sectorial-X' }
+]);
+eq(rSoloBench.flags, ['SOLO_BENCHMARK_DISPONIBLE'],
+  'AC36 — con solo benchmark, se marca SOLO_BENCHMARK_DISPONIBLE (limitación constatable), no un veredicto NOT_ADMISSIBLE que el motor no puede emitir');
+ok(!('NOT_ADMISSIBLE' in rSoloBench) && rSoloBench.seleccionada != null,
+  'AC36 — el motor no fabrica un estado de admisibilidad para MONETARY_BASIS (§9 no lo define); ver README');
+
+// ═══════════════════════════════════════════════════════════════════════
 seccion('Mutaciones §8.3/§8.4 — ejecutadas como paso de Bash aparte (ver cierre)');
 // ═══════════════════════════════════════════════════════════════════════
 console.log('  1. §8.3: quitar el chequeo esMultiploUniversalSalario → un múltiplo genérico de salario pasa a');

@@ -128,6 +128,21 @@ lanza(function () { R.resolverRelacion({ relation_type: 'INDEPENDENT', component
   'referencia a un componente sin valor resuelto → lanza');
 
 // ═══════════════════════════════════════════════════════════════════════
+seccion('INV-CFF-62 — relaciones pueden cruzar fenómenos y tener vigencia temporal');
+// ═══════════════════════════════════════════════════════════════════════
+
+// Una relación entre componentes de phenomenon_id distintos, con valid_from/valid_to,
+// se resuelve igual — resolverRelacion NO restringe por fenómeno ni por período.
+var relCruzada = {
+  relation_type: 'INDEPENDENT', component_a_id: 'A', component_b_id: 'B',
+  phenomenon_a: 'PH-ROTACION', phenomenon_b: 'PH-AUSENTISMO',
+  valid_from: '2026-01-01', valid_to: '2026-06-30', resolution_status: 'RESOLVED'
+};
+var rCruzada = R.resolverRelacion(relCruzada, VALORES);
+eq(rCruzada.sumables.length, 2, 'INV-62 — la relación cruza phenomenon_id (ROTACION ↔ AUSENTISMO) y aun así se resuelve (INDEPENDENT → ambos suman)');
+ok(rCruzada.excluidos.length === 0, 'INV-62 — la vigencia temporal (valid_from/valid_to) no impide la resolución — el motor aplica la consecuencia, no juzga la vigencia');
+
+// ═══════════════════════════════════════════════════════════════════════
 console.log('\n' + '═'.repeat(74));
 console.log('  RESULTADO:  ' + _ok + ' asserts OK, ' + _fallos + ' fallos');
 console.log('═'.repeat(74));
