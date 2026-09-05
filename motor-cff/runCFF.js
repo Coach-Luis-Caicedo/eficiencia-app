@@ -377,8 +377,20 @@ function runCFF(caso) {
     coverageInputCapa(monetizables, function (c) { return ATRIBUCION_ADMISIBLE.indexOf(c.attribution_status) !== -1; }, 'ATRIBUCION_NO_RESUELTA'),
     caso.coberturaSeniales);
 
+  // 4ª entrada — exclusiones de la ETAPA DE CONSOLIDACIÓN (DUPLICATE sin
+  // resolver, admisibilidad §18, costo compartido UNALLOCATED, doble falla).
+  // Sin esto, el denominador de cobertura solo veía el embudo de S3 y una
+  // exclusión de consolidación (material, no evaluada) no degradaba
+  // overall_coverage_status — inconsistente con la Opción D ya cerrada en
+  // consolidacion.js (§20 + §22.7: el denominador incluye TODO lo excluido,
+  // sea cual sea la razón). `cons.coverageInput` ya trae la forma correcta
+  // ({candidatos, admisibles, excluidos[]}) y clasificarCobertura descuenta
+  // por su cuenta las TRANSFERENCIA_INTERNA (que no son un hueco, §14).
+  var covConsolidacion = cobertura.clasificarCobertura(cons.coverageInput, caso.coberturaSeniales);
+
   var overallCoverage = cobertura.rollupCobertura([
-    covOperacional.coverage_status, covMonetizacion.coverage_status, covAtribucion.coverage_status
+    covOperacional.coverage_status, covMonetizacion.coverage_status,
+    covAtribucion.coverage_status, covConsolidacion.coverage_status
   ]);
 
   var ceroDeNA = cobertura.distinguirCeroDeNA(cons.cff_total, overallCoverage);
@@ -494,7 +506,8 @@ function runCFF(caso) {
       coberturaPorCapa: {
         operacional: covOperacional.coverage_status,
         monetizacion: covMonetizacion.coverage_status,
-        atribucion: covAtribucion.coverage_status
+        atribucion: covAtribucion.coverage_status,
+        consolidacion: covConsolidacion.coverage_status
       },
       outputStatus: outputStatus,
       ceroDeNA: ceroDeNA

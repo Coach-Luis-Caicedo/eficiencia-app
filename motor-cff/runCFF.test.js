@@ -162,12 +162,14 @@ near(rTI.result.cff_total, 600, '#1 esTransferenciaInternaPura + #6 nodeRaiz: la
 // #2 sharedCosts.baseAsignacionDocumentada
 var rSC = R.runCFF(casoValido({
   eventos: [eventoValido({ components: [
+    compValida({ component_id: 'C_ok', original_value: 500 }),
     compValida({ component_id: 'C1', original_value: 300, shared_cost_id: 'SC1' }),
     compValida({ component_id: 'C2', original_value: 700, shared_cost_id: 'SC1' })
   ] })],
   sharedCosts: { SC1: { baseAsignacionDocumentada: false } }
 }));
-near(rSC.result.cff_total, 0, '#2 sin base de asignación documentada → UNALLOCATED, fuera del total');
+near(rSC.result.cff_total, 500, '#2 sin base de asignación documentada → SC1 UNALLOCATED, fuera del total (queda solo C_ok=500, no 1500)');
+ok(rSC.result.coverage.overall_coverage_status === 'PARTIAL', '#2 — los 2 componentes UNALLOCATED degradan la cobertura a PARTIAL');
 
 // #3 period del componente + #4 transformación STOCK→flujo
 var rTemp = R.runCFF(casoValido({
@@ -203,6 +205,71 @@ var rMix = R.runCFF(casoValido({
 }));
 near(rMix.result.cff_total, 5000, 'el evento INVALID no aporta; el válido sí (5000, no 14999)');
 ok(rMix.result.errors.some(function (e) { return e.code === 'EVENTO_INVALIDO' && e.ref === 'EV_BAD'; }), 'el evento retenido queda en errors[] con su motivo');
+
+// ═══════════════════════════════════════════════════════════════════════
+seccion('Huecos de cobertura cerrados en Fase 5 (INV-01/62/70, AC01/02/05/20/55)');
+// ═══════════════════════════════════════════════════════════════════════
+
+// INV-CFF-01 / AC01 / AC02 — no hay ruta KPI → dinero: runCFF SOLO acepta
+// eventos con components; sin evento no hay nada que monetizar.
+lanza(function () { R.runCFF(casoValido({ eventos: [] })); }, 'INV-01/AC01/AC02 — caso sin eventos → lanza (no existe ruta KPI/diagnóstico → dinero sin CFF_EVENT)');
+var rSinComp = R.runCFF(casoValido({ eventos: [eventoValido({ components: [] })] }));
+ok(rSinComp.result.cff_total === null || rSinComp.result.cff_total === 0,
+  'INV-01 — un evento sin componentes económicos no produce una cifra positiva inventada (N_A o 0, nunca un número derivado del evento)');
+ok(rSinComp.result.cff_total !== null || rSinComp.result.coverage.overall_coverage_status === 'INSUFFICIENT',
+  'INV-01 — si es null, es por cobertura INSUFFICIENT (no hay universo material), con su status');
+
+// INV-CFF-70 — la cifra consolidada se reconstruye componente por componente:
+// Σ event_profile === Σ mechanism_profile === cff_total.
+var r70 = R.runCFF(casoValido({ eventos: [eventoValido({ components: [
+  compValida({ component_id: 'A', original_value: 300 }),
+  compValida({ component_id: 'B', original_value: 200, primary_mechanism: 'REPLACEMENT', financial_nature: 'INCREMENTAL_COST' })
+] })] }));
+var sumaEvento = r70.result.event_profile.reduce(function (s, x) { return s + x.total; }, 0);
+var sumaMecanismo = r70.result.mechanism_profile.reduce(function (s, x) { return s + x.total; }, 0);
+near(sumaEvento, r70.result.cff_total, 'INV-70 — Σ event_profile = cff_total (500)');
+near(sumaMecanismo, r70.result.cff_total, 'INV-70 — Σ mechanism_profile = cff_total (reconstrucción componente por componente)');
+
+// AC05 — curva de aprendizaje con fórmula interna → ESTIMATED + CONFIRMED, elegible
+var rAC05 = R.runCFF(casoValido({ eventos: [eventoValido({ components: [compValida({
+  component_id: 'C-CURVA', calculation_mode: 'DERIVED_FORMULA', formula_id: 'F1', formula_version: 'v1', input_variables: ['x'],
+  original_value: 1500, monetization_status: 'ESTIMATED', attribution_status: 'CONFIRMED'
+})] })] }));
+near(rAC05.result.confirmed_estimated, 1500, 'AC05 — ESTIMATED + CONFIRMED (fórmula interna) → entra a confirmed_estimated, elegible');
+
+// AC20 — evento válido sin base monetaria resoluble → mon=N_A, no inventar cifra
+var rAC20 = R.runCFF(casoValido({ eventos: [eventoValido({ components: [
+  compValida({ component_id: 'C-OK', original_value: 800 }),
+  { component_id: 'C-SINBASE', event_id: 'EV1', organization_id: 'ORG', phenomenon_id: 'PH1', node_id: 'N1', consequence_id: 'CQ1',
+    primary_mechanism: 'ADDITIONAL_CONSUMPTION', financial_nature: 'INCREMENTAL_COST', resource_type: 'X', quantity: 5, unit: 'u',
+    temporal_nature: 'PERIOD_FLOW', source_frequency: 'M', calculation_frequency: 'M', aggregation_frequency: 'MONTHLY',
+    calculation_mode: 'UNIT_RATE', input_variables: [], monetary_basis_id: 'MBX', original_currency: 'COP', valuation_basis: 'NOMINAL',
+    monetization_status: 'N_A', attribution_status: 'CONFIRMED', valuation_role: 'PRIMARY', economic_scope: 'ORGANIZATION',
+    counterparty_scope: 'EXTERNAL', dependency_refs: [], include_in_cff: false, flags: [],
+    monetary_basis_valid: false, temporal_basis_valid: true, scope_valid: true, esTransferenciaInternaPura: false }
+] })] }));
+near(rAC20.result.cff_total, 800, 'AC20 — componente sin base monetaria (mon=N_A) queda fuera; no se inventa cifra (cff_total=800, solo C-OK)');
+
+// AC55 — grafo parcialmente irresoluble → consolidar subconjunto seguro + degradar cobertura
+var rAC55 = R.runCFF(casoValido({
+  eventos: [eventoValido({ components: [
+    compValida({ component_id: 'C_safe', original_value: 10000 }),
+    compValida({ component_id: 'C_dupA', original_value: 4000 }),
+    compValida({ component_id: 'C_dupB', original_value: 4000 })
+  ] })],
+  relaciones: [{ relation_type: 'DUPLICATE', component_a_id: 'C_dupA', component_b_id: 'C_dupB', resolution_status: 'UNRESOLVED' }],
+  coberturaSeniales: { tratamientoEconomicoSuficiente: true, dependeDeEstimacionesDebiles: false, asignacionesLimitadas: false, baseDefendibleParaCifraConsolidada: true }
+}));
+near(rAC55.result.cff_total, 10000, 'AC55 — el DUPLICATE irresoluble se excluye; el subconjunto seguro (C_safe) sí consolida (10000)');
+ok(rAC55.result.coverage.limitations.some(function (l) { return l.indexOf('C_dupA') !== -1 || l.indexOf('C_dupB') !== -1; }),
+  'AC55 — los 2 duplicados excluidos quedan declarados en coverage.limitations (exclusión explícita, §20)');
+eq(rAC55.result.coverage.overall_coverage_status, 'PARTIAL',
+  'AC55 — la exclusión de los 2 duplicados material degrada overall_coverage_status a PARTIAL (fix Fase 5: la 4ª entrada al roll-up ve las exclusiones de consolidación)');
+eq(rAC55._meta.coberturaPorCapa.consolidacion, 'PARTIAL',
+  'AC55 — la capa de consolidación clasifica PARTIAL (2 de 3 componentes excluidos con motivo)');
+// before/after verificado con node -e antes del commit:
+//   SIN el fix (roll-up de solo 3 capas)  → overall_coverage_status = FULL
+//   CON el fix (roll-up de 4 capas)       → overall_coverage_status = PARTIAL
 
 // ═══════════════════════════════════════════════════════════════════════
 seccion('Validación de entrada — campos obligatorios de caso/versión');
