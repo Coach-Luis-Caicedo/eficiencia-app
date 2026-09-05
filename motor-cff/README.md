@@ -37,10 +37,10 @@ pruebas negativas, distribuidos en las fases donde corresponden.
 |---|---|
 | `enums.js` | Registro canónico de enums, combinando §21 + §23 + los inline-only de §22 tratados como autoritativos. Fase 1 agregó `RECOVERY_REALIZATION_TYPE` (§7.1). |
 | `estados.js` | `resolveStatus()` — la función pura de propagación de calidad del §21. **No** está cableada a ningún pipeline todavía (eso es Fase 4b/5). |
-| `contratos.js` | Los 10 validadores de contrato (§22.1-22.10): campos obligatorios/opcionales, tipos, enums, y 9 reglas condicionales (5 de Fase 0 + 3 de Fase 1 + **la regla 9 de Fase 4b-iv: `cff_total` condicionalmente nulable — primer cambio a un contrato de Fase 0**). Sin lógica de negocio. |
-| `contratos.test.js` | Batería de contratos. `node motor-cff/contratos.test.js` → **81 asserts OK, 0 fallos**. |
-| `monetizacion.js` | **Fase 1.** Los 4 mecanismos (§6), `resolverValorComponente` (calcula solo en `UNIT_RATE`), `calcularLostCapacity` (§8.2, reconstrucción obligatoria), `agregarPorMecanismo` (§35, CA/VCP/CR/VNC), `preferirBaseMonetaria` (§8.5). |
-| `monetizacion.test.js` | Batería de monetización. `node motor-cff/monetizacion.test.js` → **49 asserts OK, 0 fallos**, incluida verificación por mutación de la regla de §8.2. |
+| `contratos.js` | Los 10 validadores de contrato (§22.1-22.10): campos obligatorios/opcionales, tipos, enums, y **10 reglas condicionales** (5 de Fase 0 + 3 de Fase 1 + regla 9 de Fase 4b-iv: `cff_total` nulable — primer cambio a un contrato de Fase 0 + regla 10 de Fase 5: `salary_derived ⇒ salary_basis_kind`, §8.4). Sin lógica de negocio. |
+| `contratos.test.js` | Batería de contratos. `node motor-cff/contratos.test.js` → **87 asserts OK, 0 fallos**. |
+| `monetizacion.js` | **Fase 1** (+ compuertas §8.3/§8.4 de Fase 5). Los 4 mecanismos (§6), `resolverValorComponente` (calcula solo en `UNIT_RATE`), `calcularLostCapacity` (§8.2), `calcularReposicion` (§8.3, interina), `calcularValorNoCapturado` (§8.4, interina), `agregarPorMecanismo` (§35), `preferirBaseMonetaria` (§8.5). |
+| `monetizacion.test.js` | Batería de monetización. `node motor-cff/monetizacion.test.js` → **66 asserts OK, 0 fallos**, incluidas mutaciones de §8.2, §8.3 y §8.4. |
 | `atribucion.js` | **Fase 2.** `clasificarAtribucion` (§11, 6 dimensiones → `CONFIRMED`/`SUPPORTED`/`UNRESOLVED`), `profundizar` (§12, nueva versión + inmutabilidad de la anterior). |
 | `atribucion.test.js` | Batería de atribución. `node motor-cff/atribucion.test.js` → **41 asserts OK, 0 fallos**, incluidas 3 mutaciones (precedencia `CONFIRMED`/`SUPPORTED`, lectura ampliada de convergencia). |
 | `relaciones.js` | **Fase 3.** Grafo económico + detección de ciclos sobre `CONTAINS` (§13.3, `AC15`), `resolverRelacion` (§13, las 6 reglas de suma por tipo de relación). |
@@ -61,6 +61,8 @@ pruebas negativas, distribuidos en las fases donde corresponden.
 | `cobertura.test.js` | Batería de cobertura. `node motor-cff/cobertura.test.js` → **41 asserts OK, 0 fallos**, incluida la verificación de partición independiente del orden sobre los 64 casos (condiciones crudas + solapamientos localizados), las 2 mutaciones (N_A→0 prohibida por AC46; precedencia FULL/LIMITED) y la prueba dirigida de `_verificarValorConsistente`. |
 | `runCFF.js` | **Fase 4b (iv).** `runCFF` (§24, orquestador determinista end-to-end) — arma el `CFF_RESULT` completo (§22.8) + `CFF_RUN` + `TRACE_PATH`, delegando en todas las fases anteriores. `resolveStatus` (§21) conectada por primera vez. |
 | `runCFF.test.js` | Batería de runCFF. `node motor-cff/runCFF.test.js` → **41 asserts OK, 0 fallos**, incluidos AC51 (determinismo byte a byte), la indemnización $7.000.000 COP end-to-end, `resolveStatus` reflejando una degradación, el caso N_A (regla 9), los 7 parámetros de invocación y las 2 mutaciones. |
+| `versionamiento.js` | **Fase 5** (§25-26). `evaluarShortCircuit` (severidad WARNING/DEGRADED/BLOCKING, local vs. global), `aplicarTecho`, `cambioRequiereNuevaCorrida` (§26/INV-51), `crearNuevaVersion` (INV-65), `marcarStale` (§26.2/INV-66). Funciones puras, no cableadas a `runCFF` (mismo criterio que `estados.js`). |
+| `versionamiento.test.js` | Batería de versionamiento. `node motor-cff/versionamiento.test.js` → **48 asserts OK, 0 fallos**, incluidas 4 mutaciones (BLOCKING→DEGRADED; global→local; `crearNuevaVersion` mutando el histórico; quitar la condición `modificaResultado`). |
 
 ## Las 5 reglas condicionales (aprobadas antes de implementar)
 
@@ -228,6 +230,20 @@ días, `MONETARY_BASIS` tipo tarifa/salario, sin reconstrucción) **dejaba de
 rechazarse**, y se revirtió. La regla depende genuinamente del assert, no de
 una casualidad del resto de la batería.
 
+### §8.3 / §8.4 — compuertas de rechazo (añadidas en Fase 5, ver "Compuertas interinas" abajo)
+
+`calcularReposicion` (§8.3, REPLACEMENT) rechaza un múltiplo universal de
+salario o la ausencia de componentes reales de reposición
+(`SALIDA | BUSQUEDA | SELECCION | CONTRATACION | INDUCCION | FORMACION |
+SUPERVISION | CURVA_APRENDIZAJE`, literal de §8.3). `calcularValorNoCapturado`
+(§8.4, UNCAPTURED_VALUE) exige las 4 condiciones de §8.4 (`capacidadReal`,
+`demandaDemostrable`, `vinculoOperacional`,
+`sinRecuperacionPosteriorEquivalente`) y rechaza el caso "demora que
+desplaza la venta" (AC35). Ambas devuelven
+`{rechazado: true, monetization_status: 'N_A'}`, mismo patrón que
+`calcularLostCapacity`. **2 mutaciones** (quitar el chequeo de múltiplo de
+salario; tratar la ausencia de condición como satisfecha).
+
 ### §8.5 — preferencia `COMPONENT_BASED` sobre benchmark agregado
 
 `preferirBaseMonetaria(candidatas)` — dada una lista de `MONETARY_BASIS` para
@@ -236,6 +252,43 @@ todas lo son, la usa y marca `flags: ['SOLO_BENCHMARK_DISPONIBLE']`. No
 implementa el juicio de "si la transferencia es admisible" (§8.5) — eso excede
 lo que esta función puede decidir sin más contexto (candidato a fase
 posterior si hace falta).
+
+## Compuertas interinas de monetización §8.3/§8.4 — PENDIENTE con destino explícito
+
+**Estado: mecanismo de seguridad interino, NO la arquitectura final.**
+
+Al cerrar el mapeo de cobertura de Fase 5 se detectó que Fase 1 construyó
+solo el gate de **§8.2** (`calcularLostCapacity`). Fase 5 agregó los gates
+de **§8.3** (`calcularReposicion`) y **§8.4** (`calcularValorNoCapturado`),
+más el campo `salary_derived` / `salary_basis_kind` (regla condicional 10
+de `contratos.js`, §8.4/§9 "Salario_base ≠ costo_total_empleador").
+
+**Lo que estas piezas hacen hoy:** rechazan las monetizaciones que el
+documento prohíbe explícitamente — un múltiplo universal de salario como
+reposición (§8.3), capacidad perdida sin demanda demostrable (§8.4), una
+demora que solo desplaza la venta (AC35) — y obligan al componente a
+declarar a mano si `basis_value` es salario base o costo total cargado.
+
+**Lo que NO hacen — y es el objetivo real:** calcular automáticamente el
+valor legal correcto según el **país de la organización**. El costo total
+cargado y la indemnización legal por país ya están investigados para
+**10 países** —Colombia, México, Perú, Chile, Argentina, Ecuador,
+Venezuela (con su modelo de *fondo acumulativo de prestaciones*, LOTTT,
+estructuralmente distinto), Costa Rica, Panamá, Guatemala— en
+[`INVESTIGACION_FACTOR_PRESTACIONAL_LATAM.md`](../INVESTIGACION_FACTOR_PRESTACIONAL_LATAM.md)
+y
+[`INVESTIGACION_COSTO_LEGAL_DESVINCULACION_LATAM.md`](../INVESTIGACION_COSTO_LEGAL_DESVINCULACION_LATAM.md).
+Falta el **campo país en el esquema** (pospuesto a la migración de
+Supabase, mismo tratamiento que otros pendientes) y construir esa **tabla
+de fórmulas como código real**.
+
+**Definición de "terminado"** (mismo tratamiento que `TRANSIENT_EFO_NOISE`
+o el campo país — pendiente identificado con destino, no algo cerrado): no
+es *"compuertas construidas"*, es **"cálculo automático del costo cargado /
+indemnización por país construido y verificado contra los 10 países ya
+investigados"**. La declaración manual (`salary_basis_kind`) y las
+compuertas de rechazo son el paso intermedio hasta entonces, no el estado
+deseado permanente.
 
 ## Fase 2 — atribución
 

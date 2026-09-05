@@ -6,6 +6,21 @@
  * atribución (Fase 2), NO resuelve relaciones/dedup (Fase 3), NO consolida
  * (Fase 4b).
  *
+ * ── Compuertas de rechazo por mecanismo (§8.2/§8.3/§8.4) ────────────────
+ *
+ * calcularLostCapacity (§8.2, INV-46) se construyó en Fase 1.
+ * calcularReposicion (§8.3, INV-45/AC33) y calcularValorNoCapturado (§8.4,
+ * INV-43/44, AC34/AC35) se agregaron en Fase 5 al cerrar el mapeo de
+ * cobertura — el mapeo reveló que §8.3 y §8.4 no tenían punto de
+ * enforcement. Son MECANISMO INTERINO: rechazan monetizaciones que el
+ * documento prohíbe (múltiplo universal de salario; capacidad sin demanda;
+ * demora que desplaza venta), pero NO calculan el valor legal correcto por
+ * país. El objetivo real —cálculo automático del costo total cargado y de
+ * la indemnización según el país de la organización, con las 10 fórmulas ya
+ * investigadas— está documentado como pendiente en el README con su
+ * definición de "terminado". Ver "Compuertas interinas de monetización
+ * §8.3/§8.4".
+ *
  * ── Qué calcula el motor según calculation_mode (§22.2) — y qué NO ───────
  *
  * DIRECT_VALUE y DERIVED_FORMULA: el motor NO calcula nada. El valor ya fue
@@ -196,6 +211,106 @@ function calcularLostCapacity(componente, base, opts) {
   return resultado;
 }
 
+// ── §8.3 REPLACEMENT (CR) — compuerta de rechazo (Fase 5) ────────────────
+
+// §8.3 literal: "La reposición se construye con componentes reales o
+// metodológicamente estimables: salida, búsqueda, selección, contratación,
+// inducción, formación, supervisión y curva de aprendizaje cuando
+// corresponda. No se aceptan múltiplos universales de salario como
+// sustituto automático de evidencia."
+var COMPONENTES_REPOSICION_VALIDOS = [
+  'SALIDA', 'BUSQUEDA', 'SELECCION', 'CONTRATACION', 'INDUCCION', 'FORMACION', 'SUPERVISION', 'CURVA_APRENDIZAJE'
+];
+
+/**
+ * calcularReposicion(componente, base, opts)
+ *
+ * componente: ECONOMIC_COMPONENT (parcial) con primary_mechanism=REPLACEMENT.
+ * opts.componentesReposicion: array no vacío de { tipo (de
+ *   COMPONENTES_REPOSICION_VALIDOS), valor|descripcion } — la evidencia real
+ *   de la que se construye CR. opts.esMultiploUniversalSalario: si true, se
+ *   RECHAZA de plano (§8.3: "no se aceptan múltiplos universales de salario").
+ *
+ * Devuelve { rechazado:true, monetization_status:'N_A', motivo } cuando la
+ * reposición se pretende con un múltiplo genérico de salario o sin
+ * componentes de evidencia. En otro caso { rechazado:false, valor,
+ * componentesReposicion }.
+ */
+function calcularReposicion(componente, base, opts) {
+  if (!componente || componente.primary_mechanism !== 'REPLACEMENT') {
+    throw new Error('calcularReposicion: el componente debe declarar primary_mechanism=REPLACEMENT.');
+  }
+  opts = opts || {};
+
+  if (opts.esMultiploUniversalSalario === true) {
+    return {
+      rechazado: true, monetization_status: 'N_A',
+      motivo: 'INV-CFF-45 / §8.3: la reposición se pretende con un múltiplo universal de salario — no se acepta como ' +
+        'sustituto automático de evidencia. Declarar los componentes reales (' + COMPONENTES_REPOSICION_VALIDOS.join(' | ') + ').'
+    };
+  }
+  var comps = opts.componentesReposicion;
+  var listaValida = Array.isArray(comps) && comps.length > 0 &&
+    comps.every(function (c) { return c && COMPONENTES_REPOSICION_VALIDOS.indexOf(c.tipo) !== -1; });
+  if (!listaValida) {
+    return {
+      rechazado: true, monetization_status: 'N_A',
+      motivo: 'INV-CFF-45 / §8.3: no se declararon componentes reales de reposición (' +
+        COMPONENTES_REPOSICION_VALIDOS.join(' | ') + ') — CR no se monetiza sin esa evidencia.'
+    };
+  }
+
+  var valorResuelto = resolverValorComponente(componente, base);
+  return Object.assign({ rechazado: false, componentesReposicion: comps }, valorResuelto);
+}
+
+// ── §8.4 UNCAPTURED_VALUE (VNC) — compuerta de rechazo (Fase 5) ──────────
+
+// §8.4 literal: VNC = Q_no_capturada × MC_u ; MC_u = Precio − Costo variable
+// evitable. "Exige capacidad real, demanda demostrable, vínculo operacional
+// y ausencia de recuperación posterior equivalente. Capacidad no utilizada
+// no equivale a venta perdida. Una demora que desplaza una venta no implica
+// automáticamente pérdida del margen completo."
+var CONDICIONES_VNC = ['capacidadReal', 'demandaDemostrable', 'vinculoOperacional', 'sinRecuperacionPosteriorEquivalente'];
+
+/**
+ * calcularValorNoCapturado(componente, base, opts)
+ *
+ * opts: las 4 condiciones booleanas de CONDICIONES_VNC (obligatorias,
+ *   explícitas) + demoraDesplazaVenta? (si true y no está establecida la
+ *   ausencia de recuperación, se rechaza — "no implica pérdida del margen
+ *   completo").
+ *
+ * Devuelve { rechazado:true, monetization_status:'N_A', motivo } si alguna
+ * condición no se satisface. En otro caso { rechazado:false, valor... }.
+ */
+function calcularValorNoCapturado(componente, base, opts) {
+  if (!componente || componente.primary_mechanism !== 'UNCAPTURED_VALUE') {
+    throw new Error('calcularValorNoCapturado: el componente debe declarar primary_mechanism=UNCAPTURED_VALUE.');
+  }
+  opts = opts || {};
+  var faltan = CONDICIONES_VNC.filter(function (k) { return opts[k] !== true; });
+  if (faltan.length) {
+    return {
+      rechazado: true, monetization_status: 'N_A',
+      motivo: 'INV-CFF-43/44 / §8.4: VNC exige ' + CONDICIONES_VNC.join(', ') + ' — no satisfechas: ' + faltan.join(', ') +
+        '. Capacidad no utilizada no equivale a venta perdida.'
+    };
+  }
+  if (opts.demoraDesplazaVenta === true) {
+    // La ausencia de recuperación ya se exigió arriba (sinRecuperacionPosteriorEquivalente);
+    // este chequeo lo hace explícito para el caso AC35.
+    return {
+      rechazado: true, monetization_status: 'N_A',
+      motivo: 'AC35 / §8.4: la demora desplaza la venta a un período posterior — no se reconoce el margen completo ' +
+        'perdido si se recupera. Segmentar la parte genuinamente no recuperada antes de valorar.'
+    };
+  }
+
+  var valorResuelto = resolverValorComponente(componente, base);
+  return Object.assign({ rechazado: false }, valorResuelto);
+}
+
 // ── §35 agregación por mecanismo (CA/VCP/CR/VNC) ─────────────────────────
 
 /**
@@ -296,9 +411,13 @@ module.exports = {
   MECANISMOS_A_FORMULA: MECANISMOS_A_FORMULA,
   RECURSOS_QUE_EXIGEN_RECONSTRUCCION: RECURSOS_QUE_EXIGEN_RECONSTRUCCION,
   TIPOS_RECONSTRUCCION: TIPOS_RECONSTRUCCION,
+  COMPONENTES_REPOSICION_VALIDOS: COMPONENTES_REPOSICION_VALIDOS,
+  CONDICIONES_VNC: CONDICIONES_VNC,
   resolverValorComponente: resolverValorComponente,
   aplicarResultadoAComponente: aplicarResultadoAComponente,
   calcularLostCapacity: calcularLostCapacity,
+  calcularReposicion: calcularReposicion,
+  calcularValorNoCapturado: calcularValorNoCapturado,
   agregarPorMecanismo: agregarPorMecanismo,
   preferirBaseMonetaria: preferirBaseMonetaria
 };

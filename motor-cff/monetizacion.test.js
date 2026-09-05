@@ -193,6 +193,65 @@ lanza(function () { M.preferirBaseMonetaria([]); }, 'lista vacía de candidatas 
 lanza(function () { M.preferirBaseMonetaria(null); }, 'candidatas no-array → lanza');
 
 // ═══════════════════════════════════════════════════════════════════════
+seccion('calcularReposicion — §8.3 (INV-CFF-45 / AC33): no múltiplos de salario');
+// ═══════════════════════════════════════════════════════════════════════
+
+var compRepo = { primary_mechanism: 'REPLACEMENT', calculation_mode: 'UNIT_RATE', quantity: 1 };
+var baseRepo = { basis_type: 'CALCULATED_INTERNAL', basis_value: 4200000 };
+
+var rMultiplo = M.calcularReposicion(compRepo, baseRepo, { esMultiploUniversalSalario: true });
+ok(rMultiplo.rechazado && rMultiplo.monetization_status === 'N_A', 'múltiplo universal de salario → RECHAZADO, monetization_status=N_A (§8.3)');
+ok(rMultiplo.motivo.indexOf('INV-CFF-45') !== -1, 'el motivo cita el invariante');
+
+var rSinComponentes = M.calcularReposicion(compRepo, baseRepo, {});
+ok(rSinComponentes.rechazado, 'sin componentes reales de reposición declarados → RECHAZADO (no se calcula CR sin evidencia)');
+
+var rComponenteInvalido = M.calcularReposicion(compRepo, baseRepo, { componentesReposicion: [{ tipo: 'INVENTADO', valor: 100 }] });
+ok(rComponenteInvalido.rechazado, 'componente de reposición con tipo fuera de la lista de §8.3 → sigue rechazado');
+
+var rRepoOk = M.calcularReposicion(compRepo, baseRepo, {
+  componentesReposicion: [{ tipo: 'BUSQUEDA', valor: 500000 }, { tipo: 'SELECCION', valor: 800000 }, { tipo: 'FORMACION', valor: 2900000 }]
+});
+ok(!rRepoOk.rechazado, 'con componentes reales (BUSQUEDA/SELECCION/FORMACION) → SÍ calcula');
+eq(rRepoOk.valor, 4200000, 'valor = 1 × 4200000 (quantity × base), la evidencia real queda registrada');
+eq(rRepoOk.componentesReposicion.length, 3, 'los 3 componentes de evidencia quedan en el resultado (trazabilidad)');
+lanza(function () { M.calcularReposicion({ primary_mechanism: 'LOST_CAPACITY' }, baseRepo, {}); }, 'mecanismo distinto de REPLACEMENT → lanza');
+
+// ═══════════════════════════════════════════════════════════════════════
+seccion('calcularValorNoCapturado — §8.4 (INV-CFF-43/44 / AC34-35): capacidad ≠ venta perdida');
+// ═══════════════════════════════════════════════════════════════════════
+
+var compVNC = { primary_mechanism: 'UNCAPTURED_VALUE', calculation_mode: 'UNIT_RATE', quantity: 10 };
+var baseVNC = { basis_type: 'CALCULATED_INTERNAL', basis_value: 3000 }; // MC_u por unidad
+
+var condTodas = { capacidadReal: true, demandaDemostrable: true, vinculoOperacional: true, sinRecuperacionPosteriorEquivalente: true };
+
+M.CONDICIONES_VNC.forEach(function (k) {
+  var opts = Object.assign({}, condTodas); opts[k] = false;
+  var r = M.calcularValorNoCapturado(compVNC, baseVNC, opts);
+  ok(r.rechazado && r.monetization_status === 'N_A', 'falta "' + k + '" → RECHAZADO (§8.4: capacidad no utilizada ≠ venta perdida)');
+});
+
+var rSinDemanda = M.calcularValorNoCapturado(compVNC, baseVNC, Object.assign({}, condTodas, { demandaDemostrable: false }));
+ok(rSinDemanda.motivo.indexOf('demandaDemostrable') !== -1, 'el motivo nombra la condición faltante (AC34: sin demanda, no convertir a margen)');
+
+var rDemora = M.calcularValorNoCapturado(compVNC, baseVNC, Object.assign({}, condTodas, { demoraDesplazaVenta: true }));
+ok(rDemora.rechazado && rDemora.motivo.indexOf('AC35') !== -1, 'demora que desplaza la venta → RECHAZADO (AC35: no reconocer el margen completo si se recupera)');
+
+var rVNCok = M.calcularValorNoCapturado(compVNC, baseVNC, condTodas);
+ok(!rVNCok.rechazado, 'las 4 condiciones satisfechas, sin demora → SÍ calcula');
+eq(rVNCok.valor, 30000, 'VNC = 10 unidades × 3000 (MC_u) = 30000');
+lanza(function () { M.calcularValorNoCapturado({ primary_mechanism: 'REPLACEMENT' }, baseVNC, condTodas); }, 'mecanismo distinto de UNCAPTURED_VALUE → lanza');
+
+// ═══════════════════════════════════════════════════════════════════════
+seccion('Mutaciones §8.3/§8.4 — ejecutadas como paso de Bash aparte (ver cierre)');
+// ═══════════════════════════════════════════════════════════════════════
+console.log('  1. §8.3: quitar el chequeo esMultiploUniversalSalario → un múltiplo genérico de salario pasa a');
+console.log('     calcularse en vez de rechazarse (INV-CFF-45).');
+console.log('  2. §8.4: cambiar `opts[k] !== true` por `opts[k] === false` → un opts sin declarar la condición');
+console.log('     (undefined) deja de rechazarse — la ausencia de evidencia se trataría como evidencia.');
+
+// ═══════════════════════════════════════════════════════════════════════
 console.log('\n' + '═'.repeat(74));
 console.log('  RESULTADO:  ' + _ok + ' asserts OK, ' + _fallos + ' fallos');
 console.log('═'.repeat(74));

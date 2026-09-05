@@ -75,7 +75,16 @@ var ENUMS = {
   // ESQUEMA_ECONOMIC_COMPONENT en contratos.js (recovery_realization_type?,
   // opcional). No modifica el CFF observado (§7.1: "únicamente preserva la
   // naturaleza de una eventual recuperación").
-  RECOVERY_REALIZATION_TYPE: ['CASH_COST_AVOIDANCE', 'CAPTURED_MARGIN', 'CAPACITY_RELEASE', 'OTHER_VALIDATED']
+  RECOVERY_REALIZATION_TYPE: ['CASH_COST_AVOIDANCE', 'CAPTURED_MARGIN', 'CAPACITY_RELEASE', 'OTHER_VALIDATED'],
+
+  // §8.4/§9 (línea "Salario_base ≠ costo_total_empleador") — EXTENSIÓN de
+  // Fase 5, aprobada por Luis. Un componente cuya base monetaria deriva de
+  // un salario (REPLACEMENT / LOST_CAPACITY) debe declarar si basis_value
+  // es el salario base o el costo total cargado. El documento exige la
+  // distinción pero §22.2/§22.3 no le dan campo. Ver README, "Compuertas
+  // interinas de monetización §8.3/§8.4" — el objetivo real es el cálculo
+  // automático por país, este campo es el mecanismo interino.
+  SALARY_BASIS_KIND: ['SALARY_BASE', 'FULLY_LOADED_COST']
 
   // RUN_STATUS (§22.9 CFF_RUN.run_status) — deliberadamente NO registrado
   // aquí. El documento nunca enumera sus valores posibles en ningún lugar

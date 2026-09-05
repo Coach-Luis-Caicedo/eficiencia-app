@@ -172,6 +172,20 @@ ok(C.validarEconomicComponent(componenteBase()).valido,
 ok(!C.validarEconomicComponent(componenteBase({ recovery_realization_type: 'GANANCIA_INVENTADA' })).valido,
   'recovery_realization_type fuera de RECOVERY_REALIZATION_TYPE → inválido');
 
+// ── Fase 5: regla 10 — salary_derived ⇒ salary_basis_kind (§8.4/§9) ──
+
+ok(C.validarEconomicComponent(componenteBase()).valido,
+  'salary_derived ausente → válido (campo opcional; el mecanismo interino no lo exige a todo componente)');
+ok(C.validarEconomicComponent(componenteBase({ salary_derived: true, salary_basis_kind: 'FULLY_LOADED_COST' })).valido,
+  'salary_derived=true CON salary_basis_kind → válido');
+var rSalarioSinKind = C.validarEconomicComponent(componenteBase({ salary_derived: true }));
+ok(!rSalarioSinKind.valido, 'salary_derived=true SIN salary_basis_kind → inválido (§8.4: debe declararse cuál base)');
+ok(rSalarioSinKind.invalidos.some(function (m) { return m.indexOf('salary_basis_kind') !== -1; }), 'el mensaje identifica salary_basis_kind');
+ok(!C.validarEconomicComponent(componenteBase({ salary_derived: true, salary_basis_kind: 'NETO' })).valido,
+  'salary_basis_kind fuera de SALARY_BASIS_KIND → inválido');
+ok(C.validarEconomicComponent(componenteBase({ salary_derived: false })).valido,
+  'salary_derived=false → no exige salary_basis_kind');
+
 var rIncludeString = C.validarEconomicComponent(componenteBase({ include_in_cff: 'true' }));
 ok(!rIncludeString.valido, 'include_in_cff como string "true" → inválido por tipo (se exige boolean real)');
 ok(rIncludeString.invalidos.some(function (m) { return m.indexOf('include_in_cff') !== -1; }), 'el mensaje identifica include_in_cff, no otro campo');

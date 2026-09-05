@@ -78,6 +78,19 @@
  *      CFF_RESULT que no puede validar su propio contrato justo en el caso
  *      más importante de manejar bien (ausencia de evidencia) es peor que
  *      una regla condicional más.
+ *
+ * ── Regla condicional 10 (Fase 5 — §8.4/§9, aprobada por Luis) ──────────
+ *
+ *   10. ECONOMIC_COMPONENT gana `salary_derived?` (boolean) y
+ *       `salary_basis_kind?` (SALARY_BASE | FULLY_LOADED_COST). Si
+ *       `salary_derived === true`, `salary_basis_kind` es OBLIGATORIO
+ *       (§8.4: "el componente debe declarar explícitamente si basis_value
+ *       representa el salario base o el costo total cargado"). Es el
+ *       mecanismo INTERINO — el objetivo real es el cálculo automático del
+ *       costo total cargado según el país de la organización (10 países ya
+ *       investigados en INVESTIGACION_FACTOR_PRESTACIONAL_LATAM.md /
+ *       INVESTIGACION_COSTO_LEGAL_DESVINCULACION_LATAM.md). Ver README,
+ *       "Compuertas interinas de monetización §8.3/§8.4".
  */
 
 'use strict';
@@ -220,7 +233,12 @@ var ESQUEMA_ECONOMIC_COMPONENT = [
   { name: 'include_in_cff', required: true, type: 'boolean' },
   { name: 'exclusion_reason', required: false, type: 'string' },
   { name: 'flags', required: true, type: 'array' },
-  { name: 'recovery_realization_type', required: false, type: 'string', enum: 'RECOVERY_REALIZATION_TYPE' } // NUEVO, Fase 1 — §7.1 sin campo en §22.2
+  { name: 'recovery_realization_type', required: false, type: 'string', enum: 'RECOVERY_REALIZATION_TYPE' }, // NUEVO, Fase 1 — §7.1 sin campo en §22.2
+  // NUEVOS, Fase 5 — §8.4/§9 "Salario_base ≠ costo_total_empleador". `salary_derived`
+  // marca que basis_value proviene de un salario; `salary_basis_kind` (obligatorio si
+  // salary_derived=true, regla 10) declara cuál. Mecanismo INTERINO — ver README.
+  { name: 'salary_derived', required: false, type: 'boolean' },
+  { name: 'salary_basis_kind', required: false, type: 'string', enum: 'SALARY_BASIS_KIND' }
 ];
 
 function reglasCondicionalesEconomicComponent(obj) {
@@ -261,6 +279,13 @@ function reglasCondicionalesEconomicComponent(obj) {
     // implementación que pueda divergir.
     if (rangoIncompatibleConObserved(tieneRangoCompleto, obj.monetization_status)) {
       extra.push('monetization_status no puede ser OBSERVED cuando el valor es un rango (original_value_min/max) — un valor con incertidumbre estructural no es "observado" (§10); debe ser ESTIMATED (o EXPOSURE/N_A)');
+    }
+    // Regla 10 (Fase 5): si salary_derived=true, salary_basis_kind es obligatorio.
+    // §8.4/§9: "cuando una base monetaria deriva de un salario... el componente debe
+    // declarar explícitamente si basis_value representa el salario base o el costo
+    // total cargado". Mecanismo INTERINO hasta el cálculo automático por país.
+    if (obj.salary_derived === true && obj.salary_basis_kind == null) {
+      extra.push('salary_basis_kind es obligatorio cuando salary_derived=true — §8.4: hay que declarar si basis_value es SALARY_BASE o FULLY_LOADED_COST (usar salario base donde corresponde costo total cargado subestima el CFF)');
     }
   }
   return extra;
