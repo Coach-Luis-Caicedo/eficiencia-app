@@ -285,11 +285,42 @@ function _verificarValorConsistente(r) {
   return r;
 }
 
+/**
+ * rollupCobertura(statuses) → COVERAGE_STATUS
+ *
+ * Toma varios COVERAGE_STATUS (p.ej. los de las capas operacional /
+ * monetización / atribución) y devuelve el PEOR — el `overall_coverage_
+ * status` de CFF_COVERAGE (§22.7). Orden de severidad:
+ * INSUFFICIENT > LIMITED > PARTIAL > FULL.
+ *
+ * Es análoga a estados.resolveStatus (§21) —misma idea de propagación: la
+ * salida no puede tener mayor calidad que su peor insumo— pero sobre un
+ * VOCABULARIO DISTINTO (COVERAGE_STATUS, no OUTPUT_STATUS). Deliberadamente
+ * NO reutiliza el nombre `resolveStatus` para que nadie las confunda.
+ */
+var ORDEN_COBERTURA = ['INSUFFICIENT', 'LIMITED', 'PARTIAL', 'FULL']; // peor → mejor
+function rollupCobertura(statuses) {
+  if (!Array.isArray(statuses) || statuses.length === 0) {
+    throw new Error('rollupCobertura: se esperaba un array no vacío de COVERAGE_STATUS.');
+  }
+  statuses.forEach(function (s) {
+    if (ENUMS.COVERAGE_STATUS.indexOf(s) === -1) {
+      throw new Error('rollupCobertura: "' + s + '" no es un COVERAGE_STATUS válido.');
+    }
+  });
+  for (var i = 0; i < ORDEN_COBERTURA.length; i++) {
+    if (statuses.indexOf(ORDEN_COBERTURA[i]) !== -1) return ORDEN_COBERTURA[i];
+  }
+  return 'FULL';
+}
+
 module.exports = {
   clasificarCobertura: clasificarCobertura,
   distinguirCeroDeNA: distinguirCeroDeNA,
+  rollupCobertura: rollupCobertura,
   _verificarValorConsistente: _verificarValorConsistente,
   SENALES_OBLIGATORIAS: SENALES_OBLIGATORIAS,
+  ORDEN_COBERTURA: ORDEN_COBERTURA,
   // expuestas para la prueba independiente del orden (ver cabecera)
   CONDICIONES_CRUDAS: CONDICIONES_CRUDAS,
   PRECEDENCIA: PRECEDENCIA

@@ -37,7 +37,7 @@ pruebas negativas, distribuidos en las fases donde corresponden.
 |---|---|
 | `enums.js` | Registro canónico de enums, combinando §21 + §23 + los inline-only de §22 tratados como autoritativos. Fase 1 agregó `RECOVERY_REALIZATION_TYPE` (§7.1). |
 | `estados.js` | `resolveStatus()` — la función pura de propagación de calidad del §21. **No** está cableada a ningún pipeline todavía (eso es Fase 4b/5). |
-| `contratos.js` | Los 10 validadores de contrato (§22.1-22.10): campos obligatorios/opcionales, tipos, enums, y 8 reglas condicionales (5 de Fase 0 + 3 extensiones de Fase 1). Sin lógica de negocio. |
+| `contratos.js` | Los 10 validadores de contrato (§22.1-22.10): campos obligatorios/opcionales, tipos, enums, y 9 reglas condicionales (5 de Fase 0 + 3 de Fase 1 + **la regla 9 de Fase 4b-iv: `cff_total` condicionalmente nulable — primer cambio a un contrato de Fase 0**). Sin lógica de negocio. |
 | `contratos.test.js` | Batería de contratos. `node motor-cff/contratos.test.js` → **81 asserts OK, 0 fallos**. |
 | `monetizacion.js` | **Fase 1.** Los 4 mecanismos (§6), `resolverValorComponente` (calcula solo en `UNIT_RATE`), `calcularLostCapacity` (§8.2, reconstrucción obligatoria), `agregarPorMecanismo` (§35, CA/VCP/CR/VNC), `preferirBaseMonetaria` (§8.5). |
 | `monetizacion.test.js` | Batería de monetización. `node motor-cff/monetizacion.test.js` → **49 asserts OK, 0 fallos**, incluida verificación por mutación de la regla de §8.2. |
@@ -59,6 +59,8 @@ pruebas negativas, distribuidos en las fases donde corresponden.
 | `consolidacion.test.js` | Batería de consolidación. `node motor-cff/consolidacion.test.js` → **46 asserts OK, 0 fallos**, incluidas las 2 mutaciones (orden RESOLVER↔SELECCIONAR: 20000→30000; AC45: reconciliación bloquea), el Paso 3 (INV-CFF-20 en totales secundarios) y la prueba dirigida de `verificarReconciliacionCuadrantes`. |
 | `cobertura.js` | **Fase 4b (iii).** `clasificarCobertura` (§20, las 4 categorías `COVERAGE_STATUS` — criterio cualitativo, sin umbral numérico) + `distinguirCeroDeNA` (§20/AC21/AC22/AC46, `CFF=0` real vs `CFF=N_A` con `value=null`). |
 | `cobertura.test.js` | Batería de cobertura. `node motor-cff/cobertura.test.js` → **41 asserts OK, 0 fallos**, incluida la verificación de partición independiente del orden sobre los 64 casos (condiciones crudas + solapamientos localizados), las 2 mutaciones (N_A→0 prohibida por AC46; precedencia FULL/LIMITED) y la prueba dirigida de `_verificarValorConsistente`. |
+| `runCFF.js` | **Fase 4b (iv).** `runCFF` (§24, orquestador determinista end-to-end) — arma el `CFF_RESULT` completo (§22.8) + `CFF_RUN` + `TRACE_PATH`, delegando en todas las fases anteriores. `resolveStatus` (§21) conectada por primera vez. |
+| `runCFF.test.js` | Batería de runCFF. `node motor-cff/runCFF.test.js` → **41 asserts OK, 0 fallos**, incluidos AC51 (determinismo byte a byte), la indemnización $7.000.000 COP end-to-end, `resolveStatus` reflejando una degradación, el caso N_A (regla 9), los 7 parámetros de invocación y las 2 mutaciones. |
 
 ## Las 5 reglas condicionales (aprobadas antes de implementar)
 
@@ -874,3 +876,125 @@ dirigida).
    precedencia (§21) la que decide, no una supuesta disjunción.
 
 Revertidas ambas, 41/41 asserts en verde.
+
+## Fase 4b (iv) — algoritmo determinista end-to-end (`runCFF.js`, §24)
+
+`runCFF(caso)` ejecuta el pipeline completo de §24 llamando en orden a
+todas las fases anteriores y arma, **por primera vez**, el objeto de
+contrato entero: `CFF_RESULT` (§22.8) + `CFF_RUN` (§22.9) + `TRACE_PATH`
+(§22.10). No reimplementa ninguna regla — solo orquesta.
+
+### `resolveStatus` (§21) — dónde se usa, verificado contra el texto
+
+§24 pone `resolve_coverage_and_status()` como **un** paso, después de
+`calculate_evidence_matrix_and_CFF()` y antes de `run_invariants()` — la
+resolución de estado ocurre **una vez, a nivel de `CFF_RESULT`**, no
+tejida capa por capa. §21 da la cascada y el principio *"una salida
+downstream no puede tener mayor calidad que una dependencia crítica"*,
+pero **no** enumera qué es "crítico" ni cómo el resultado (un
+`OUTPUT_STATUS`, que incluye `INSUFFICIENT`) mapea a
+`CFF_RESULT.calculation_status` (un `CALCULATION_STATUS`, que **no** tiene
+`INSUFFICIENT`). Decisiones explícitas:
+
+- **Críticas para `calculation_status`**: (a) ¿evento retenido con
+  `status=INVALID` / contrato inválido? → `INVALID`; (b)
+  `overall_coverage_status` mapeado a `OUTPUT_STATUS` (`FULL→VALID`,
+  `PARTIAL`/`LIMITED→VALID_WITH_LIMITATIONS`, `INSUFFICIENT→INSUFFICIENT`);
+  (c) severidad de `errors[]` (`BLOCKING` no-cobertura → `INVALID`,
+  `DEGRADED → VALID_WITH_LIMITATIONS`, §25). `resolveStatus` sobre ese
+  conjunto.
+- **Mapa `OUTPUT_STATUS → CALCULATION_STATUS`**: `VALID→VALID`,
+  `VALID_WITH_LIMITATIONS→VALID_WITH_LIMITATIONS`, `INSUFFICIENT→INVALID`,
+  `INVALID→INVALID`.
+- **`INSUFFICIENT` y `INVALID` colapsan en `calculation_status`, pero la
+  distinción NO se pierde**: vive en `coverage.overall_coverage_status`
+  (`=== 'INSUFFICIENT'` solo en la insuficiencia) y en el `code` tipado de
+  `errors[]` (`COBERTURA_INSUFICIENTE` vs. `INVARIANTE_VIOLADO` /
+  `CONTRATO_INVALIDO`). Un consumidor distingue *"tráeme más evidencia"*
+  de *"arréglame un bug"* por esos dos campos, nunca por
+  `calculation_status` solo. Verificado en la batería.
+
+### `cff_total` nulable — regla condicional 9 (primer cambio a un contrato de Fase 0)
+
+Hasta ahora ninguna fase posterior había tocado `contratos.js`. `runCFF`
+debe `return CFF_RESULT` también para el caso N_A (§24), y `AC46` exige
+`value=null` ahí — pero el contrato de Fase 0 tenía `cff_total` como
+`required:true, type:number`, y un `null` fallaba la validación. Decisión
+excepcional (aprobada, documentada como tal para que no siente
+precedente): `cff_total === null` se admite **si y solo si**
+`calculation_status === 'INVALID'` **y**
+`coverage.overall_coverage_status === 'INSUFFICIENT'`. Un `INVALID` por
+ciclo o violación de invariante **no** habilita el `null` — ahí
+`cff_total` debe seguir siendo número. Verificado por mutación: quitar el
+chequeo de `overall_coverage_status` hace que un `cff_total: null` con
+cobertura `FULL` pase a validar indebidamente.
+
+### `rollupCobertura` (nuevo en `cobertura.js`)
+
+Los 3 `*_coverage_status` de capa (operacional / monetización /
+atribución) se clasifican por separado con `clasificarCobertura`;
+`overall_coverage_status` = `rollupCobertura([los 3])` = el **peor**
+(`INSUFFICIENT > LIMITED > PARTIAL > FULL`). Misma idea de propagación
+que `resolveStatus` pero sobre `COVERAGE_STATUS` — **nombre distinto a
+propósito** para que nadie las confunda.
+
+### Determinismo (AC51)
+
+`runCFF` **no** genera timestamps ni ids: `calculated_at`, `generated_at`,
+`run_id` y todas las versiones son **inputs** (AC51: *"mismos inputs Y
+versiones → mismo resultado"*). Todo array del `CFF_RESULT` se ordena por
+una clave estable. Verificado: dos corridas con los mismos inputs
+producen un `CFF_RESULT` idéntico byte a byte (comparación de
+`JSON.stringify` del objeto completo, no solo `cff_total`).
+
+**Límite conocido de la técnica de verificación** (no del código):
+`JSON.stringify` es sensible al **orden de las claves** de los objetos.
+La comparación detecta con certeza cualquier cambio de *valor* (la
+mutación de prueba, `Math.random()` en un campo, lo confirma) — pero si en
+algún punto se construyera un objeto con las mismas claves en orden
+distinto entre dos ejecuciones, esta prueba lo marcaría como discrepancia
+aunque los valores fueran idénticos. Es un límite de "comparar por
+`JSON.stringify`", no una debilidad de `runCFF`; anotado aquí para que
+quien extienda la batería en Fase 5 lo tenga presente si añade una
+comparación estructural más estricta.
+
+### Los 7 parámetros de invocación — todos cableados, verificado uno por uno
+
+`#1 esTransferenciaInternaPura` → `costos_compartidos` vía `consolidacion`;
+`#2 sharedCosts.baseAsignacionDocumentada` → idem; `#3 período del
+componente` + `#4 transformación STOCK/RATE→flujo` → `temporalidad` vía
+`consolidacion`; `#5 objeto FX completo` → `moneda.convertirMoneda` en el
+paso `normalize_currency` de `runCFF` (todo componente llega a
+`consolidacion` ya en la `reporting_currency`; el valor original se
+preserva para trazabilidad, §17); `#6 nodeRaiz` → `nodos.clasificarAlcance`
+vía `consolidacion`; `#7 toleranciaReconciliacion` → `verificarReconciliacion
+Cuadrantes`, con `flag PENDIENTE_VALIDACION` si no se aporta.
+
+### Dos mutaciones ejecutadas
+
+1. **AC51** — inyectar un valor no determinista (`Math.random()`) en un
+   campo del `CFF_RESULT`: la comparación byte a byte de las dos corridas
+   pasa a fallar.
+2. **Regla 9** — quitar el chequeo `overall_coverage_status==='INSUFFICIENT'`
+   en `validarCFFResult`: un `cff_total: null` con `calculation_status:
+   'INVALID'` pero cobertura `FULL` pasa a validar indebidamente.
+
+Revertidas ambas, 41/41 en verde.
+
+## Estado consolidado — `motor-cff` con Fase 4b completa
+
+| Fase | Archivos | Asserts | Commit |
+|---|---|---|---|
+| 0 · contratos + `resolveStatus` | `enums` `estados` `contratos` | 81 | `e37ba92` |
+| 1 · monetización (§6-10) | `monetizacion` | 49 | `9e87ec1` |
+| 2 · atribución (§11-12) | `atribucion` | 41 | `2063e0a` |
+| 3 · relaciones / dedup / jerarquía (§13-15) | `relaciones` `costos_compartidos` `nodos` | 58 | `534579d` |
+| 4a · temporalidad / moneda (§16-17) | `temporalidad` `moneda` | 42 | `061c06c` |
+| 4b-i · admisibilidad (§18) | `admisibilidad` | 44 | `5be5ad4` |
+| 4b-ii · consolidación / AC45 (§19) | `consolidacion` | 46 | `2f936bc` |
+| 4b-iii · cobertura (§20) | `cobertura` | 41 | `99fe212` |
+| 4b-iv · `runCFF` end-to-end (§24) | `runCFF` | 41 | *este commit* |
+| **Total** | **24 archivos** | **443** | |
+
+Falta **Fase 5**: versionamiento / auditoría (§25-26) y la batería completa
+de los 70 invariantes + 60 casos AC + acceptance gate §32.

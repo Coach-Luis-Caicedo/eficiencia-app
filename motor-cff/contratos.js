@@ -59,6 +59,25 @@
  *   8. Cuando original_value_min/max están presentes (resultado en rango),
  *      monetization_status NO puede ser OBSERVED — un valor con
  *      incertidumbre estructural no es "observado" en el sentido de §10.
+ *
+ * ── Regla condicional 9 (Fase 4b-iv — PRIMER cambio a un contrato de
+ *    Fase 0 desde una fase posterior; decisión excepcional aprobada por
+ *    Luis, no un precedente de que los contratos se toquen libremente) ────
+ *
+ *   9. CFF_RESULT.cff_total pasa de `required:true, type:number` a
+ *      CONDICIONALMENTE NULABLE. `cff_total === null` (o ausente) se admite
+ *      SI Y SOLO SI  calculation_status === 'INVALID'  Y
+ *      coverage.overall_coverage_status === 'INSUFFICIENT'  — es decir, el
+ *      caso N_A por insuficiencia de cobertura (AC46: "value=null +
+ *      status=INSUFFICIENT; no 0"; §21: "un valor nulo siempre debe
+ *      acompañarse de status y reason"). En CUALQUIER otro caso —incluido
+ *      un `calculation_status==='INVALID'` causado por un ciclo económico o
+ *      una violación de invariante— `cff_total` DEBE ser un número; un
+ *      `null` ahí sigue siendo un fallo de validación. Motivo del cambio:
+ *      §24 exige `return CFF_RESULT` también para el caso N_A, y un
+ *      CFF_RESULT que no puede validar su propio contrato justo en el caso
+ *      más importante de manejar bien (ausencia de evidencia) es peor que
+ *      una regla condicional más.
  */
 
 'use strict';
@@ -432,7 +451,11 @@ var ESQUEMA_CFF_RESULT = [
   { name: 'supported_estimated', required: true, type: 'number' },
   { name: 'cff_confirmed', required: true, type: 'number' },
   { name: 'cff_supported_additional', required: true, type: 'number' },
-  { name: 'cff_total', required: true, type: 'number' },
+  // cff_total: condicionalmente nulable — ver regla 9 en la cabecera y la
+  // verificación extra en validarCFFResult(). Aquí required:false para que
+  // un null no dispare "faltante" automáticamente; la condición real la
+  // aplica validarCFFResult.
+  { name: 'cff_total', required: false, type: 'number' },
   { name: 'exposure_total', required: false, type: 'number' },
   { name: 'unresolved_impact_total', required: false, type: 'number' },
   { name: 'coverage', required: true, type: 'object' }, // CFF_COVERAGE embebido
@@ -447,7 +470,25 @@ var ESQUEMA_CFF_RESULT = [
   { name: 'dependency_refs', required: true, type: 'array' },
   { name: 'calculated_at', required: true, type: 'string' }
 ];
-function validarCFFResult(obj) { return validarObjeto(ESQUEMA_CFF_RESULT, obj); }
+function validarCFFResult(obj) {
+  var base = validarObjeto(ESQUEMA_CFF_RESULT, obj);
+  if (!obj || typeof obj !== 'object') return base;
+  // Regla condicional 9: cff_total nulable SII (INVALID por insuficiencia).
+  var extra = [];
+  var ct = obj.cff_total;
+  var esInsuficiencia = obj.calculation_status === 'INVALID' &&
+    obj.coverage && obj.coverage.overall_coverage_status === 'INSUFFICIENT';
+  if (ct === null || ct === undefined) {
+    if (!esInsuficiencia) {
+      extra.push('cff_total: null/ausente solo se admite si calculation_status==="INVALID" Y ' +
+        'coverage.overall_coverage_status==="INSUFFICIENT" (caso N_A, AC46). Un INVALID por ciclo o ' +
+        'invariante NO habilita cff_total=null.');
+    }
+  } else if (typeof ct !== 'number') {
+    extra.push('cff_total: se esperaba number o null-por-insuficiencia, llegó ' + typeof ct);
+  }
+  return combinar(base, extra);
+}
 
 // ── §22.9 CFF_RUN ──────────────────────────────────────────────────────────
 
