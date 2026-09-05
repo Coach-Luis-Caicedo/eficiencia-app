@@ -53,6 +53,8 @@ pruebas negativas, distribuidos en las fases donde corresponden.
 | `temporalidad.test.js` | Batería de temporalidad. `node motor-cff/temporalidad.test.js` → **24 asserts OK, 0 fallos**, incluido el caso real de 3 períodos bajo el mismo evento. |
 | `moneda.js` | **Fase 4a.** `convertirMoneda`/`sumarConMonedaControlada` (§17, FX explícito, nunca suma monedas sin conversión), `redondear` (§17.2, presentación únicamente). |
 | `moneda.test.js` | Batería de moneda. `node motor-cff/moneda.test.js` → **18 asserts OK, 0 fallos**, incluida mutación de la precisión computacional completa (§17.2). |
+| `admisibilidad.js` | **Fase 4b (i).** `evaluarAdmisibilidad` (§18, compuerta AND estricta sobre 7 condiciones ya resueltas por fases anteriores — no las recalcula). |
+| `admisibilidad.test.js` | Batería de admisibilidad. `node motor-cff/admisibilidad.test.js` → **44 asserts OK, 0 fallos**, incluidas 2 mutaciones (AND ≠ score; par desincronizado vs. salvaguarda) y la prueba dirigida de `verificarConsistenciaInterna`. |
 
 ## Las 5 reglas condicionales (aprobadas antes de implementar)
 
@@ -572,3 +574,71 @@ anticipa).
   documento no las da; se reciben ya calculadas, esta fase solo filtra/valida.
 - No busca ni aplica una tasa FX por su cuenta — la recibe siempre
   explícita del caller, con su procedencia completa.
+
+## Fase 4b (i) — admisibilidad del componente (`admisibilidad.js`, §18)
+
+### `admisibilidad.js` no es una pieza aislada más — es la primera que COMPONE resultados de fases anteriores
+
+Antes de escribir código se verificaron los `module.exports` reales de
+`contratos.js`, `monetizacion.js`, `atribucion.js`, `temporalidad.js`,
+`nodos.js` y `relaciones.js`: ninguno expone hoy `monetary_basis_valid`,
+`temporal_basis_valid`, `scope_valid` ni
+`relationship_resolution_permite_inclusion` como campo ya resuelto — son
+las 4 señales estructurales de §18 que no existían como salida de ningún
+módulo anterior. `evaluarAdmisibilidad(componente)` las recibe como
+señales **ya calculadas** por quien orquesta (`consolidacion.js`, Fase
+4b-ii, que llamará a esos módulos y ensamblará el objeto); si falta
+cualquiera de las 7 señales (las 4 anteriores más `event_status`,
+`monetization_status`, `attribution_status`), lanza — no se recalcula ni
+se asume un valor por defecto, mismo criterio de "no fabricar" aplicado
+en cada fase anterior.
+
+Que Fase 0 haya validado los 10 contratos completos con este nivel de
+detalle está rindiendo aquí, varias fases después: `CFF_RESULT` (§22.8)
+ya tiene los campos exactos de la matriz 2×2 (`confirmed_observed`,
+`confirmed_estimated`, `supported_observed`, `supported_estimated`,
+`cff_confirmed`, `cff_supported_additional`, `cff_total`,
+`exposure_total`, `unresolved_impact_total`, `coverage`) — Fase 4b-ii no
+necesita fabricar ningún campo nuevo para `AC43`/`AC44`/`AC45`.
+
+### §18 es compuerta pura — confirmado en el texto, no por analogía con IAO
+
+El documento lo declara literal: *"Un componente puede entrar al universo
+elegible solo si supera puertas de validez. No existe score ponderado."*
+Las 7 condiciones se evalúan como AND estricto — ninguna "mayoría" de
+condiciones satisfechas compensa una que falla. `evaluarAdmisibilidad`
+acumula **todos** los motivos de exclusión, no solo el primero (§18: *"La
+exclusión conserva motivo y no elimina el registro"*), para que el
+registro conserve la razón completa aunque fallen varias condiciones a
+la vez.
+
+**Dos mutaciones ejecutadas**, que cubren clases de falla complementarias:
+
+1. `if (motivos.length)` → `if (motivos.length === 7)` — "solo excluir si
+   fallan las 7", la lectura de un score con corte en el extremo. Un
+   componente con 1..6 condiciones fallando pasa a
+   `{admisible:true, exclusion_reason:null}` — resultado incorrecto pero
+   **bien formado**. La salvaguarda no lo ve (es una forma válida); lo
+   atrapan los 10 casos de condición individual de la batería (el test
+   revienta con `TypeError` al leer `.indexOf` sobre el `null`, evidencia
+   de que el comportamiento cambió).
+2. `admisible: false` → `admisible: motivos.length >= 4` en la rama de
+   exclusión, dejando el motivo adjunto — "crédito parcial". Con 4
+   condiciones fallando produce `admisible:true` **con** `exclusion_reason`
+   no nulo: par desincronizado. Lo atrapa `verificarConsistenciaInterna()`
+   en tiempo de ejecución con error explícito
+   (*"inconsistencia interna — admisible y exclusion_reason deben ir
+   siempre juntos"*).
+
+Revertidas ambas, 44/44 asserts vuelven a verde.
+
+### Salvaguarda de consistencia interna
+
+§18 es una compuerta binaria: `admisible === true ⟺ exclusion_reason === null`,
+sin estado intermedio. `verificarConsistenciaInterna()` valida ese par en
+toda salida antes de devolverla y lanza si se desincroniza. Con el código
+correcto nunca se dispara por la ruta pública — está expuesta en
+`module.exports` (misma convención que `esConfirmed`/`esSupported` en
+`atribucion.js`) para poder probarla directamente con datos manipulados:
+`{admisible:true, exclusion_reason:'algo'}` y `{admisible:false, exclusion_reason:null}`
+lanzan; `{admisible:'quizás', ...}` lanza (no hay tercer estado).
