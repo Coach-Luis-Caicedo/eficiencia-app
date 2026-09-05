@@ -19,8 +19,8 @@ del núcleo CFF"). No se integra a producción hasta aprobación explícita.
 |---|---|---|
 | 0 | Contratos como validadores (§22, 10 contratos) + registro de enums (§21/§23) + `resolve_status()` (§21) como función pura | ✅ |
 | 1 | Monetización: 4 mecanismos (§6, §8), naturaleza financiera + `recovery_realization_type` (§7, §7.1), bases monetarias (§9), calidad de monetización (§10) | ✅ |
-| **2** | Atribución: motor determinista (§11), profundización y genealogía (§12) | **✅ Esta entrega** |
-| 3 | Relaciones, dedup, jerarquía: relaciones económicas + grafo + ciclos (§13), costos compartidos/transferencias (§14), nodos y alcance (§15) | Pendiente |
+| 2 | Atribución: motor determinista (§11), profundización y genealogía (§12) | ✅ |
+| **3** | Relaciones, dedup, jerarquía: relaciones económicas + grafo + ciclos (§13), costos compartidos/transferencias (§14), nodos y alcance (§15) | **✅ Esta entrega** |
 | 4a | Normalización: temporalidad/frecuencia (§16), moneda/FX/NOMINAL-REAL (§17) | Pendiente |
 | 4b | Consolidación end-to-end: admisibilidad (§18), fórmula de consolidación (§19), cobertura (§20), algoritmo `runCFF()` (§24) | Pendiente |
 | 5 | Fallos/short-circuit (§25), versionamiento/staleness (§26), batería completa: 70 invariantes + 60 AC + acceptance gate (§32) | Pendiente |
@@ -43,6 +43,12 @@ pruebas negativas, distribuidos en las fases donde corresponden.
 | `monetizacion.test.js` | Batería de monetización. `node motor-cff/monetizacion.test.js` → **49 asserts OK, 0 fallos**, incluida verificación por mutación de la regla de §8.2. |
 | `atribucion.js` | **Fase 2.** `clasificarAtribucion` (§11, 6 dimensiones → `CONFIRMED`/`SUPPORTED`/`UNRESOLVED`), `profundizar` (§12, nueva versión + inmutabilidad de la anterior). |
 | `atribucion.test.js` | Batería de atribución. `node motor-cff/atribucion.test.js` → **41 asserts OK, 0 fallos**, incluidas 3 mutaciones (precedencia `CONFIRMED`/`SUPPORTED`, lectura ampliada de convergencia). |
+| `relaciones.js` | **Fase 3.** Grafo económico + detección de ciclos sobre `CONTAINS` (§13.3, `AC15`), `resolverRelacion` (§13, las 6 reglas de suma por tipo de relación). |
+| `relaciones.test.js` | Batería de relaciones. `node motor-cff/relaciones.test.js` → **23 asserts OK, 0 fallos**, incluida mutación de la detección de ciclos. |
+| `costos_compartidos.js` | **Fase 3.** `resolverCostoCompartido` (§14, no prorratea sin base documentada), `filtrarTransferenciasInternasPuras` (§14, elimina en alcance ORGANIZATION, conserva en NODE). |
+| `costos_compartidos.test.js` | Batería de costos compartidos. `node motor-cff/costos_compartidos.test.js` → **13 asserts OK, 0 fallos**, incluida mutación del no-prorrateo. |
+| `nodos.js` | **Fase 3.** `NODE_HIERARCHY` (extensión del arnés, ver abajo) + las 4 reglas de §15 (`LEAF_ONLY`/`AGGREGATE_ONLY`/`NO_PARENT_CHILD_DOUBLE_COUNT`/`SEGMENT_ONLY`) vía `clasificarAlcance`. |
+| `nodos.test.js` | Batería de nodos. `node motor-cff/nodos.test.js` → **22 asserts OK, 0 fallos**, incluida mutación de `NO_PARENT_CHILD_DOUBLE_COUNT`. |
 
 ## Las 5 reglas condicionales (aprobadas antes de implementar)
 
@@ -345,3 +351,123 @@ mutación: quitar la extensión rompe el caso específico (`DIRECT` +
   sistemas no es responsabilidad de este módulo (§11.4, no-circularidad).
 - No implementa evaluación causal experimental, contrafactual ni nada de
   §27-29 (fuera de núcleo, §33.1).
+
+## Fase 3 — relaciones, dedup, jerarquía
+
+### `NODE_HIERARCHY` — extensión de este módulo, no del documento
+
+§15 exige "una jerarquía explícita" de nodos pero §22 nunca define su
+contrato. Aprobado por Luis: se recibe como input explícito, mínimo
+`[{node_id, parent_id}]` (`parent_id=null` en la raíz) — mismo criterio que
+la agregación temporal del arnés `motor-integracion-sdmo-aie`. `nodos.js`
+deriva de ahí: hijos directos, hojas, ancestros, descendientes.
+
+### Grafo económico y ciclos (§13.3, `AC15`)
+
+`relaciones.js` construye el subgrafo dirigido de relaciones `CONTAINS` y
+detecta ciclos con DFS + pila de recursión (coloreo blanco/gris/negro) —
+**generalizado a cualquier longitud de ciclo**, no solo el par de la
+literal del documento ("Ciclos inconsistentes, **como** A CONTAINS B y B
+CONTAINS A..." — "como" se lee como ejemplo, no como el único caso;
+verificado con un ciclo de 3 nodos además del de 2). Un ciclo invalida el
+grafo de consolidación completo (§13.3) — no es un chequeo de un solo
+componente.
+
+**El "escape" de la excepción textual queda inerte, a propósito.** El
+documento dice que un ciclo es inconsistente "sin equivalencia explícita"
+— implicando que podría ser válido con ella. `ECONOMIC_RELATION` (§22.5,
+Fase 0) no tiene ningún campo para declarar esa equivalencia. Confirmado
+con Luis: no se fabrica un campo nuevo por iniciativa propia (mismo
+criterio que `recovery_realization_type`/CFF y `attribution`/AIE — una
+extensión de contrato se pide explícitamente, no se anticipa). Todo ciclo
+`CONTAINS` se trata como inválido sin excepción. Esto **no** es decir que
+el documento se equivocó — es que describe algo que su propio contrato
+actual no permite invocar.
+
+### Reglas de suma por tipo de relación (§13)
+
+`resolverRelacion` **no clasifica** qué `relation_type` aplica a un par de
+componentes — eso ya viene decidido en el registro de `ECONOMIC_RELATION`
+por quien lo crea (confirmado con Luis: el documento no da un algoritmo de
+inferencia, y Fase 0 tampoco clasificó nada, solo validó forma — mismo
+principio aplicado consistente). Fase 3 aplica las consecuencias de una
+clasificación ya hecha:
+
+- **`INDEPENDENT`** — se suman ambos.
+- **`DUPLICATE`** / **`ALTERNATIVE_VALUATION`** — si `resolution_status=RESOLVED`
+  y hay `selected_primary`, se mantiene solo esa representación (nunca se
+  promedia, INV-CFF-22). Sin resolución clara, se excluyen **ambos** del
+  total pleno — no se adivina cuál mantener (§25: perder cobertura antes
+  que inventar valor).
+- **`CONTAINS`** — `FULL`: se conserva el contenedor, se excluye el
+  contenido (mismo principio que `AGGREGATE_ONLY`, §15). `PARTIAL_QUANTIFIED`:
+  inclusión-exclusión exacta, `total = contenedor + contenido − solapamiento`.
+  `PARTIAL_UNQUANTIFIED`: no se produce total pleno (AC10).
+- **`DEPENDENT_COST`** — se suman ambos solo si `resolution_status=RESOLVED`
+  (la frontera económica distinta ya fue demostrada, §13.2); si no, no se
+  suma (permanece `UNRESOLVED`, literal del documento).
+- **`UNKNOWN`** — el documento condiciona la exclusión a que "el riesgo de
+  solapamiento sea material", sin dar un campo para medir materialidad. Se
+  trata como material por defecto (mismo sesgo de §25) — se excluyen ambos.
+
+### Costos compartidos (§14) — no prorratear sin evidencia
+
+`ECONOMIC_COMPONENT.shared_cost_id` (Fase 0) no dice si cada `original_value`
+del grupo ya es la porción asignada o el monto completo compartido.
+`resolverCostoCompartido` exige que quien llama declare explícitamente
+`baseAsignacionDocumentada: true|false`; sin ella (o en `false`), el grupo
+queda `UNALLOCATED` y se excluye de la suma — visible, no eliminado del
+registro — en vez de prorratear en partes iguales por defecto. Verificado
+con un caso concreto (3 componentes con montos distintos, exactamente el
+escenario donde alguien se vería tentado a repartir 1000/3) y por mutación:
+desactivar la guarda hace que el motor sume los 1000 sin ninguna base —
+confirmado, revertido.
+
+### Transferencias internas puras (§14) — verificado que `primary_mechanism` no sirve como señal, antes de fabricar un campo
+
+Antes de proponer un campo nuevo, se verificó si el contrato ya distinguía
+"transferencia contable pura" de "consumo real con contraparte interna" a
+través de `primary_mechanism`. Los 4 valores de `PRIMARY_MECHANISM` exigen,
+cada uno, una consecuencia operacional real de fricción (consumo
+observable, capacidad no aplicada, restauración de algo perdido, margen no
+capturado por un evento) — ninguno describe una reasignación contable. Pero
+`primary_mechanism` es **obligatorio** en `ECONOMIC_COMPONENT` (§22.2): todo
+componente, sea transferencia pura o no, debe declarar uno de los 4 valores
+para pasar la validación de Fase 0. La sola presencia de un valor válido
+nunca distingue los dos casos — el esquema obliga a que ambos se vean
+idénticos en ese campo. Confirmado que no hay señal existente en el
+contrato; `filtrarTransferenciasInternasPuras` exige que quien llama
+declare `esTransferenciaInternaPura: true|false` explícitamente por
+componente (lanza si no se declara — no se asume `false` por ausencia).
+Se elimina solo al consolidar a alcance `ORGANIZATION`; a alcance `NODE`
+la transferencia sigue siendo real para ese nodo.
+
+### Nodos y alcance organizacional (§15)
+
+`clasificarAlcance(nodeSet, nodeRaiz, nodeHierarchy)` clasifica un conjunto
+de nodos en `AGGREGATE_ONLY` (el nodo raíz agregado, exactamente uno),
+`LEAF_ONLY` (el conjunto completo de hojas bajo la raíz, perímetro
+completo) o `SEGMENT` (ni lo uno ni lo otro — no se escala a la raíz sin
+modelo explícito de representatividad, la propia regla `SEGMENT_ONLY`).
+`NO_PARENT_CHILD_DOUBLE_COUNT` se valida siempre primero, sea cual sea la
+clasificación resultante — un conjunto con un nodo y su ancestro a la vez
+es `INVALIDO`, no se clasifica como ninguna de las 3 categorías válidas.
+Verificado por mutación: desactivar la detección hace que un conjunto con
+padre+hijo se clasifique como `SEGMENT` en vez de `INVALIDO` — confirmado,
+revertido.
+
+## Qué NO hace Fase 3
+
+- No resuelve admisibilidad de componente (§18) — eso es Fase 4b.
+- No normaliza moneda ni temporalidad antes de aplicar las reglas de suma
+  (§16-17) — eso es Fase 4a; `resolverRelacion` asume que los valores que
+  recibe ya están en una base comparable.
+- No construye el algoritmo completo de consolidación (`runCFF`, §24) —
+  cada pieza (grafo, costos compartidos, nodos) se prueba aislada.
+- No detecta ciclos en relaciones `DEPENDENT_COST` — el documento solo
+  nombra el caso `CONTAINS` explícitamente (§13.3); extenderlo a otro tipo
+  de relación sin que el documento lo pida sería alcance no solicitado.
+- No fabricó ningún campo nuevo en `ECONOMIC_RELATION` ni en
+  `ECONOMIC_COMPONENT` — las dos extensiones necesarias
+  (`esTransferenciaInternaPura`, `baseAsignacionDocumentada`) viven como
+  parámetros de las funciones de este módulo, no como campos de contrato.
