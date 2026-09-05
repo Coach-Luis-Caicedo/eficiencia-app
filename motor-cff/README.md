@@ -57,6 +57,8 @@ pruebas negativas, distribuidos en las fases donde corresponden.
 | `admisibilidad.test.js` | Batería de admisibilidad. `node motor-cff/admisibilidad.test.js` → **44 asserts OK, 0 fallos**, incluidas 2 mutaciones (AND ≠ score; par desincronizado vs. salvaguarda) y la prueba dirigida de `verificarConsistenciaInterna`. |
 | `consolidacion.js` | **Fase 4b (ii).** `consolidarPeriodoYAlcance` (§19, los 6 pasos `VALIDAR→NORMALIZAR→RELACIONAR→RESOLVER→SELECCIONAR→SUMAR` en orden estricto, delegando en fases previas) + `verificarReconciliacionCuadrantes` (AC45). |
 | `consolidacion.test.js` | Batería de consolidación. `node motor-cff/consolidacion.test.js` → **46 asserts OK, 0 fallos**, incluidas las 2 mutaciones (orden RESOLVER↔SELECCIONAR: 20000→30000; AC45: reconciliación bloquea), el Paso 3 (INV-CFF-20 en totales secundarios) y la prueba dirigida de `verificarReconciliacionCuadrantes`. |
+| `cobertura.js` | **Fase 4b (iii).** `clasificarCobertura` (§20, las 4 categorías `COVERAGE_STATUS` — criterio cualitativo, sin umbral numérico) + `distinguirCeroDeNA` (§20/AC21/AC22/AC46, `CFF=0` real vs `CFF=N_A` con `value=null`). |
+| `cobertura.test.js` | Batería de cobertura. `node motor-cff/cobertura.test.js` → **41 asserts OK, 0 fallos**, incluida la verificación de partición independiente del orden sobre los 64 casos (condiciones crudas + solapamientos localizados), las 2 mutaciones (N_A→0 prohibida por AC46; precedencia FULL/LIMITED) y la prueba dirigida de `_verificarValorConsistente`. |
 
 ## Las 5 reglas condicionales (aprobadas antes de implementar)
 
@@ -775,3 +777,100 @@ nodo de referencia contra el que se clasifica el `nodeSet`. `CFF_RESULT`
 (§22.8) trae `scope` y `node_set[]` pero no un "id del nodo raíz del
 alcance". Se recibe explícito — mismo patrón que `NODE_HIERARCHY` (que
 tampoco está en §22). Ver la tabla de parámetros de invocación abajo.
+
+## Fase 4b (iii) — cobertura y significado de cero (`cobertura.js`, §20)
+
+Dos piezas: `clasificarCobertura(coverageInput, señales)` → `COVERAGE_STATUS`,
+y `distinguirCeroDeNA(cffTotal, coverageStatus)` → `CFF=0` real vs
+`CFF=N_A`.
+
+### El criterio de §20 es cualitativo — verificado, no asumido
+
+Se revisó el documento completo: §20 y §23 definen las 4 categorías solo
+con prosa, y **no hay ningún umbral numérico** en ninguna parte (grep
+exhaustivo de `%` / `umbral` / `ratio` / `al menos N` junto a cobertura:
+0 coincidencias). §20 lo dice de frente: la cobertura *"debe ser
+estructural y acompañarse de hechos objetivos, no convertirse en un score
+universal"*. Por eso `clasificarCobertura` **no inventa un corte
+numérico**: clasifica a partir de (a) los conteos que ya trae
+`coverageInput` de `consolidacion.js` y (b) cuatro juicios cualitativos
+que quien llama declara explícitamente (lanza si falta alguno):
+`tratamientoEconomicoSuficiente`, `dependeDeEstimacionesDebiles`,
+`asignacionesLimitadas`, `baseDefendibleParaCifraConsolidada`. El
+`cobertura_ratio` se calcula y se reporta como dato, pero **no decide
+ninguna frontera** — verificado: el mismo ratio `0.75` cae en `PARTIAL`,
+`LIMITED` o `INSUFFICIENT` según solo la señal cualitativa que se mueva.
+
+### Orden de decisión `INSUFFICIENT → LIMITED → FULL → PARTIAL` — y por qué
+
+Las condiciones **crudas** (textuales) de las 4 categorías **no son
+mutuamente excluyentes por sí solas** — hay dos solapamientos reales, y el
+resultado lo decide la precedencia, no que las categorías sean disjuntas
+por definición. Cada precedencia y su respaldo (mismo trato que dimos a
+`CONFIRMED`/`SUPPORTED` en Fase 2 y a `RESOLVER→SELECCIONAR` en 4b-ii —
+distinguir lo textual de lo que es decisión de diseño):
+
+| Precedencia | Respaldo |
+|---|---|
+| `INSUFFICIENT` sobre las otras 3 | **Textual.** §20 define `FULL`/`PARTIAL`/`LIMITED` presuponiendo que *"la cifra existe"*; `INSUFFICIENT` = *"No existe base suficiente para una cifra consolidada defendible"*. Cifra vs. no-cifra: disjunto por la letra. |
+| `LIMITED` sobre `FULL` | **Textual, vía §21** (no §20). `FULL` exige *"tratamiento económico suficiente para la salida"*; §21: *"Una salida downstream no puede tener mayor calidad que una dependencia crítica."* Una estimación débil declarada es un insumo crítico degradado → la clasificación no puede ser `FULL` por encima de él. |
+| `LIMITED` sobre `PARTIAL` | **Decisión de diseño, sin respaldo textual directo.** §20 no da regla para una cifra que a la vez tiene exclusiones explícitas y descansa en estimaciones débiles. Se elige `LIMITED` (el estado más degradado y más informativo) por §25 (*"perder cobertura antes que inventar valor"*) e INV-CFF-54. Si se quiere `PARTIAL`, es un cambio de una línea en `PRECEDENCIA`. |
+| `FULL` vs. `PARTIAL` | Disjuntos de verdad (`material_no_evaluado === 0` vs. `> 0`) — sin precedencia que justificar. |
+
+La implementación **es**, literalmente, "la primera condición cruda
+verdadera en orden de `PRECEDENCIA`" — una sola fuente
+(`CONDICIONES_CRUDAS` + `PRECEDENCIA`), no un `if/else` paralelo.
+
+### Partición verificada de forma independiente del orden
+
+La batería **no replica el árbol de decisión**. Evalúa las 4 condiciones
+crudas por separado sobre los 64 casos (2⁴ señales × `{0,3}` evaluado ×
+`{0,2}` no-evaluado) y confirma: **(a)** en cada caso al menos una
+condición cruda es verdadera (exhaustivo, sin huecos); **(b)** la
+implementación devuelve siempre la de mayor precedencia entre las
+verdaderas; **(c)** localiza los solapamientos y confirma su resolución —
+`FULL∩PARTIAL` nunca ocurre; `LIMITED∩FULL` y `LIMITED∩PARTIAL` sí ocurren
+y se resuelven hacia `LIMITED`; `INSUFFICIENT` solapa en crudo y se
+resuelve hacia `INSUFFICIENT`. Esto es más fuerte que "dos
+implementaciones del mismo orden coinciden" (que solo probaría
+consistencia interna): verifica que las condiciones textuales son
+exhaustivas y que la precedencia hace un trabajo visible y documentado.
+
+`coverageInput` viene de `consolidacion.js` y **no se recalcula**.
+`material_no_evaluado` = exclusiones cuya categoría **no** es
+`TRANSFERENCIA_INTERNA` (una transferencia interna eliminada en §14 no es
+un hueco de cobertura — los recursos reales se conservan). Temporal,
+relación de riesgo, costo compartido `UNALLOCATED`, admisibilidad y doble
+falla (Opción D / Paso 3) **sí** cuentan como material que no se pudo
+evaluar.
+
+### `CFF=0` ≠ `CFF=N_A` (§20, AC21, AC22, AC46)
+
+- **`CFF=0`**: cobertura suficiente para una cifra (`FULL`/`PARTIAL`/`LIMITED`)
+  + ninguna componente atribuible positiva → `value=0`, `status=VALID`
+  (si `FULL`) o `VALID_WITH_LIMITATIONS`. Es un 0 real (AC21); no demuestra
+  ausencia de fricción (INV-CFF-10).
+- **`CFF=N_A`**: cobertura `INSUFFICIENT` → `value=null`,
+  `status=INSUFFICIENT` (AC46: *"no 0"*; AC22: *"nunca 0 por defecto"*;
+  §21: *"un valor nulo siempre debe acompañarse de status y reason"*).
+
+El nulo **no se recibe** — lo produce `distinguirCeroDeNA` a partir de la
+cobertura. `cffTotal` negativo lanza (el CFF no puede ser < 0).
+`_verificarValorConsistente` protege el trío
+`value=null ⟺ CFF_N_A ⟺ status=INSUFFICIENT` (expuesta para prueba
+dirigida).
+
+### Dos mutaciones ejecutadas
+
+1. **Quitar la guarda `coverageStatus===INSUFFICIENT ⇒ N_A`.** El caso
+   `(INSUFFICIENT, cff_total 0)` pasa de `{value:null, status:INSUFFICIENT}`
+   a `{value:0, status:VALID_WITH_LIMITATIONS}` — exactamente la imputación
+   de *"missing como cero"* que **AC46 prohíbe**. Resultado mal pero bien
+   formado; lo atrapa la batería, no la salvaguarda.
+2. **Invertir `FULL` y `LIMITED` en `PRECEDENCIA`.** El caso
+   `(todo evaluado, dependeDeEstimacionesDebiles=true)` —que satisface
+   **ambas** condiciones crudas— pasa de `LIMITED` a `FULL`. La mutación
+   hace visible que las dos condiciones crudas solapan y que es la
+   precedencia (§21) la que decide, no una supuesta disjunción.
+
+Revertidas ambas, 41/41 asserts en verde.
