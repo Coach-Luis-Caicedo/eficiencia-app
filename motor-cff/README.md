@@ -20,8 +20,8 @@ del núcleo CFF"). No se integra a producción hasta aprobación explícita.
 | 0 | Contratos como validadores (§22, 10 contratos) + registro de enums (§21/§23) + `resolve_status()` (§21) como función pura | ✅ |
 | 1 | Monetización: 4 mecanismos (§6, §8), naturaleza financiera + `recovery_realization_type` (§7, §7.1), bases monetarias (§9), calidad de monetización (§10) | ✅ |
 | 2 | Atribución: motor determinista (§11), profundización y genealogía (§12) | ✅ |
-| **3** | Relaciones, dedup, jerarquía: relaciones económicas + grafo + ciclos (§13), costos compartidos/transferencias (§14), nodos y alcance (§15) | **✅ Esta entrega** |
-| 4a | Normalización: temporalidad/frecuencia (§16), moneda/FX/NOMINAL-REAL (§17) | Pendiente |
+| 3 | Relaciones, dedup, jerarquía: relaciones económicas + grafo + ciclos (§13), costos compartidos/transferencias (§14), nodos y alcance (§15) | ✅ |
+| **4a** | Normalización: temporalidad/frecuencia (§16), moneda/FX/NOMINAL-REAL (§17) | **✅ Esta entrega** |
 | 4b | Consolidación end-to-end: admisibilidad (§18), fórmula de consolidación (§19), cobertura (§20), algoritmo `runCFF()` (§24) | Pendiente |
 | 5 | Fallos/short-circuit (§25), versionamiento/staleness (§26), batería completa: 70 invariantes + 60 AC + acceptance gate (§32) | Pendiente |
 
@@ -49,6 +49,10 @@ pruebas negativas, distribuidos en las fases donde corresponden.
 | `costos_compartidos.test.js` | Batería de costos compartidos. `node motor-cff/costos_compartidos.test.js` → **13 asserts OK, 0 fallos**, incluida mutación del no-prorrateo. |
 | `nodos.js` | **Fase 3.** `NODE_HIERARCHY` (extensión del arnés, ver abajo) + las 4 reglas de §15 (`LEAF_ONLY`/`AGGREGATE_ONLY`/`NO_PARENT_CHILD_DOUBLE_COUNT`/`SEGMENT_ONLY`) vía `clasificarAlcance`. |
 | `nodos.test.js` | Batería de nodos. `node motor-cff/nodos.test.js` → **22 asserts OK, 0 fallos**, incluida mutación de `NO_PARENT_CHILD_DOUBLE_COUNT`. |
+| `temporalidad.js` | **Fase 4a.** `filtrarSumablesPorNaturalezaTemporal` (§16, PERIOD_FLOW/STOCK/RATE), `validarFrecuenciaConsistente` (§16.1), `agruparComponentesPorPeriodo` (§16.2, mismo `event_id` a través de varios períodos), `anualizar` (§16.3, compuerta post-consolidación). |
+| `temporalidad.test.js` | Batería de temporalidad. `node motor-cff/temporalidad.test.js` → **24 asserts OK, 0 fallos**, incluido el caso real de 3 períodos bajo el mismo evento. |
+| `moneda.js` | **Fase 4a.** `convertirMoneda`/`sumarConMonedaControlada` (§17, FX explícito, nunca suma monedas sin conversión), `redondear` (§17.2, presentación únicamente). |
+| `moneda.test.js` | Batería de moneda. `node motor-cff/moneda.test.js` → **18 asserts OK, 0 fallos**, incluida mutación de la precisión computacional completa (§17.2). |
 
 ## Las 5 reglas condicionales (aprobadas antes de implementar)
 
@@ -471,3 +475,100 @@ revertido.
   `ECONOMIC_COMPONENT` — las dos extensiones necesarias
   (`esTransferenciaInternaPura`, `baseAsignacionDocumentada`) viven como
   parámetros de las funciones de este módulo, no como campos de contrato.
+
+## Fase 4a — temporalidad, frecuencia, moneda
+
+### Anualización (§16.3) — verificado con el texto, no es una vista de presentación
+
+El texto es explícito: *"La anualización ocurre **después de consolidar**...
+Debe registrar método, supuestos y período base."* No toca ningún cálculo
+intermedio, pero **tampoco es una vista efímera como `formatearParaPresentacion()`**
+de los otros módulos — `CFF_RESULT.annualization?` ya existe como campo
+propio del resultado (§22.8, Fase 0): el documento la trata como parte del
+registro auditable. `anualizar()` produce ese objeto aparte sin tocar el
+total consolidado, que permanece como fuente de verdad.
+
+La compuerta de 4 condiciones (período representativo, recurrencia
+suficiente, estacionalidad controlada, fenómeno no extraordinario) se
+valida en su totalidad — las 4 deben cumplirse, ninguna se asume. **La
+función no calcula el valor anualizado** — el documento exige la compuerta
+pero no da la fórmula de escalamiento (depende del fenómeno, mismo motivo
+que la omisión de STOCK/RATE→flujo); se recibe ya calculado y la función
+decide si la compuerta permite aceptarlo.
+
+### Multi-período bajo el mismo `event_id` (§16.2)
+
+`agruparComponentesPorPeriodo` verifica un caso real de 3 períodos
+consecutivos (enero/febrero/marzo) bajo un solo `event_id`, confirmando
+que el subtotal de cada período y el total del evento completo suman
+correctamente sin colapsar los períodos ni crear grupos espurios. También
+prueba el error que la regla previene: un componente con un `event_id`
+distinto (simulando "crear un evento nuevo" para lo que debería ser una
+continuación) hace que la función lance, en vez de mezclarlo
+silenciosamente.
+
+**Verificado por mutación** (no se había hecho en la primera entrega de
+esta fase — señalado por Luis, mismo tipo de hueco que las 3 reglas de
+Fase 0 que quedaron sin mutar la primera vez): desactivar la validación de
+identidad de evento hace que el assert específico falle, y — más
+importante — la función deja de lanzar y **produce un resultado
+incorrecto silencioso**: el componente de un `event_id` distinto
+(`EVT-2-CREADO-POR-ERROR`) se absorbe dentro de `EVT-1` sin queja,
+`totalEvento` pasa de `9500` a `9600`. Confirmado, revertido.
+
+### Precisión computacional completa (§17.2)
+
+El caso de verificación usa una tasa no exacta en binario (1/3, mismo tipo
+de número que expuso el drift real en el arnés ICE-IEH↔IAO) sobre 3
+componentes (`original_value=100` cada uno, en `USD`/`GBP`/`JPY`) convertidos
+a `EUR`. Aritmética exacta, verificada con `node -e` antes de escribir los
+asserts:
+
+```
+normalized_value de cada componente = 100 × 0.3333333333333333
+                                     = 33.33333333333333
+
+Precisión completa: 33.33333333333333 × 3 = 99.99999999999999
+  (binario64 exacto: 99.999999999999985789... — a 1.4e-13 de 100,
+   mismo tipo de arrastre que el 49.999999999999986 del arnés
+   ICE-IEH↔IAO; redondeado SOLO al final → 100)
+
+Redondeo intermedio (ruta NO tomada): cada componente → 33.33 (2 decimales)
+  33.33 × 3 = 99.99  (binario64 exacto: 99.989999999999994884...)
+```
+
+Diferencia real: `100 − 99.99 = 0.01` — un orden de magnitud completo por
+encima del arrastre de punto flotante (`1.4e-13`): no es ruido de la
+máquina, es información perdida por redondear antes de sumar. Verificado
+además por mutación: forzar el redondeo intermedio dentro de
+`sumarConMonedaControlada` cambia el resultado del caso específico de `100`
+a `99.99` — confirmado, revertido.
+
+## Parámetros de invocación no cubiertos por el contrato de datos
+
+Consolidado en un solo lugar (a pedido de Luis, para que quien integre
+este módulo no tenga que reconstruir la lista releyendo el historial de
+varias fases). En los cinco casos, el documento exige algo que su propio
+contrato de §22 no le da un campo para representar — la extensión vive
+como **parámetro explícito de función**, nunca como campo nuevo en
+`contratos.js`, porque ninguna de las cinco fue pedida explícitamente como
+extensión de contrato (mismo criterio en los cinco: se pide, no se
+anticipa).
+
+| # | Parámetro | Fase | Por qué no es un campo de contrato |
+|---|---|---|---|
+| 1 | `esTransferenciaInternaPura: boolean` (por componente) | 3 (§14) | Verificado que `primary_mechanism` no sirve como señal implícita — es obligatorio en `ECONOMIC_COMPONENT`, así que hasta una transferencia disfrazada debe declarar uno de los 4 valores. |
+| 2 | `baseAsignacionDocumentada: boolean` (por grupo de `shared_cost_id`) | 3 (§14) | `ECONOMIC_COMPONENT.shared_cost_id` no dice si `original_value` ya es la porción asignada o el monto completo compartido. |
+| 3 | `period_start`/`period_end` (por componente, en las funciones de `temporalidad.js`) | 4a (§16.2) | Solo `CFF_EVENT` tiene período propio (§22.1); `ECONOMIC_COMPONENT` (§22.2) no, aunque §16.2 exige saber a qué período pertenece cada componente de un evento multi-período. |
+| 4 | `transformacionValidada: boolean` + `valorFlujoEquivalente: number` (por componente STOCK/RATE) | 4a (§16) | El documento exige "transformación validada a flujo" sin dar el algoritmo (depende del fenómeno) — no se fabrica una fórmula genérica. |
+| 5 | `{tasa, fuente, fecha, metodo, monedaDestino}` (objeto FX completo, por conversión) | 4a (§17.1) | `MONETARY_BASIS.fx_reference?` (§22.3) es un puntero/string, no el objeto estructurado que §17.1 exige declarar en cada conversión. |
+
+## Qué NO hace Fase 4a
+
+- No resuelve admisibilidad de componente (§18) — Fase 4b.
+- No construye el algoritmo completo de consolidación (`runCFF`, §24) — Fase 4b.
+- No calcula la fórmula de escalamiento de la anualización, ni la de
+  transformación STOCK/RATE→flujo — ambas dependen del fenómeno y el
+  documento no las da; se reciben ya calculadas, esta fase solo filtra/valida.
+- No busca ni aplica una tasa FX por su cuenta — la recibe siempre
+  explícita del caller, con su procedencia completa.
