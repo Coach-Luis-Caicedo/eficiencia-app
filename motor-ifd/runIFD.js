@@ -72,6 +72,12 @@ function consolidarEPDOutput(input, partes) {
     economic_lower: eco.economic_lower != null ? eco.economic_lower : null,
     economic_upper: eco.economic_upper != null ? eco.economic_upper : null,
     attribution_category: input.attribution_category,
+    // §31 — variable_type viaja a TODAS las salidas (S0/S1/CUANTIFICADO):
+    // siempre existe en la entrada (validarEPDInput lo exige) y la
+    // calibración (§36, Fase 8) agrupa por él. No es condicional como
+    // impact_type / double_count_ids. (Campo agregado a ESQUEMA_EPD_OUTPUT
+    // en 4c1bad2 — reapertura #7.)
+    variable_type: input.variable_type,
     scenarios: partes.scenarios || [],
     method: partes.method || null,
     heritage_outputs: H.construirSalidasHeredadas(), // §24 — siempre los 5 marcadores

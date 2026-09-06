@@ -143,6 +143,11 @@ ok(dc.output.notes.some(function (n) { return n.indexOf('agregación automática
 eq(dc.output.double_count_ids, [kk, kk], '§31: double_count_ids viaja de EPD_INPUT a EPD_OUTPUT (la agregación §25 lo necesita)');
 eq(R.runEPD(econ()).output.double_count_ids, undefined, 'sin double_count_ids en la entrada → ausente en la salida (opcional)');
 
+// §31 — variable_type SIEMPRE en la salida, incluso terminal (la calibración §36 agrupa por él)
+eq(R.runEPD(econ({ variable_type: 'V3' })).output.variable_type, 'V3', 'variable_type en EPD_OUTPUT CUANTIFICADO');
+eq(R.runEPD(inp({ variable_type: 'V5' })).output.variable_type, 'V5', 'variable_type en EPD_OUTPUT terminal S1 (V5)');
+eq(R.runEPD(inp({ variable_type: 'V1', deterioration_sustained: false })).output.variable_type, 'V1', 'variable_type en EPD_OUTPUT terminal S0 — NO solo en el camino feliz');
+
 // ═══════════════════════════════════════════════════════════════════════
 seccion('§28 — input rechazado: { ok: false, errors }, sin EPD_OUTPUT');
 // ═══════════════════════════════════════════════════════════════════════
