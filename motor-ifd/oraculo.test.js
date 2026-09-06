@@ -16,6 +16,7 @@
 'use strict';
 
 var A = require('./admisibilidad');
+var CL = require('./clasificacion');
 var cp = require('child_process');
 var path = require('path');
 
@@ -89,6 +90,46 @@ CASOS.forEach(function (caso, i) {
 console.log('\n  Nota: el engine termina en S1/CUALITATIVO cuando FEP==1 (casos c2, c5) — este motor');
 console.log('  difiere el corte S1 a Fase 2 (interactúa con variable_type/HMS). No es discrepancia:');
 console.log('  admissible y FEP coinciden, que es todo lo que Fase 1 decide.');
+
+// ═══════════════════════════════════════════════════════════════════════
+seccion('Fase 2 — compuertas de clasificación: JS vs. motor de referencia');
+// ═══════════════════════════════════════════════════════════════════════
+
+var CASOS2 = [
+  { epd_id: 'g_v5', variable_type: 'V5', Q: 3, C: 3, T: 3, R: 3 },
+  { epd_id: 'g_fep1', Q: 1, C: 3, T: 3, R: 3, variable_type: 'V1' },
+  { epd_id: 'g_hms', horizon: 20, hms: 12, Q: 3, C: 3, T: 3, R: 3, variable_type: 'V3', series_sufficiency: 3, trend_a: 100, trend_b: 5 },
+  { epd_id: 'g_serie', series_sufficiency: 1, variable_type: 'V2', Q: 3, C: 3, T: 3, R: 3 }
+];
+var refs2 = oraculo(CASOS2);
+
+CASOS2.forEach(function (caso, i) {
+  var ref = refs2[i];
+  var fep = A.calcularFEP(caso).fep;
+  var cl = CL.resolverClasificacion({
+    fep: fep,
+    horizon: caso.horizon != null ? caso.horizon : 6,
+    hms: caso.hms != null ? caso.hms : 12,
+    variable_type: caso.variable_type,
+    evolution_type: caso.evolution_type || 'EV-A',
+    series_sufficiency: caso.series_sufficiency != null ? caso.series_sufficiency : 3
+  });
+  if (cl.terminal) {
+    ok(cl.resultado.output_level === ref.output_level && cl.resultado.status === ref.status,
+      caso.epd_id + ': terminal JS ' + cl.resultado.output_level + '/' + cl.resultado.status +
+      ' == ref ' + ref.output_level + '/' + ref.status);
+    ok(JSON.stringify(cl.resultado.alerts) === JSON.stringify(ref.alert_codes),
+      caso.epd_id + ': alertas JS=' + JSON.stringify(cl.resultado.alerts) + ' == ref=' + JSON.stringify(ref.alert_codes));
+  } else {
+    ok(cl.nivelMax === ref.output_level,
+      caso.epd_id + ': no terminal — techo JS=' + cl.nivelMax + ' == output_level engine=' + ref.output_level);
+    ok(JSON.stringify(cl.alerts) === JSON.stringify(ref.alert_codes),
+      caso.epd_id + ': alertas JS=' + JSON.stringify(cl.alerts) + ' == ref=' + JSON.stringify(ref.alert_codes) + ' (A07 del horizonte)');
+  }
+});
+
+console.log('\n  Nota: EV-CUAL no se contrasta — el engine no chequea evolution_type cualitativa;');
+console.log('  este motor lo corta a S1 con respaldo de §16 (divergencia documentada).');
 
 // ═══════════════════════════════════════════════════════════════════════
 console.log('\n' + '═'.repeat(74));

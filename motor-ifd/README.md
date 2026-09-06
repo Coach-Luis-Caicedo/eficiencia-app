@@ -176,6 +176,38 @@ no proyectable aunque la serie sea estadísticamente fuerte" (→ `A03`, no
 Puente al engine de referencia. Solo admisibilidad / FEP / niveles /
 alertas — **nunca** `ver`/`roi`/contención.
 
+## Fase 2 — clasificación: compuertas + dominio + serie
+
+### `clasificacion.js`
+- `aplicarHMS(fep, horizon, hms)` — §18/§28: `hms=null` → no aplica (no es
+  fallo). `horizon > hms` → alerta `A07`, `effective_fep = max(1, fep-1)`
+  ("nunca por debajo de S1", §28 literal).
+- `clampDominio(y, lower, upper)` — §15: `Y* = min(U, max(L, Ŷ))`. Bound
+  `null` → sin límite en ese lado. Recorte → `A06`.
+- `clasificarSuficienciaSerie(ss)` — §17: `SS0..SS3`,
+  `permiteCuantitativa` sii `ss >= SERIE_MINIMA_CUANTITATIVA` (2, calibrable).
+- `resolverClasificacion(input)` — las 4 compuertas, en orden:
+  **(1) V5** → `S1/CUALITATIVO` (capacidad latente, no cifra — §20.5/§35;
+  gana incluso con serie mala → status `CUALITATIVO`, no `DEGRADADO`).
+  **(2) EV-CUAL** → `S1/CUALITATIVO` (dinámica sin fórmula, §16 — *el engine
+  no tiene esta compuerta; divergencia deliberada, respaldada por §16*).
+  **(3) effective_fep == 1** → `S1/CUALITATIVO`.
+  **(4) serie SS<2 en V1-V4** → `A04`, `S1/DEGRADADO_A_CUALITATIVO` (status
+  distinto de (1)/(3) — diagnóstico diferente).
+  Si ninguna → `terminal:false` con `effectiveFep` + techo para Fase 3.
+
+### Baterías
+- `clasificacion.test.js` → **28 asserts, 0 fallos** + **4 mutaciones**:
+  (1) quitar la compuerta V5 → un V5 pasa a `terminal:false` (proyectaría
+  cifra); (2) `aplicarHMS` con `fep-1` sin `max(1, …)` → `fep=1 + H>HMS` da
+  `effective_fep=0` (§28: nunca <S1); (3) `horizon > hms` nunca true → `A07`
+  nunca se emite; (4) `clampDominio` con `Math.min(lower, …)` → `y=-5, L=0`
+  no sube a 0.
+- `oraculo.test.js` +8 asserts Fase 2 → **40 asserts totales**. JS y engine
+  coinciden exacto: `g_v5` S1/CUALITATIVO · `g_fep1` S1/CUALITATIVO · `g_hms`
+  techo S2 + `A07` · `g_serie` S1/DEGRADADO_A_CUALITATIVO + `A04`.
+  **EV-CUAL no se contrasta** (el engine no lo chequea).
+
 ## Qué NO hace este módulo
 
 - No implementa fórmula para `CFD/CFR/VER/ROI_P/TRE` (§24 — `PENDIENTE_AUDITORIA`).
