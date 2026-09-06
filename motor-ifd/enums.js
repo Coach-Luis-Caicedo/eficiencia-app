@@ -151,7 +151,16 @@ var PARAMS = {
   // en V1-V4. El engine usa `series_sufficiency < 2`. §17: "Los mínimos por
   // método son parámetros calibrables, no verdades universales."
   SERIE_MINIMA_CUANTITATIVA: 2, // índice sobre SS0..SS3 (SS2)
-  SERIE_MINIMA_ESTADO: 'PENDIENTE_CALIBRACION'
+  SERIE_MINIMA_ESTADO: 'PENDIENTE_CALIBRACION',
+
+  // §20.1 — "No se extrapola un conteo bruto cuando el volumen cambia
+  // materialmente." "Materialmente" NO tiene umbral en el documento. §37
+  // lista "volumen" como parámetro ORGANIZACIONAL. Placeholder pre-piloto;
+  // el motor calcula |exposure_future - exposure_obs| / exposure_obs cuando
+  // ambos están presentes y compara contra esto. Solo aplica a V1 sin
+  // método de tasa (Fase 3).
+  VOLUME_CHANGE_MATERIAL_PCT: 0.15, // placeholder — el documento no da valor
+  VOLUME_CHANGE_MATERIAL_ESTADO: 'PENDIENTE_CALIBRACION'
 };
 
 module.exports = {

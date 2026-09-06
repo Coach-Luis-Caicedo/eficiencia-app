@@ -36,7 +36,8 @@ commit sueltos.
 
 | Qué se reabrió | Desde | Por qué | Commit |
 |---|---|---|---|
-| `enums.js` — `EVOLUTION_TYPE` de 5 a 4 valores (quitar `EV-LIM`) | Fase 0 (`fbd78ea`) | relectura de §16 ("una variable puede combinar propiedades") + verificación contra §16/§20/§21/§28: `EV-LIM` nunca cambia ningún comportamiento (el clamp §15 acota cualquier proyección). Decisión (b). | *este commit* |
+| `enums.js` — `EVOLUTION_TYPE` de 5 a 4 valores (quitar `EV-LIM`) | Fase 0 (`fbd78ea`) | relectura de §16 ("una variable puede combinar propiedades") + verificación contra §16/§20/§21/§28: `EV-LIM` nunca cambia ningún comportamiento (el clamp §15 acota cualquier proyección). Decisión (b). | `f900b10` |
+| `enums.js` + `contratos.js` — `VOLUME_CHANGE_MATERIAL_PCT` + campo `volume_change_material` | Fase 0 (`fbd78ea`) | §20.1 "no se extrapola un conteo bruto cuando el volumen cambia materialmente" — sin umbral en el texto. Decisión híbrida: el motor **calcula** `\|exposure_future − exposure_obs\| / exposure_obs` cuando ambos existen (umbral calibrable); declaración explícita solo como último recurso; el motor manda y registra discrepancia. | *este commit* |
 
 ## Alcance del oráculo — el motor Python NO es fuente de verdad para `ver`/`roi`/contención
 

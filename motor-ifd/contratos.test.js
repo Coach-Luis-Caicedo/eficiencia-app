@@ -57,6 +57,10 @@ eq(E.PARAMS.ENVELOPE_POR_FEP, { 2: 0.15, 3: 0.07 }, 'envelope §22: ±15% (FEP2)
 eq(E.PARAMS.ENVELOPE_ESTADO, 'PENDIENTE_CALIBRACION', 'envelope marcado PENDIENTE_CALIBRACION');
 eq(E.PARAMS.INTENSIFICACION_PERCENTIL, 75, 'Q75 §21.2, convención pre-piloto');
 eq(E.PARAMS.SERIE_MINIMA_CUANTITATIVA, 2, 'umbral de serie §17 = 2 (constante editable, no hardcodeada en la lógica)');
+eq(E.PARAMS.VOLUME_CHANGE_MATERIAL_ESTADO, 'PENDIENTE_CALIBRACION', '§20.1: umbral de cambio de volumen — placeholder, el documento no da valor');
+ok(C.validarEPDInput(epdInput({ volume_change_material: true })).valido, 'volume_change_material:true → válido (campo opcional, §20.1)');
+ok(C.validarEPDInput(epdInput({ volume_change_material: null })).valido, 'volume_change_material:null → válido (nullable)');
+ok(!C.validarEPDInput(epdInput({ volume_change_material: 'si' })).valido, 'volume_change_material:"si" → inválido (boolean o null, nunca cadena)');
 
 // ═══════════════════════════════════════════════════════════════════════
 seccion('§5/§31 — validarEPDInput');

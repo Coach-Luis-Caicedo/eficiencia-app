@@ -142,7 +142,13 @@ var ESQUEMA_EPD_INPUT = [
   { name: 'containment_evidence_level', required: false, type: 'int0a3' },
   { name: 'intervention_cost', required: false, type: 'number', nullable: true },
   // §25 — control de doble conteo
-  { name: 'double_count_ids', required: false, type: 'array' } // {event, resource, cost_component, period}
+  { name: 'double_count_ids', required: false, type: 'array' }, // {event, resource, cost_component, period}
+  // §20.1 — declaración explícita de "el volumen cambia materialmente",
+  // usada SOLO como último recurso cuando exposure_obs/exposure_future no
+  // permiten calcularlo (Fase 3). Si ambos están presentes, el motor
+  // calcula y manda (registra discrepancia en auditoría si el declarado
+  // contradice). Reapertura de Fase 0 (fbd78ea) — decisión híbrida de Luis.
+  { name: 'volume_change_material', required: false, type: 'boolean', nullable: true }
 ];
 
 function validarEPDInput(obj) {
