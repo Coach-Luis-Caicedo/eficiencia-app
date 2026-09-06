@@ -197,6 +197,11 @@ ok(C.validarEPDOutput(epdOutput({ double_count_ids: [{ event_id: 'E1', resource_
 ok(C.validarEPDOutput(epdOutput()).valido, 'double_count_ids ausente en EPD_OUTPUT → válido (opcional)');
 ok(!C.validarEPDOutput(epdOutput({ double_count_ids: 'E1|R1|CC1|P1' })).valido, 'double_count_ids cadena → inválido (es array)');
 
+// ── §31 — variable_type en EPD_OUTPUT (reapertura de Fase 0, 7ª) ──
+ok(C.validarEPDOutput(epdOutput({ variable_type: 'V3' })).valido, 'variable_type: "V3" en EPD_OUTPUT → válido (§31; la calibración §36 agrupa por él)');
+ok(C.validarEPDOutput(epdOutput()).valido, 'variable_type ausente → válido en el ESQUEMA (runEPD siempre lo emite; calibrarLote lo exige)');
+ok(!C.validarEPDOutput(epdOutput({ variable_type: 'V9' })).valido, 'variable_type "V9" (fuera de V1..V5) → inválido');
+
 // ═══════════════════════════════════════════════════════════════════════
 seccion('Mutación — validarAtribucionCategoria (§35: coeficiente continuo se rechaza)');
 // ═══════════════════════════════════════════════════════════════════════

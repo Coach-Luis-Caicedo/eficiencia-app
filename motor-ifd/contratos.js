@@ -210,6 +210,17 @@ var ESQUEMA_EPD_OUTPUT = [
   { name: 'economic_lower', required: true, type: 'number', nullable: true },
   { name: 'economic_upper', required: true, type: 'number', nullable: true },
   { name: 'attribution_category', required: true, type: 'string', enum: 'ATTRIBUTION_CATEGORY' },
+  // §31 — "variable, unidad, dominio y evolución": §31 lista la estructura
+  // mínima del EPD en todo su ciclo, sin segregar entrada/salida (mismo
+  // criterio que double_count_ids). La calibración (§36, Fase 8) agrupa los
+  // errores por variable_type ("los errores solo se agregan entre variables
+  // comparables"). `runEPD` lo copia de EPD_INPUT en TODAS las salidas
+  // (S0/S1/CUANTIFICADO) — variable_type siempre existe en la entrada
+  // (validarEPDInput lo exige), a diferencia de double_count_ids que sí es
+  // opcional. Se deja `required:false` en el ESQUEMA solo porque los
+  // fixtures de test que construyen EPD_OUTPUT a mano pueden omitirlo;
+  // `calibrarLote` lo exige. Reapertura de Fase 0 (fbd78ea) — 7ª.
+  { name: 'variable_type', required: false, type: 'string', enum: 'VARIABLE_TYPE' },
   { name: 'scenarios', required: false, type: 'array' },
   { name: 'method', required: true, type: 'string', nullable: true },
   { name: 'impact_type', required: false, type: 'string', enum: 'IMPACT_TYPE' },
