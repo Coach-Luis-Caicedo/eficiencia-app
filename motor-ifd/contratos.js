@@ -219,7 +219,17 @@ var ESQUEMA_EPD_OUTPUT = [
   { name: 'heritage_outputs', required: true, type: 'object' }, // {CFD,CFR,VER,ROI_P,TRE} → cada uno {estado:'PENDIENTE_AUDITORIA'}
   { name: 'alerts', required: true, type: 'array' },
   { name: 'notes', required: true, type: 'array' },
-  { name: 'assumptions', required: false, type: 'array' }
+  { name: 'assumptions', required: false, type: 'array' },
+  // §31 — "identificadores de doble conteo": §31 lista la estructura mínima
+  // del EPD a lo largo de TODO su ciclo (mezcla campos de entrada como
+  // Q/C/T/R con campos de salida como economic_base y "nivel de salida").
+  // La agregación (§25, Fase 7b) corre el control de doble conteo "antes de
+  // agregar" y necesita las claves de cada EPD_OUTPUT. `runEPD` las copia
+  // de EPD_INPUT. Forma: array (los elementos son 4-tuplas evento×recurso×
+  // componente×período; la validación de forma de cada clave vive en
+  // heredadas.claveSolapamiento, simétrica con EPD_INPUT). Reapertura de
+  // Fase 0 (fbd78ea) — 6ª.
+  { name: 'double_count_ids', required: false, type: 'array' }
 ];
 
 // §24 — las 5 salidas heredadas, congeladas: cada una es exactamente el

@@ -191,6 +191,12 @@ ok(!C.validarSalidasHeredadas({ CFD: { estado: 'AUDITADO' }, CFR: { estado: 'PEN
 ok(!C.validarSalidasHeredadas({ CFD: { estado: 'PENDIENTE_AUDITORIA', valor: 100 }, CFR: { estado: 'PENDIENTE_AUDITORIA' }, VER: { estado: 'PENDIENTE_AUDITORIA' }, ROI_P: { estado: 'PENDIENTE_AUDITORIA' }, TRE: { estado: 'PENDIENTE_AUDITORIA' } }).valido,
   'marcador con clave extra ({estado, valor}) → RECHAZADO (marcador EXACTO, no un contenedor de cifra)');
 
+// ── §31 — double_count_ids en EPD_OUTPUT (reapertura de Fase 0, 6ª) ──
+ok(C.validarEPDOutput(epdOutput({ double_count_ids: [{ event_id: 'E1', resource_id: 'R1', cost_component_id: 'CC1', period_id: 'P1' }] })).valido,
+  'double_count_ids: array en EPD_OUTPUT → válido (§31; la agregación §25 lo necesita)');
+ok(C.validarEPDOutput(epdOutput()).valido, 'double_count_ids ausente en EPD_OUTPUT → válido (opcional)');
+ok(!C.validarEPDOutput(epdOutput({ double_count_ids: 'E1|R1|CC1|P1' })).valido, 'double_count_ids cadena → inválido (es array)');
+
 // ═══════════════════════════════════════════════════════════════════════
 seccion('Mutación — validarAtribucionCategoria (§35: coeficiente continuo se rechaza)');
 // ═══════════════════════════════════════════════════════════════════════
