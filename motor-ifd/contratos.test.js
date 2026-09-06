@@ -48,6 +48,7 @@ eq(E.ALERTAS.A12, 'INTERVENCION_SIN_EVIDENCIA', 'A12 = §29 #12 (del engine)');
 eq(E.ALERTAS.A13, 'EXTRAPOLACION_NO_SUSTENTABLE', 'A13 = §29 #8 (NUEVO — no A08, coincidencia posicional NO usada)');
 eq(E.ALERTAS.A14, 'DOBLE_CONTEO_POTENCIAL', 'A14 = §29 #11 (NUEVO — no A11)');
 eq(E.ALERTAS.A17, 'AGREGACION_HETEROGENEA', 'A17 = §29 #15 (NUEVO)');
+eq(E.ALERTAS.A09, 'VALOR_ECONOMICO_INSUFICIENTE', 'A09 = §29 #9 texto literal (renombrada Fase 5: cubre falta de trazabilidad O de unidad §23.1)');
 
 // ═══════════════════════════════════════════════════════════════════════
 seccion('Parámetros calibrables (§17, §21.2, §22) — PENDIENTE_CALIBRACION, no cerrados');
@@ -78,6 +79,12 @@ ok(!C.validarEPDInput(epdInput({ serie_historica: [10, Infinity, 20] })).valido,
 ok(C.validarEPDInput(epdInput({ growth_rate_intensificacion: 0.2 })).valido, 'growth_rate_intensificacion: número → válido');
 ok(C.validarEPDInput(epdInput({ delta_intensificacion: null })).valido, 'delta_intensificacion:null → válido (nullable)');
 ok(!C.validarEPDInput(epdInput({ growth_rate_intensificacion: 'alto' })).valido, 'growth_rate_intensificacion:"alto" → inválido (número o null)');
+
+// ── §23.1 — campo `unit` (unidad física, reapertura de Fase 0, 4ª) ──
+ok(C.validarEPDInput(epdInput({ unit: 'horas' })).valido, 'unit:"horas" → válido (string)');
+ok(C.validarEPDInput(epdInput({ unit: null })).valido, 'unit:null → válido (nullable — un EPD no-económico no lo trae)');
+ok(C.validarEPDInput(epdInput()).valido, 'unit ausente → válido (opcional, la puerta §23.1 vive en economia.js)');
+ok(!C.validarEPDInput(epdInput({ unit: 3 })).valido, 'unit:3 (número) → inválido (es un rótulo string: "horas", "eventos")');
 
 // ═══════════════════════════════════════════════════════════════════════
 seccion('§5/§31 — validarEPDInput');

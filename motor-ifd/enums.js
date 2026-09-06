@@ -92,7 +92,7 @@ var ENUMS = {
 //   §29 #6  Dominio excedido                            → A06  (engine)
 //   §29 #7  Horizonte excedido                          → A07  (engine)
 //   §29 #8  Extrapolación no sustentable                → A13  (NUEVO — no A08)
-//   §29 #9  Valor económico insuficiente                → A09  (engine)
+//   §29 #9  Valor económico insuficiente                → A09  (engine; renombrada en Fase 5)
 //   §29 #10 Atribución UNRESOLVED / estado no compatible → A10  (engine)
 //   §29 #11 Doble conteo potencial                      → A14  (NUEVO — no A11)
 //   §29 #12 Intervención sin evidencia                  → A12  (engine)
@@ -115,7 +115,13 @@ var ALERTAS = {
   A06: 'DOMINIO_EXCEDIDO',                  // §29 #6  — engine
   A07: 'HORIZONTE_EXCEDIDO',                // §29 #7  — engine
   // A08 — RESERVADO Y VACÍO (ausencia heredada del engine; sin contenido)
-  A09: 'VALOR_ECONOMICO_SIN_TRAZABILIDAD',  // §29 #9  — engine
+  // §29 #9 texto literal: "Valor económico insuficiente". El engine la
+  // nombra 'A09_VALOR_ECONOMICO_SIN_TRAZABILIDAD' (solo el caso
+  // trazabilidad=false). Fase 5 la renombra a la redacción de §29 #9 y la
+  // usa para CUALQUIER puerta económica §23.1 incompleta: falta
+  // TrazabilidadEconómica O falta Unidad (el bridge del oráculo compara el
+  // prefijo 'A09', no el nombre — el contraste no se rompe).
+  A09: 'VALOR_ECONOMICO_INSUFICIENTE',      // §29 #9  — engine, renombrada Fase 5
   A10: 'ATRIBUCION_UNRESOLVED',             // §29 #10 — engine
   // A11 — RESERVADO Y VACÍO (ausencia heredada del engine; sin contenido)
   A12: 'INTERVENCION_SIN_EVIDENCIA',        // §29 #12 — engine

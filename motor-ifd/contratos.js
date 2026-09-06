@@ -22,22 +22,21 @@
  * oráculo funcione, aquí también es número 0-3; SS0..SS3 (enums.js) son
  * solo las etiquetas.
  *
- * ── HUECO CONOCIDO — campo de unidad física (§23.1), PARA FASE 5 ────────
+ * ── Campo de unidad física (§23.1) — AGREGADO EN FASE 5 ────────────────
  *
  * §23.1: `AEᵢ = Unidadᵢ ∧ ValorUnitarioᵢ ∧ TrazabilidadEconómicaᵢ` — TRES
- * condiciones. **Falta el campo de unidad física en ESQUEMA_EPD_INPUT;
- * §23.1 exige tres condiciones, hoy solo se modelan dos** (`unit_value` =
- * el valor monetario por unidad, y `economic_traceability`). La "Unidadᵢ"
- * de §23.1 es la unidad de MEDIDA física (horas, eventos, …) — §31 la lista
- * aparte ("variable, unidad, dominio y evolución"); §12 la distingue
- * explícitamente del valor unitario monetario ("3.000 horas... 25 unidades
- * monetarias por hora"). El engine Python de referencia tiene el mismo
- * hueco (solo `unit_value`).
+ * condiciones. `unit` (unidad de MEDIDA física: "horas", "eventos", …) es
+ * la "Unidadᵢ" — §31 la lista aparte ("variable, unidad, dominio y
+ * evolución"); §12 la distingue del valor unitario monetario ("3.000
+ * horas... 25 unidades monetarias por hora"). Se agregó como campo
+ * OPCIONAL/nullable (reapertura de fbd78ea, 4ª): la monetización es "una
+ * rama posible" (§20), no todo EPD monetiza — `unit` ausente es fallo de
+ * PUERTA (economia.js, alerta A09), no error de esquema. El engine Python
+ * de referencia NO tiene este campo (modela solo 2 condiciones);
+ * divergencia deliberada de §23.1, ver README ("Alcance del oráculo").
  *
- * NO se agrega aquí — es lógica de la puerta económica y le corresponde a
- * Fase 5. Se documenta para que reaparezca al abrir Fase 5, no como
- * sorpresa. (También: la regla condicional "economic_traceability=true ⇒
- * unit_value presente" es una pregunta DISTINTA, también de Fase 5.)
+ * El GATE (unit ∧ unit_value ∧ economic_traceability) vive en economia.js
+ * (Fase 5), no aquí — el contrato solo valida forma.
  */
 
 'use strict';
@@ -136,7 +135,11 @@ var ESQUEMA_EPD_INPUT = [
   { name: 'upper_bound', required: false, type: 'number', nullable: true },
   // §4 — tipología de impacto
   { name: 'impact_type', required: false, type: 'string', enum: 'IMPACT_TYPE' },
-  // §23 — módulo económico
+  // §23 — módulo económico. La puerta §23.1 (unit ∧ unit_value ∧
+  // economic_traceability) se evalúa en economia.js (Fase 5); aquí solo
+  // forma. `unit` = unidad de medida FÍSICA (§23.1 "Unidadᵢ", §31); campo
+  // opcional — un EPD no-económico no lo trae (reapertura fbd78ea, 4ª).
+  { name: 'unit', required: false, type: 'string', nullable: true },
   { name: 'unit_value', required: false, type: 'number', nullable: true },
   { name: 'economic_traceability', required: true, type: 'boolean' },
   // §23.3 — atribución categórica. OBLIGATORIA. SIN `type`/`enum` a
