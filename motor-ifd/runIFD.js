@@ -9,8 +9,8 @@
  *               impacto → monetización si trazable → atribución →
  *               doble conteo → salida consolidada
  *
- * 7a (este archivo, esta entrega): runEPD(input) — un solo EPD.
- * 7b: agregarEPDs(outputs) — agregación multi-EPD (§13, §25).
+ * 7a: runEPD(input) — un solo EPD.
+ * 7b (esta entrega): agregarEPDs(outputs) — agregación multi-EPD (§13, §25).
  * 7c: cobertura de §35 (17 pruebas) y §32 (15 reglas).
  *
  * ── Qué NO hace ──────────────────────────────────────────────────────
@@ -227,7 +227,116 @@ function runEPD(input) {
   });
 }
 
+/**
+ * agregarEPDs(outputs) → {
+ *   ok: boolean,
+ *   componente?: 'IFD_economico_futuro',
+ *   economic_total?, economic_lower_total?, economic_upper_total?,  // number|null
+ *   n_cuantificados?, por_epd?: [...], cualitativos?: [...],
+ *   alerts?: string[], notes?: string[], aggregation_blocked?: boolean,
+ *   errors?: string[]
+ * }
+ *
+ * §13 — "lectura ejecutiva acumulada": suma el componente FUTURO de IFD.
+ * `Impacto acumulado analítico = CFF_realizado + IFD_económico_futuro` — la
+ * parte CFF NO es de este motor; aquí solo se produce `IFD_económico_futuro`
+ * y se etiqueta como tal (§13: "conservar ambos componentes separados").
+ *
+ * §25 / §28 — "check double counting BEFORE aggregation": se corre
+ * detectarDobleConteo sobre la UNIÓN de las claves de todos los EPD que se
+ * iban a sumar. Solapamiento material → A14 + aggregation_blocked.
+ *
+ * §29 #15 / §32 — "IMPACTOS HETEROGÉNEOS NO SE SUMAN ARBITRARIAMENTE":
+ * impact_type distinto entre los EPD a sumar → A17 + aggregation_blocked.
+ * DECISIÓN DE DISEÑO DE LUIS (no lectura cerrada): §32 no define "homogéneo"
+ * con la fuerza con que §25 definió "material" (ahí había frase de
+ * refuerzo). Se toma "mismo impact_type" como criterio de homogeneidad —
+ * documentado con la misma honestidad que "dirección adversa" (§21.2) o
+ * `unit` (§23.1).
+ *
+ * `aggregation_blocked` → los totales van en null (§35: "impedir suma
+ * automática"). `por_epd` siempre lista los componentes para que un humano
+ * pueda decidir con la información a la vista.
+ *
+ * Solo se suman EPD `CUANTIFICADO` con `economic_base` numérico. Los demás
+ * (S0, S1, CUANTIFICADO sin economía) van en `cualitativos`, sin cifra
+ * (decisión C).
+ */
+function agregarEPDs(outputs) {
+  if (!Array.isArray(outputs)) {
+    return { ok: false, errors: ['agregarEPDs: se esperaba un array de EPD_OUTPUT'] };
+  }
+  var errores = [];
+  outputs.forEach(function (o, i) {
+    var vo = contratos.validarEPDOutput(o);
+    if (!vo.valido) errores.push('outputs[' + i + ']: ' + vo.invalidos.concat(vo.faltantes).join('; '));
+  });
+  if (errores.length) return { ok: false, errors: errores };
+
+  var cuantificados = [], cualitativos = [];
+  outputs.forEach(function (o) {
+    if (o.status === 'CUANTIFICADO' && typeof o.economic_base === 'number') cuantificados.push(o);
+    else cualitativos.push({ epd_id: o.epd_id, output_level: o.output_level, status: o.status });
+  });
+
+  var alerts = [], notes = [], aggregation_blocked = false;
+
+  // §25 — doble conteo sobre la UNIÓN de claves, ANTES de sumar
+  var todasLasClaves = [];
+  cuantificados.forEach(function (o) {
+    (o.double_count_ids || []).forEach(function (k) { todasLasClaves.push(k); });
+  });
+  var dc = H.detectarDobleConteo(todasLasClaves);
+  dc.invalidos.forEach(function (m) { notes.push('double_count_ids: ' + m); });
+  if (dc.alerta) {
+    alerts.push('A14');
+    aggregation_blocked = true;
+    notes.push('§25: solapamiento material entre EPDs (pares de claves ' + JSON.stringify(dc.pares_solapados) +
+      ') → agregación automática bloqueada.');
+  }
+
+  // §29 #15 / §32 — heterogeneidad de impact_type
+  var tipos = {};
+  cuantificados.forEach(function (o) { if (o.impact_type !== undefined) tipos[o.impact_type] = true; });
+  var tiposDistintos = Object.keys(tipos);
+  if (tiposDistintos.length > 1) {
+    alerts.push('A17');
+    aggregation_blocked = true;
+    notes.push('§29 #15 / §32: impact_type heterogéneo (' + tiposDistintos.join(', ') +
+      ') → agregación automática bloqueada. Decisión de diseño: "homogéneo" = mismo impact_type ' +
+      '(§32 "no se suman arbitrariamente" no lo define con la fuerza de §25).');
+  }
+
+  var sumar = function (campo) {
+    return cuantificados.reduce(function (acc, o) { return acc + o[campo]; }, 0);
+  };
+  var hayLower = cuantificados.length > 0 && cuantificados.every(function (o) { return typeof o.economic_lower === 'number'; });
+  var hayUpper = cuantificados.length > 0 && cuantificados.every(function (o) { return typeof o.economic_upper === 'number'; });
+  var puedeSumar = !aggregation_blocked && cuantificados.length > 0;
+
+  if (cuantificados.length === 0) {
+    notes.push('Sin EPD CUANTIFICADO con economía → no hay nada que agregar (economic_total = null, no 0 — §26).');
+  }
+
+  return {
+    ok: true,
+    componente: 'IFD_economico_futuro', // §13: separado de CFF_realizado, siempre
+    economic_total: puedeSumar ? sumar('economic_base') : null,
+    economic_lower_total: (puedeSumar && hayLower) ? sumar('economic_lower') : null,
+    economic_upper_total: (puedeSumar && hayUpper) ? sumar('economic_upper') : null,
+    n_cuantificados: cuantificados.length,
+    por_epd: cuantificados.map(function (o) {
+      return { epd_id: o.epd_id, economic_base: o.economic_base, economic_lower: o.economic_lower, economic_upper: o.economic_upper, impact_type: o.impact_type };
+    }),
+    cualitativos: cualitativos,
+    alerts: unicos(alerts),
+    notes: notes,
+    aggregation_blocked: aggregation_blocked
+  };
+}
+
 module.exports = {
   runEPD: runEPD,
+  agregarEPDs: agregarEPDs,
   consolidarEPDOutput: consolidarEPDOutput
 };

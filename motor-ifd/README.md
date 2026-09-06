@@ -586,8 +586,10 @@ cualquier nivel S0-S3.
   `resolverClasificacion` devuelve `{ terminal, resultado:{...} }` sin
   `alerts`/`notes` a nivel superior → al seguir, `clas.alerts` es
   `undefined`, `alerts.concat(undefined)` mete un código inválido →
-  `validarEPDOutput` rechaza → `runEPD` devuelve `{ ok:false }`. El assert
-  "los 4 cortes → runEPD ok" y los `eq` de status/nivel fallan (7 rojos).
+  `validarEPDOutput` rechaza → `runEPD` devuelve `{ ok:false }`. **8
+  rojos**: "los 4 cortes → runEPD ok", los `eq` de status/nivel de
+  V5/EV-CUAL/FEP1/serie, `A04`, y "el V5 no entra en la suma" de la
+  sección 7b (el `Vq` malformado hace que `agregarEPDs` lo rechace).
   **(2)** `output_level = nivelSalidaMax(fep)` en vez de `effective_FEP` →
   el caso HMS da S3 en vez de S2 (§30 violado).
   **(3)** quitar `unicos()` → el caso de clamp da `["A06","A06"]`.
@@ -600,6 +602,68 @@ cualquier nivel S0-S3.
   `projection_*`/`economic_*` y las alertas compartibles (A01-A07, A09,
   A10) coinciden exacto. Las divergencias deliberadas (EV-CUAL, §20.1, 3ª
   condición §23.1, A06 de envelope, marcadores §24) se contrastan aparte.
+
+### 7b — `agregarEPDs(outputs)`
+Roll-up multi-EPD para la lectura ejecutiva acumulada (§13). **El engine
+Python no tiene agregación** — `agregarEPDs` es de este motor, sin
+contraste con el oráculo (como `escenarioIntensificacion`).
+
+- **§13**: `Impacto acumulado analítico = CFF_realizado +
+  IFD_económico_futuro`. La parte `CFF` no es de este motor; `agregarEPDs`
+  produce solo `IFD_económico_futuro` y lo etiqueta como tal
+  (`componente: 'IFD_economico_futuro'`) — §13: "conservar ambos
+  componentes separados".
+- Solo se suman EPD `CUANTIFICADO` con `economic_base` numérico. Los demás
+  (`S0`, `S1`, `CUANTIFICADO` con puerta económica cerrada) van en
+  `cualitativos: [...]`, sin cifra (decisión C). Sin ningún EPD sumable →
+  `economic_total: null` (§26: no `0`).
+- **§25 / §28** ("check double counting *before* aggregation"):
+  `detectarDobleConteo` sobre la **unión** de las claves de todos los EPD
+  a sumar. Solapamiento material → `A14` + `aggregation_blocked: true` →
+  los totales van en `null` (§35: "impedir suma automática"). `por_epd`
+  **siempre** lista los componentes, para que un humano decida con la
+  información a la vista.
+- **§29 #15 / §32** ("IMPACTOS HETEROGÉNEOS NO SE SUMAN ARBITRARIAMENTE"):
+  `impact_type` distinto entre los EPD a sumar → `A17` +
+  `aggregation_blocked`. **Decisión de diseño de Luis, no lectura
+  cerrada**: §32 dice "no se suman arbitrariamente" pero no define
+  "homogéneo" con la fuerza con que §25 definió "material" (ahí había
+  frase de refuerzo — "un mismo costo no puede aparecer incorporado dentro
+  de otra consecuencia"). Se toma "mismo `impact_type`" como criterio;
+  anotado con la misma honestidad que "dirección adversa" (§21.2) y
+  `unit` (§23.1).
+- Cada `EPD_OUTPUT` de entrada se valida con `validarEPDOutput`; uno mal
+  formado → `{ ok: false, errors }`.
+
+### `double_count_ids` en `EPD_OUTPUT` (reapertura #6, `86ff75b` + fix `22e0e83`)
+§31 lista "identificadores de doble conteo" en la estructura mínima —
+mezcla de campos de entrada y salida (§31 lista `Q/C/T/R` junto a
+`economic_base`, `nivel de salida`, `valor observado y error`). El campo
+se agregó a `ESQUEMA_EPD_OUTPUT` (`86ff75b`) y `runEPD` lo copia de
+`EPD_INPUT` (`22e0e83`, commit de fix aparte para que `git bisect`
+distinga "cambio de contrato" de "conexión en el orquestador").
+
+### Baterías (7b)
+- `runIFD.test.js` → **82 asserts, 0 fallos** (7a 57 + 7b 25) + **8
+  mutaciones** (1-4 de 7a; 5-8 de 7b, sobre copias reales, revertidas):
+  **(5)** `detectarDobleConteo([])` en vez de la unión → dos EPD que
+  solapan se suman igual (sin `A14`, `aggregation_blocked` queda `false`).
+  **3 rojos**.
+  **(6)** `tiposDistintos.length > 1` → `> 0` → dos EPD del **mismo**
+  `impact_type` se marcan `A17` y se bloquean (falso positivo). **7
+  rojos** (el total + lower + upper + "homogéneos no bloqueado" + "distinto
+  período no bloqueado" + los 2 casos con V5 cualitativo que ahora salen
+  `null`).
+  **(7)** quitar `!aggregation_blocked` de la definición de `puedeSumar` →
+  los roll-ups bloqueados por §25/§29#15 emiten total igual (§35 violado).
+  **2 rojos** (`aggDC`, `het`; el caso "sin EPD cuantificado" lo protege
+  la otra guarda `cuantificados.length > 0`).
+  **(8)** quitar `&& typeof o.economic_base === 'number'` del filtro → un
+  EPD `CUANTIFICADO` con puerta económica cerrada (`NE`) cuenta como
+  cuantificado. **2 rojos** (`n_cuantificados`, `NE`-en-`cualitativos`).
+  **No** da `NaN`: en JS `null + número = número` (el `null` se coacciona
+  a `0`), así que `economic_total` no cambia — coincidencia aritmética, no
+  protección real. La protección real es el filtro.
 
 ## Huecos conocidos
 
