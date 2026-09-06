@@ -18,6 +18,7 @@
 var A = require('./admisibilidad');
 var CL = require('./clasificacion');
 var P = require('./proyeccion');
+var SC = require('./escenarios');
 var cp = require('child_process');
 var path = require('path');
 
@@ -159,6 +160,42 @@ CASOS3.forEach(function (caso, i) {
 
 console.log('\n  Nota: el chequeo de conteo bruto V1 (§20.1) y EV-CUAL son de este motor — el engine no los');
 console.log('  tiene. Los casos con esos rasgos se excluyen del contraste (ver README).');
+
+// ═══════════════════════════════════════════════════════════════════════
+seccion('Fase 4 — envelope §22: JS vs. motor de referencia');
+// ═══════════════════════════════════════════════════════════════════════
+//
+// ALCANCE: solo el envelope [L, U] de §22. Intensificación (§21.2) y los
+// escenarios continuidad/contención NO se contrastan — el engine no los
+// tiene (ver README, "Alcance del oráculo"). El engine SÍ calcula
+// projection_lower/upper con la misma amplitud por effective_FEP.
+
+var CASOS4 = [
+  // delta: 3000 + 400×6 = 5400; FEP=3, horizon 6 ≤ HMS 12 → effective_FEP=3 → ±7%
+  { epd_id: 'env_fep3', variable_type: 'V3', evolution_type: 'EV-A', delta: 400, baseline: 3000, horizon: 6, hms: 12, lower_bound: 0, Q: 3, C: 3, T: 3, R: 3 },
+  // trend: 3000 + 400×20 = 11000; horizon 20 > HMS 12 → A07, effective_FEP = max(1,3-1)=2 → ±15%
+  { epd_id: 'env_fep2', variable_type: 'V3', evolution_type: 'EV-A', trend_a: 3000, trend_b: 400, horizon: 20, hms: 12, lower_bound: 0, Q: 3, C: 3, T: 3, R: 3 }
+];
+var refs4 = oraculo(CASOS4);
+
+CASOS4.forEach(function (caso, i) {
+  var ref = refs4[i];
+  var fep = A.calcularFEP(caso).fep;
+  var hms = CL.aplicarHMS(fep, caso.horizon, caso.hms);
+  var pr = P.proyectar(Object.assign({ horizon: caso.horizon }, caso));
+  var env = SC.calcularEnvelope(pr.projection_base, hms.effectiveFep, caso.lower_bound, caso.upper_bound);
+
+  ok(Math.abs(pr.projection_base - ref.projection_base) < 1e-6,
+    caso.epd_id + ': projection_base JS=' + pr.projection_base + ' == ref=' + ref.projection_base);
+  ok(Math.abs(env.L - ref.projection_lower) < 1e-6,
+    caso.epd_id + ': envelope L JS=' + env.L + ' == ref=' + ref.projection_lower +
+    ' (effective_FEP=' + hms.effectiveFep + ', ±' + (env.amplitud_pct * 100) + '%)');
+  ok(Math.abs(env.U - ref.projection_upper) < 1e-6,
+    caso.epd_id + ': envelope U JS=' + env.U + ' == ref=' + ref.projection_upper);
+});
+
+console.log('\n  Nota: solo el envelope §22 coincide con el engine. Continuidad/Intensificación/Contención');
+console.log('  (§21) son de este motor — el engine no los tiene (ver README).');
 
 // ═══════════════════════════════════════════════════════════════════════
 console.log('\n' + '═'.repeat(74));

@@ -45,6 +45,8 @@ def run(case: dict) -> dict:
         # solo el prefijo "A01" para comparar con el JS.
         alert_codes=[a.split("_")[0] for a in out.alerts],
         projection_base=out.projection_base,
+        projection_lower=out.projection_lower,
+        projection_upper=out.projection_upper,
     )
 
 

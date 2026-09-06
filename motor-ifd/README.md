@@ -244,7 +244,7 @@ alertas — **nunca** `ver`/`roi`/contención.
 75.000 de CFF.** La monetización (`5400 × 25 = 135.000`) es Fase 5.
 
 ### Baterías
-- `proyeccion.test.js` → **34 asserts, 0 fallos** + **4 mutaciones**:
+- `proyeccion.test.js` → **36 asserts, 0 fallos** + **4 mutaciones**:
   (1) quitar `chequeoVolumenV1` → V1 con volumen 12000→72000 (500%)
   proyecta **504** (conteo bruto) en vez de terminal `A13`; (2) saltar
   `V1_TASA` en la cascada → V1 con params de tasa + `baseline=99` proyecta
@@ -252,12 +252,92 @@ alertas — **nunca** `ver`/`roi`/contención.
   (3) cambiar la rama `INCOMPATIBLE` por fallback → un caso sin `baseline`
   lanza en `proyectarBase` en vez de degradar limpio a `A05`; (4) no
   aplicar `clampDominio` → `90+5×6=120` con `upper_bound=100` sale **120,
-  []** en vez de **100, [A06]**.
+  []** en vez de **100, [A06]**. Incluye el test del sentido inverso de
+  la discrepancia §20.1 (`declarado=true`, calculado NO-material → el
+  motor manda igual, `audit` registra `{declarado:true, calculado:false}`).
 - `oraculo.test.js` +10 asserts Fase 3 → **50 totales**. JS y engine
   coinciden exacto en `projection_base`: `p_v1tasa` 3024 · `p_trend` 130 ·
   `p_mult` 133.10000000000005 (mismo drift IEEE-754) · `p_delta` 5400 ·
   `p_clamp` 100 + `[A06]`. **El chequeo §20.1 y EV-CUAL son de este motor**
   — los casos con esos rasgos se excluyen del contraste.
+
+## Fase 4 — escenarios §21 + incertidumbre §22
+
+### `escenarios.js`
+Tres escenarios, cada uno una proyección física **distinta** desde el mismo
+`projection_base` de Fase 3, más el envelope de §22:
+
+- `escenarioContinuidad(projBase)` — §21.1: `Y_H^CONT = Ŷ_H`, sin
+  multiplicador. Devuelve `projBase` tal cual.
+- `derivarIntensificacionDeSerie(serie, multiplicativo)` — §21.2: de una
+  `serie_historica` de ≥ `INTENSIFICACION_MIN_PUNTOS` (4) puntos, deriva el
+  parámetro de intensificación del **`Q75` de los cambios período a período
+  en la dirección adversa**. Dirección adversa `s = signo(serie[último] −
+  serie[primero])` — **decisión de diseño de Luis** (confirmada explícita,
+  como la precedencia motor-manda de §20.1), no exigida por §21.2: el
+  término "adversa" aparece una sola vez en el documento (línea 584) y
+  nunca se operacionaliza. Solo cuentan los cambios cuyo signo coincide
+  con `s`. `null` si: serie insuficiente / sin trayectoria neta (`s = 0`) /
+  sin cambios en la dirección de `s`. Multiplicativo → cambios relativos
+  (`(xₜ − xₜ₋₁)/xₜ₋₁`, se omite si `xₜ₋₁ = 0`); aditivo → cambios absolutos.
+- `escenarioIntensificacion(input, projBase)` — §21.2: `EV-M` →
+  `Yₜ(1+g_int)^h`; `EV-A` → `Yₜ + h·δ_int`. Fuente del parámetro, en orden:
+  **(1)** `serie_historica` suficiente → `SERIE`; **(2)** declaración
+  explícita (`growth_rate_intensificacion` / `delta_intensificacion`) →
+  `DECLARACION`; **(3)** ninguna → **cualitativa** (`valor: null`). También
+  cualitativa si `evolution_type` no es `EV-M`/`EV-A` o falta `baseline`.
+  **Precedencia serie-vs-declaración** (patrón §20.1): si hay serie Y
+  declaración y difieren más de `INTENSIFICACION_DISCREPANCIA_TOL` (5% rel.,
+  o abs. si el declarado es 0), el **motor manda con el calculado** y
+  registra `DISCREPANCIA_INTENSIFICACION` en `audit[]` — no descarta el
+  input.
+- `escenarioContencion(input, projBase)` — §21.3: `Ŷ_H · (1 −
+  containment_factor)`, **solo** con `containment_evidence_level ≥ 2`. Sin
+  evidencia suficiente → cualitativa; si `containment_factor` se declaró
+  sin evidencia → `A12`. **Esta es la proyección FÍSICA bajo contención, NO
+  el `ver`/`roi` de §24** (esas 5 salidas siguen `PENDIENTE_AUDITORIA`,
+  Fase 6). El engine Python sí calcula `ver`/`roi` desde estos campos — por
+  eso Intensificación / Continuidad / Contención quedan **fuera del
+  contraste con el oráculo** (ver "Alcance del oráculo").
+- `calcularEnvelope(projBase, effectiveFep, lower, upper)` — §22:
+  `IFDᵢ = [Lᵢ, Bᵢ, Uᵢ]`. Amplitud `PARAMS.ENVELOPE_POR_FEP` (±15% FEP 2 /
+  ±7% FEP 3, `PENDIENTE_CALIBRACION`); clamp de dominio §15 a `L` y `U`
+  (`A06` si recorta). Lanza para FEP ≤ 1 (ya cortó a S1 en Fase 2).
+
+### Baterías
+- `escenarios.test.js` → **44 asserts, 0 fallos** + **4 mutaciones**
+  (ejecutadas sobre copias reales del archivo, revertidas después):
+  **(1)** quitar el filtro por dirección `s` → serie `[10,20,12,30,25]`
+  EV-A: correcto `δ_int = 16` (`Q75` de adversos `[+10,+18]`); mutado `12`
+  (`Q75` de `|[+10,−8,+18,−5]|`) — distinto y menor.
+  **(2)** quitar `if (s === 0) return null` → serie `[50,50,50,50]` EV-M:
+  correcto → cualitativa; mutado → `g_int = 0` → `valor = 50` (proyecta con
+  intensificación nula en vez de caer a cualitativa).
+  **(3)** `< MIN_PUNTOS` → `< MIN_PUNTOS − 1` → serie de 3 puntos
+  `[10,15,20]` se cuela al cálculo (`δ_int = 5`) en vez de tratarse como
+  insuficiente.
+  **(4)** quitar el chequeo de discrepancia → serie da 5, declarado 20:
+  correcto `audit.length = 1`; mutado `0` (el motor sigue mandando con el
+  calculado, pero la señal humana se pierde sin registro).
+- `oraculo.test.js` +6 asserts Fase 4 → **56 totales**. **Solo el envelope
+  §22 se contrasta**: `env_fep3` `5400 → [5022, 5778]` (±7%) · `env_fep2`
+  con `A07` por HMS → `effective_FEP = 2` → `11000 → [9350, 12650]` (±15%).
+  JS y engine coinciden al `1e-6` (`12650` es `12649.999999999998` en ambos
+  — mismo drift IEEE-754). Continuidad / Intensificación / Contención **no
+  se contrastan** (el engine no los tiene como escenarios; sí calcularía
+  `ver`/`roi` de los campos de contención, congelados por §24).
+
+### Números verificados (§21/§22)
+| Caso | Cálculo | Resultado |
+|---|---|---|
+| Intensificación serie `[100,110,121,133.1]` EV-M, `h=3` | `g_int = 0.10`, `133.1 × 1.1³` | `177.1561` |
+| Intensificación serie `[10,15,20,25]` EV-A, `h=3` | `δ_int = 5`, `25 + 3×5` | `40` |
+| Serie mixta `[10,20,12,30,25]` EV-A | adversos `[+10,+18]`, `Q75([10,18]) = 16` | `δ_int = +16` (mejoras `−8,−5` no cuentan) |
+| Precedencia: serie `δ_int = 5`, declarado `20` | motor manda, `100 + 3×5` | `115` (no `160`), `audit` con `{declarado:20, calculado:5}` |
+| Contención `cf = 0.30`, evidencia nivel 2 | `5400 × (1 − 0.30)` | `3780` |
+| Contención `cf = 0.30`, evidencia nivel 1 | — | cualitativa + `[A12]` |
+| Envelope FEP 3, `projBase = 100` | `[100×0.93, 100×1.07]` | `[93, 107]` |
+| Envelope FEP 2, clamp a `upper_bound = 110` | `U = 115 → 110` | `[85, 110]` + `[A06]` |
 
 ## Huecos conocidos — para Fase 5
 
