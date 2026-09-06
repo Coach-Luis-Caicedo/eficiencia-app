@@ -117,6 +117,47 @@ señala; se decide en Fase 5, no se fabrica ahora.
 (aceptar un número 0-1 como "categoría" → los asserts de `0.70` rechazado, y el
 de `EPD_INPUT`, fallan juntos).
 
+## Fase 1 — admisibilidad + FEP + niveles de salida
+
+### `admisibilidad.js`
+- `evaluarAdmisibilidad(gates)` — §6: `A = D∧E∧M∧H∧S`, **AND estricto** de
+  las 5 puertas. Cualquiera ausente / no-booleana / false → NO admisible,
+  alerta `A01`. No hay "4 de 5 basta" (el motor no completa vacíos, §6).
+- `calcularFEP({Q,C,T,R})` — §7: `FEP = min`, **no compensatoria**.
+  `Q=C=T=3, R=1 → FEP=1`, no 2.5. Valida entero 0-3 por dimensión.
+- `nivelSalidaMax(fep)` — §8: mapeo `0→S0, 1→S1, 2→S2, 3→S3`.
+- `verificarFuerzaSalida(nivel, fep)` — salvaguarda del invariante §8/§30
+  *"FUERZA DE SALIDA ≤ FUERZA DE EVIDENCIA"* / *"la degradación nunca
+  sube"*. Expuesta para prueba dirigida.
+- `resolverPuertaEvidencia(input)` — combina §6+§7: devuelve un resultado
+  **terminal S0** (no admisible → `A01`; `FEP=0` → `A03` si `R=0`, si no
+  `A02`) o `terminal: false` con `fep` + `nivelMax` para Fases 2+.
+
+**§35 cubierto**: "falta deterioro sustentado → no proyectable" · "R=0 →
+no proyectable aunque la serie sea estadísticamente fuerte" (→ `A03`, no
+`A02`) · "una dimensión crítica en nivel 1 limita la salida" (techo S1).
+
+### Baterías
+- `admisibilidad.test.js` → **31 asserts, 0 fallos** + **4 mutaciones**:
+  **(1)** §7 FEP como **promedio puro** (un solo cambio `min`→`sum/length`):
+  `Q=C=T=3,R=1` → `(3+3+3+1)/4 = 2.5` (correcto 1); `R=0` → `2.25` (correcto
+  0 — trazabilidad nula daría `FEP>0`); downstream `nivelSalidaMax(2.25)`
+  **lanza** ("FEP fuera de 0-3") como evidencia adicional, no 2º defecto.
+  **(2)** admisibilidad como mayoría (`≤2 fallos`) → 4/5 pasa. **(3)** alerta
+  de `FEP=0` siempre `A02` → el caso `R=0` pierde el `A03` específico.
+  **(4)** `nivelSalidaMax` todo S3 → `verificarFuerzaSalida` deja de lanzar.
+- `oraculo.test.js` → **32 asserts, 0 fallos** (contraste real con el motor
+  Python vía `oraculo_bridge.py`, subproceso). JS y engine coinciden
+  **exacto** en `admissible` + `FEP` + los casos terminales S0
+  (`output_level`, `status`, códigos `A01`/`A02`/`A03`). El engine corta en
+  S1/CUALITATIVO cuando `FEP==1`; este motor difiere ese corte a Fase 2
+  (interactúa con `variable_type`/HMS) — **no es discrepancia**: `admissible`
+  y `FEP` coinciden, que es todo lo que Fase 1 decide.
+
+### `oraculo_bridge.py`
+Puente al engine de referencia. Solo admisibilidad / FEP / niveles /
+alertas — **nunca** `ver`/`roi`/contención.
+
 ## Qué NO hace este módulo
 
 - No implementa fórmula para `CFD/CFR/VER/ROI_P/TRE` (§24 — `PENDIENTE_AUDITORIA`).

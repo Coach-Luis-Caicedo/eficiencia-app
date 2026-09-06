@@ -1,0 +1,97 @@
+/**
+ * motor-ifd/oraculo.test.js — contraste con el motor de referencia (Python)
+ * node motor-ifd/oraculo.test.js
+ *
+ * "Relación 2" de la regla de las tres relaciones: no traducir la lógica de
+ * memoria — correr los mismos casos por ambos motores y confirmar que
+ * coinciden. Subproceso Python real (docs/ifd_v1_2_1_engine_..._categorica.py
+ * vía oraculo_bridge.py).
+ *
+ * ALCANCE: admisibilidad + FEP + niveles S0/status/alertas para los casos
+ * donde AMBOS motores terminan en esta etapa. NO se contrasta ver / roi /
+ * contención — el engine los calcula pero v1.2.2 §24 los dejó PENDIENTE DE
+ * AUDITORÍA (ver README, "Alcance del oráculo").
+ */
+
+'use strict';
+
+var A = require('./admisibilidad');
+var cp = require('child_process');
+var path = require('path');
+
+var _ok = 0, _fallos = 0, _skip = 0;
+function seccion(n) { console.log('\n── ' + n + ' ' + '─'.repeat(Math.max(0, 66 - n.length))); }
+function ok(c, m) { if (c) { _ok++; console.log('  ✓ ' + m); } else { _fallos++; console.log('  ✗ FALLA: ' + m); } }
+
+function oraculo(casos) {
+  var r = cp.spawnSync('python3', [path.join(__dirname, 'oraculo_bridge.py')], {
+    input: JSON.stringify(casos), encoding: 'utf8'
+  });
+  if (r.status !== 0) throw new Error('oraculo_bridge.py falló: ' + (r.stderr || r.error));
+  return JSON.parse(r.stdout);
+}
+
+// ── ¿hay Python? ──
+var pyOk = false;
+try { pyOk = cp.spawnSync('python3', ['--version']).status === 0; } catch (e) { pyOk = false; }
+if (!pyOk) {
+  console.log('\n  (python3 no disponible — contraste con el oráculo OMITIDO)\n');
+  process.exit(0);
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+seccion('Fase 1 — admisibilidad + FEP: JS vs. motor de referencia');
+// ═══════════════════════════════════════════════════════════════════════
+
+var CASOS = [
+  { epd_id: 'c1', Q: 3, C: 3, T: 3, R: 3 },
+  { epd_id: 'c2', Q: 3, C: 3, T: 3, R: 1 },
+  { epd_id: 'c3', Q: 3, C: 3, T: 3, R: 0 },            // §35 R=0
+  { epd_id: 'c4', Q: 2, C: 0, T: 3, R: 3 },            // FEP=0 por C
+  { epd_id: 'c5', Q: 1, C: 2, T: 1, R: 2 },            // FEP=1 por Q/T
+  { epd_id: 'c6', Q: 2, C: 2, T: 2, R: 2 },            // FEP=2
+  { epd_id: 'c7', deterioration_sustained: false, Q: 3, C: 3, T: 3, R: 3 }, // §35 no admisible
+  { epd_id: 'c8', assumptions_declared: false, Q: 3, C: 3, T: 3, R: 0 }     // no admisible Y FEP=0
+];
+
+var refs = oraculo(CASOS);
+
+CASOS.forEach(function (caso, i) {
+  var ref = refs[i];
+  var gates = Object.assign({
+    deterioration_sustained: true, evidence_present: true, mechanism_traceable: true,
+    horizon_defined: true, assumptions_declared: true
+  }, caso);
+  var adm = A.evaluarAdmisibilidad(gates);
+  var fep = A.calcularFEP(caso).fep;
+
+  ok(adm.admisible === ref.admissible, caso.epd_id + ': admissible JS=' + adm.admisible + ' == ref=' + ref.admissible);
+  ok(fep === ref.FEP, caso.epd_id + ': FEP JS=' + fep + ' == ref=' + ref.FEP + ' (§7 min no compensatorio)');
+
+  var res = A.resolverPuertaEvidencia(gates);
+  if (res.terminal) {
+    ok(res.resultado.output_level === ref.output_level,
+      caso.epd_id + ': terminal — output_level JS=' + res.resultado.output_level + ' == ref=' + ref.output_level);
+    ok(res.resultado.status === ref.status,
+      caso.epd_id + ': terminal — status JS=' + res.resultado.status + ' == ref=' + ref.status);
+    ok(JSON.stringify(res.resultado.alerts) === JSON.stringify(ref.alert_codes),
+      caso.epd_id + ': terminal — alertas JS=' + JSON.stringify(res.resultado.alerts) + ' == ref=' + JSON.stringify(ref.alert_codes));
+  } else {
+    // no terminal en Fase 1: el engine puede terminar en S1 (FEP==1) — eso
+    // es Fase 2 en este motor. Solo se contrasta que el techo por evidencia
+    // del JS coincida con el nivel del engine cuando ESTE también terminó
+    // en S0 (nunca lo hace si no es terminal). Aquí basta admissible+FEP.
+    ok(res.nivelMax === A.nivelSalidaMax(ref.FEP),
+      caso.epd_id + ': no terminal — techo JS=' + res.nivelMax + ' == nivelSalidaMax(refFEP)=' + A.nivelSalidaMax(ref.FEP));
+  }
+});
+
+console.log('\n  Nota: el engine termina en S1/CUALITATIVO cuando FEP==1 (casos c2, c5) — este motor');
+console.log('  difiere el corte S1 a Fase 2 (interactúa con variable_type/HMS). No es discrepancia:');
+console.log('  admissible y FEP coinciden, que es todo lo que Fase 1 decide.');
+
+// ═══════════════════════════════════════════════════════════════════════
+console.log('\n' + '═'.repeat(74));
+console.log('  RESULTADO:  ' + _ok + ' asserts OK, ' + _fallos + ' fallos, ' + _skip + ' omitidos');
+console.log('═'.repeat(74));
+process.exit(_fallos ? 1 : 0);
