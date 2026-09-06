@@ -446,21 +446,94 @@ siquiera se le pasa como argumento). §32: `ATRIBUIR ≠ PONDERAR`,
 | Sin `unit`, con VU + trazabilidad | puerta §23.1 cerrada | sin cifras + `A09` |
 | Sin `unit_value`, `traz = false` | EPD no-económico | sin cifras, **sin** alerta |
 
-## Huecos conocidos — para Fase 6
+## Fase 6 — salidas heredadas §24 + doble conteo §25 + versionamiento §38
 
-Registrados aquí para que reaparezcan al abrir Fase 6, no como sorpresa:
+### `heredadas.js`
+Lo que el motor hace **antes de consolidar la salida** y que el documento
+deja sin fórmula o sin operacionalizar.
 
-1. **`heritage_outputs` no se hace cumplir todavía.** `validarEPDOutput`
-   solo verifica `type:'object'` — acepta `{ VER: 21772.8 }` (un número)
-   como válido. Fase 6 debe agregar validación de forma: cada una de las
-   5 claves (`CFD/CFR/VER/ROI_P/TRE`) siempre `{estado:'PENDIENTE_AUDITORIA'}`,
-   **nunca un número**, hasta que la auditoría contra IFT v1.0 FINAL cierre
-   la migración (§24). (Decisión D de Fase 5: se difirió a Fase 6.)
-2. **Marca "no normativo" de `VER`/`ROI_P` en el output.** El engine Python
-   los devuelve como números limpios sin alerta/nota de procedencia — pero
-   el engine es oráculo de referencia congelado, **no se toca**. El motor
-   JS (Fase 6) construye las 5 salidas heredadas como marcadores
-   `PENDIENTE_AUDITORIA`, nunca cifras, con su nota explícita.
+- `construirSalidasHeredadas()` — §24: `{CFD, CFR, VER, ROI_P, TRE}`, cada
+  una un objeto **nuevo** `{ estado: 'PENDIENTE_AUDITORIA' }`. §24 literal:
+  *"En v1.2.2 no se fija fórmula normativa para ninguna de estas cinco
+  salidas."* El engine Python **sí** calcula `VER`/`ROI_P` (es anterior a
+  §24) — este motor **nunca**. `CFR` y `VER` son objetos separados, ni
+  siquiera comparten referencia (§24: *"No presentar CFR = VER como
+  decisión metodológica cerrada"*).
+- `validarSalidasHeredadas(ho)` (**en `contratos.js`**, reapertura #5) —
+  exige la forma congelada: exactamente las 5 claves, cada una
+  `{ estado: 'PENDIENTE_AUDITORIA' }`. Un número / clave de más o de menos
+  / `estado` distinto / marcador con clave extra → **RECHAZADO**.
+  `validarEPDOutput` la llama. Cierra el **hueco #2**.
+- `claveSolapamiento(x)` — §25: valida la 4-tupla
+  `{ event_id, resource_id, cost_component_id, period_id }` (los 4
+  obligatorios, string no vacío o número finito).
+- `overlapMaterial(a, b)` — §25: `Overlapᵢⱼ = f(EventID, ResourceID,
+  CostComponentID, PeriodID)`. **Material ⟺ los 4 identificadores
+  iguales** (igualdad estricta). Ancla textual (la frase más fuerte del
+  §25, no solo la fórmula): *"Un mismo costo no puede aparecer incorporado
+  dentro de otra consecuencia y sumarse nuevamente."* Coincidencia parcial
+  (mismo evento+recurso, distinto período) → **no material**: períodos o
+  componentes distintos son costos distintos.
+- `detectarDobleConteo(claves)` — pares `(i<j)` con solapamiento material →
+  `alerta: 'A14'` + `bloquear_agregacion: true` (§25/§35: *"impedir suma
+  automática"*). La comparación entre EPDs distintos es de la **agregación
+  (Fase 7)**; aquí se prueba en aislamiento.
+- `construirRegistroCalibracion(campos)` — §38: valida que un cambio
+  calibrable traiga los 6 datos que el texto exige (`anterior`, `nuevo`,
+  `evidencia`, `muestra`, `efecto`, `version`) + `parametro`. No calcula —
+  la matemática de calibración (§36) es Fase 8. El determinismo de §35
+  (*"misma entrada + misma versión → misma salida"*) se verifica en Fase 7
+  (necesita el orquestador `runIFD`).
+
+### Decisiones A-E (aprobadas por Luis antes de escribir código)
+- **A** — "solapamiento material" (§25) = los **4 identificadores
+  iguales**; parcial → no material. Anclado a la frase "un mismo costo no
+  puede aparecer incorporado dentro de otra consecuencia", no solo a la
+  firma `f(...)`.
+- **B** — `double_count_ids` = las coordenadas **propias** del EPD (celdas
+  evento×recurso×componente×período que ocupa su impacto). La comparación
+  cruzada es de la agregación (Fase 7).
+- **C** — A14 en Fase 6: un EPD que declara la misma clave dos veces →
+  A14; `detectarDobleConteo` (multi-clave, para Fase 7) → A14 + bloqueo.
+  Ambos se prueban en aislamiento.
+- **D** — Fase 6 hace `construirRegistroCalibracion` (§38); el
+  determinismo (§35) queda como AC anotado para Fase 7.
+- **E** — marcador heredado = `{ estado: 'PENDIENTE_AUDITORIA' }`.
+
+### Baterías
+- `heredadas.test.js` → **30 asserts, 0 fallos** + **4 mutaciones**
+  (ejecutadas sobre copias reales, revertidas):
+  **(1)** `validarSalidasHeredadas` sin el chequeo de forma → `VER =
+  21772.8` (un número) se acepta (6 rojos: la protección de §24 cae).
+  **(2)** `overlapMaterial` con `OR` en vez de `AND` → "distinto período →
+  NO material" falla; un costo de otro período se bloquearía de más (8
+  rojos).
+  **(3)** `detectarDobleConteo` no setea `bloquear_agregacion` → se emite
+  A14 pero la suma seguiría (1 rojo: §35 "impedir suma automática").
+  **(4)** `construirSalidasHeredadas` con `CFR` y `VER` compartiendo
+  referencia → "objetos separados" falla (2 rojos: ancla §24 "no CFR =
+  VER").
+- `oraculo.test.js` +5 asserts Fase 6 → **80 totales**. **Contraste de
+  NO-equivalencia**: para un caso con contención el engine calcula
+  `VER = 40.500` y `ROI_P = -0.595`; el motor JS devuelve `VER` / `ROI_P`
+  como `{ estado: 'PENDIENTE_AUDITORIA' }`. La divergencia se **documenta**
+  (§24: el engine es pre-decisión), no es discrepancia.
+
+### Números verificados (§24/§25/§38)
+| Caso | Resultado |
+|---|---|
+| `construirSalidasHeredadas()` | 5 marcadores `{ estado: 'PENDIENTE_AUDITORIA' }`, objetos separados |
+| engine con contención: `VER` | `40.500` (número) — el motor JS: marcador, nunca esa cifra |
+| claves idénticas | `overlapMaterial = true` → `A14` + `bloquear_agregacion` |
+| mismo evento+recurso+componente, `period_id` distinto | `overlapMaterial = false` (costos distintos) |
+| `period_id: 3` vs `period_id: "3"` | `false` (igualdad estricta) |
+| `detectarDobleConteo([k, k({resource:R9}), k])` | `pares_solapados = [[0,2]]`, `A14`, bloqueo |
+| registro de calibración sin `evidencia`/`version` | inválido, nombrados en `faltantes` (§38) |
+
+## Huecos conocidos
+
+Ninguno abierto. (Hueco #1 —campo de unidad física §23.1— cerrado en
+`164f72a`; hueco #2 —forma de `heritage_outputs`— cerrado en Fase 6.)
 
 ## Qué NO hace este módulo
 

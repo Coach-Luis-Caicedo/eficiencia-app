@@ -54,6 +54,12 @@ def run(case: dict) -> dict:
         economic_lower=out.economic_lower,
         economic_upper=out.economic_upper,
         attribution_category=out.attribution_category,
+        # §24 — el engine SI calcula VER/ROI_P (es anterior a la decision de
+        # v1.2.2 §24: PENDIENTE DE AUDITORIA, sin formula normativa). Se
+        # devuelven SOLO para el contraste de NO-equivalencia: el motor JS
+        # nunca produce una cifra aqui, siempre { estado: PENDIENTE_AUDITORIA }.
+        VER=out.VER,
+        ROI_P=out.ROI_P,
     )
 
 

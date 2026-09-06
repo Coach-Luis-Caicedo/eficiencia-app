@@ -20,6 +20,7 @@ var CL = require('./clasificacion');
 var P = require('./proyeccion');
 var SC = require('./escenarios');
 var EC = require('./economia');
+var H = require('./heredadas');
 var cp = require('child_process');
 var path = require('path');
 
@@ -258,6 +259,38 @@ ok(sinUnit.economic_base === null && sinUnit.alerts.indexOf('A09') !== -1,
 console.log('\n  Nota: los casos económicos del contraste llevan `unit` → JS y engine coinciden exacto en');
 console.log('  economic_base/lower/upper y en la alerta A10. La 3ª condición de §23.1 (unit) es');
 console.log('  divergencia deliberada: se asevera aparte, no contra el engine (ver README).');
+
+// ═══════════════════════════════════════════════════════════════════════
+seccion('Fase 6 — salidas heredadas §24: contraste de NO-equivalencia');
+// ═══════════════════════════════════════════════════════════════════════
+//
+// El engine SÍ calcula VER/ROI_P desde los campos de contención — es
+// anterior a v1.2.2 §24 (PENDIENTE DE AUDITORÍA, sin fórmula normativa).
+// Este motor NUNCA produce una cifra ahí. El contraste verifica la
+// DIVERGENCIA, no la coincidencia.
+
+var CASO6 = Object.assign({}, ECON, {
+  attribution_category: 'CONFIRMED',
+  containment_factor: 0.30, containment_evidence_level: 2, intervention_cost: 100000
+});
+var ref6 = oraculo([CASO6])[0];
+
+ok(typeof ref6.VER === 'number',
+  'el engine SÍ calcula VER (= ' + ref6.VER + ') desde containment_factor — es pre-§24');
+ok(typeof ref6.ROI_P === 'number',
+  'el engine SÍ calcula ROI_P (= ' + ref6.ROI_P + ')');
+
+var sh = H.construirSalidasHeredadas();
+ok(JSON.stringify(sh.VER) === JSON.stringify({ estado: 'PENDIENTE_AUDITORIA' }),
+  'el motor JS: VER = { estado: "PENDIENTE_AUDITORIA" } — NUNCA la cifra ' + ref6.VER + ' del engine (§24)');
+ok(JSON.stringify(sh.ROI_P) === JSON.stringify({ estado: 'PENDIENTE_AUDITORIA' }),
+  'el motor JS: ROI_P = marcador, no ' + ref6.ROI_P);
+ok(['CFD', 'CFR', 'VER', 'ROI_P', 'TRE'].every(function (key) { return typeof sh[key] === 'object' && sh[key].estado === 'PENDIENTE_AUDITORIA'; }),
+  'las 5 salidas heredadas son marcador — divergencia con el engine DOCUMENTADA, no es discrepancia');
+
+console.log('\n  Nota: esto NO es un fallo del JS ni del engine — el engine es de una etapa anterior a');
+console.log('  §24. El invariante que SÍ se comparte y se contrasta arriba (Fase 5) es que la atribución');
+console.log('  no multiplica economic_base. ver/roi quedan PENDIENTE DE AUDITORÍA (§24).');
 
 // ═══════════════════════════════════════════════════════════════════════
 console.log('\n' + '═'.repeat(74));
