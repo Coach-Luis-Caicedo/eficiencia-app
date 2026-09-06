@@ -44,6 +44,7 @@ def run(case: dict) -> dict:
         # códigos: el engine usa "A01_ADMISIBILIDAD_INSUFICIENTE"; se devuelve
         # solo el prefijo "A01" para comparar con el JS.
         alert_codes=[a.split("_")[0] for a in out.alerts],
+        projection_base=out.projection_base,
     )
 
 

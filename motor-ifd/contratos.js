@@ -22,14 +22,22 @@
  * oráculo funcione, aquí también es número 0-3; SS0..SS3 (enums.js) son
  * solo las etiquetas.
  *
- * ── Regla condicional candidata (NO implementada en Fase 0) ─────────────
+ * ── HUECO CONOCIDO — campo de unidad física (§23.1), PARA FASE 5 ────────
  *
- * §23.1: la puerta económica es `AE = Unidad ∧ ValorUnitario ∧
- * TrazabilidadEconómica`. Podría exigirse en el contrato que
- * `economic_traceability === true` implique `unit_value` presente — pero
- * eso es lógica de la puerta económica (Fase 5), no coherencia estructural
- * de un objeto aislado. Se señala aquí y se decide en Fase 5, no se
- * fabrica ahora.
+ * §23.1: `AEᵢ = Unidadᵢ ∧ ValorUnitarioᵢ ∧ TrazabilidadEconómicaᵢ` — TRES
+ * condiciones. **Falta el campo de unidad física en ESQUEMA_EPD_INPUT;
+ * §23.1 exige tres condiciones, hoy solo se modelan dos** (`unit_value` =
+ * el valor monetario por unidad, y `economic_traceability`). La "Unidadᵢ"
+ * de §23.1 es la unidad de MEDIDA física (horas, eventos, …) — §31 la lista
+ * aparte ("variable, unidad, dominio y evolución"); §12 la distingue
+ * explícitamente del valor unitario monetario ("3.000 horas... 25 unidades
+ * monetarias por hora"). El engine Python de referencia tiene el mismo
+ * hueco (solo `unit_value`).
+ *
+ * NO se agrega aquí — es lógica de la puerta económica y le corresponde a
+ * Fase 5. Se documenta para que reaparezca al abrir Fase 5, no como
+ * sorpresa. (También: la regla condicional "economic_traceability=true ⇒
+ * unit_value presente" es una pregunta DISTINTA, también de Fase 5.)
  */
 
 'use strict';

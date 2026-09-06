@@ -209,6 +209,71 @@ alertas — **nunca** `ver`/`roi`/contención.
   techo S2 + `A07` · `g_serie` S1/DEGRADADO_A_CUALITATIVO + `A04`.
   **EV-CUAL no se contrasta** (el engine no lo chequea).
 
+## Fase 3 — proyección física §20
+
+### `proyeccion.js`
+- `seleccionarMetodo(input)` — cascada ordenada de §28 (realiza la "matriz
+  `AM_m`" de §19, que el texto no enumera): `V1_TASA` → `TENDENCIA_LINEAL` →
+  `CRECIMIENTO_MULTIPLICATIVO` (`EV-M`) → `DELTA_ADITIVO` (`EV-A`) →
+  `CONTINUIDAD` → `INCOMPATIBLE`. `evolution_type` por **igualdad estricta**.
+- `proyectarBase(input, metodo)` — §20: `V1_TASA` `(N_obs/X_obs)·X_H` ·
+  `TENDENCIA` `a + b·h` · `MULT` `baseline·(1+g)^h` · `DELTA` `baseline + δ·h`
+  · `CONTINUIDAD` `baseline`.
+- `chequeoVolumenV1(input, metodo)` — §20.1: solo V1 sin `V1_TASA`. Si
+  `exposure_obs` y `exposure_future` presentes → calcula
+  `|Δ|/exposure_obs` vs `VOLUME_CHANGE_MATERIAL_PCT`; si no → declaración
+  `volume_change_material` (último recurso); si tampoco → `A13` (§0).
+  **Precedencia**: el motor manda; declarado vs. calculado en conflicto →
+  entrada en `audit[]` (`DISCREPANCIA_VOLUME_CHANGE_MATERIAL`), no se
+  descarta ni rechaza.
+- `proyectar(input)` — `INCOMPATIBLE` → `A05`/`S1/DEGRADADO_A_CUALITATIVO`;
+  `A13` (§20.1) → `S1/DEGRADADO_A_CUALITATIVO`; si no → `clampDominio` (§15,
+  `A06` si recorta) → `projection_base` para escenarios/economía.
+
+### `§12` — ejemplo normativo verificado
+`baseline=3000, delta=400, EV-A, horizon=6` → `projection_base = 3000 +
+400·6 = 5400` horas. **La variable que se proyecta son las horas, no los
+75.000 de CFF.** La monetización (`5400 × 25 = 135.000`) es Fase 5.
+
+### Baterías
+- `proyeccion.test.js` → **34 asserts, 0 fallos** + **4 mutaciones**:
+  (1) quitar `chequeoVolumenV1` → V1 con volumen 12000→72000 (500%)
+  proyecta **504** (conteo bruto) en vez de terminal `A13`; (2) saltar
+  `V1_TASA` en la cascada → V1 con params de tasa + `baseline=99` proyecta
+  `CONTINUIDAD`=**99** en vez de `V1_TASA`=`(504/12000)×13000`=**546**;
+  (3) cambiar la rama `INCOMPATIBLE` por fallback → un caso sin `baseline`
+  lanza en `proyectarBase` en vez de degradar limpio a `A05`; (4) no
+  aplicar `clampDominio` → `90+5×6=120` con `upper_bound=100` sale **120,
+  []** en vez de **100, [A06]**.
+- `oraculo.test.js` +10 asserts Fase 3 → **50 totales**. JS y engine
+  coinciden exacto en `projection_base`: `p_v1tasa` 3024 · `p_trend` 130 ·
+  `p_mult` 133.10000000000005 (mismo drift IEEE-754) · `p_delta` 5400 ·
+  `p_clamp` 100 + `[A06]`. **El chequeo §20.1 y EV-CUAL son de este motor**
+  — los casos con esos rasgos se excluyen del contraste.
+
+## Huecos conocidos — para Fase 5
+
+Registrados aquí para que reaparezcan al abrir Fase 5, no como sorpresa:
+
+1. **Campo de unidad física (§23.1).** `AEᵢ = Unidadᵢ ∧ ValorUnitarioᵢ ∧
+   TrazabilidadEconómicaᵢ` — tres condiciones. **Falta el campo de unidad
+   física en `ESQUEMA_EPD_INPUT`; §23.1 exige tres condiciones, hoy solo se
+   modelan dos** (`unit_value` = valor monetario por unidad, y
+   `economic_traceability`). "Unidadᵢ" = la unidad de medida física (horas,
+   eventos) — §31 la lista aparte, §12 la distingue del valor unitario
+   monetario. El engine Python de referencia tiene el mismo hueco.
+2. **`heritage_outputs` no se hace cumplir todavía.** `validarEPDOutput`
+   solo verifica `type:'object'` — acepta `{ VER: 21772.8 }` (un número)
+   como válido. Fase 5-6 debe agregar validación de forma: cada una de las
+   5 claves (`CFD/CFR/VER/ROI_P/TRE`) siempre `{estado:'PENDIENTE_AUDITORIA'}`,
+   **nunca un número**, hasta que la auditoría contra IFT v1.0 FINAL cierre
+   la migración (§24). Parte del alcance declarado de Fase 5-6.
+3. **Marca "no normativo" de `VER`/`ROI_P` en el output.** El engine Python
+   los devuelve como números limpios sin alerta/nota de procedencia — pero
+   el engine es oráculo de referencia congelado, **no se toca**. El motor
+   JS (Fase 6) construye las 5 salidas heredadas como marcadores
+   `PENDIENTE_AUDITORIA`, nunca cifras, con su nota explícita.
+
 ## Qué NO hace este módulo
 
 - No implementa fórmula para `CFD/CFR/VER/ROI_P/TRE` (§24 — `PENDIENTE_AUDITORIA`).

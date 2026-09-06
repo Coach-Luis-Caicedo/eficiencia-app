@@ -17,6 +17,7 @@
 
 var A = require('./admisibilidad');
 var CL = require('./clasificacion');
+var P = require('./proyeccion');
 var cp = require('child_process');
 var path = require('path');
 
@@ -130,6 +131,34 @@ CASOS2.forEach(function (caso, i) {
 
 console.log('\n  Nota: EV-CUAL no se contrasta — el engine no chequea evolution_type cualitativa;');
 console.log('  este motor lo corta a S1 con respaldo de §16 (divergencia documentada).');
+
+// ═══════════════════════════════════════════════════════════════════════
+seccion('Fase 3 — proyección física §20: JS vs. motor de referencia');
+// ═══════════════════════════════════════════════════════════════════════
+
+var CASOS3 = [
+  { epd_id: 'p_v1tasa', variable_type: 'V1', evolution_type: 'EV-A', events_obs: 504, exposure_obs: 12000, exposure_future: 72000, lower_bound: 0 },
+  { epd_id: 'p_trend', variable_type: 'V3', evolution_type: 'EV-A', trend_a: 100, trend_b: 5, horizon: 6 },
+  { epd_id: 'p_mult', variable_type: 'V3', evolution_type: 'EV-M', growth_rate: 0.1, baseline: 100, horizon: 3 },
+  { epd_id: 'p_delta', variable_type: 'V3', evolution_type: 'EV-A', delta: 400, baseline: 3000, horizon: 6, lower_bound: 0 },
+  { epd_id: 'p_clamp', variable_type: 'V3', evolution_type: 'EV-A', trend_a: 90, trend_b: 5, horizon: 6, lower_bound: 0, upper_bound: 100 }
+];
+var refs3 = oraculo(CASOS3);
+
+CASOS3.forEach(function (caso, i) {
+  var ref = refs3[i];
+  var pr = P.proyectar(Object.assign({ horizon: 6 }, caso));
+  var base = pr.terminal ? null : pr.projection_base;
+  ok(typeof base === 'number' && typeof ref.projection_base === 'number' && Math.abs(base - ref.projection_base) < 1e-6,
+    caso.epd_id + ': projection_base JS=' + base + ' == ref=' + ref.projection_base + ' (§20)');
+  var refAlerts = ref.alert_codes.filter(function (c) { return c === 'A06'; });
+  var jsAlerts = (pr.alerts || []).filter(function (c) { return c === 'A06'; });
+  ok(JSON.stringify(jsAlerts) === JSON.stringify(refAlerts),
+    caso.epd_id + ': alertas de dominio JS=' + JSON.stringify(jsAlerts) + ' == ref=' + JSON.stringify(refAlerts));
+});
+
+console.log('\n  Nota: el chequeo de conteo bruto V1 (§20.1) y EV-CUAL son de este motor — el engine no los');
+console.log('  tiene. Los casos con esos rasgos se excluyen del contraste (ver README).');
 
 // ═══════════════════════════════════════════════════════════════════════
 console.log('\n' + '═'.repeat(74));
