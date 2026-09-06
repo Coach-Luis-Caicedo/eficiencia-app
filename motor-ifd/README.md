@@ -25,7 +25,7 @@ valor económico. Ver "Alcance del oráculo" abajo.
 | **4** | Escenarios §21 (Continuidad / Intensificación / Contención) + incertidumbre §22. |
 | **5** | Módulo económico §23: gate `AE`, `EEB = Q^fut × VU`, atribución categórica — **invariante más protegido**. |
 | **6** | Salidas heredadas §24 como `PENDIENTE_AUDITORIA` (nunca fórmula) + doble conteo §25 + versionamiento §38. |
-| **7** | Orquestador `runIFD()` §27-28 + catálogo de alertas §29 + reglas inviolables §32 + 18 pruebas mínimas §35. |
+| **7** | Orquestador `runIFD()` §27-28 + catálogo de alertas §29 + 15 reglas inviolables §32 + 17 pruebas mínimas §35. |
 | **8** | Calibración §36 (`Error`, `EA`, `MAE`, `Sesgo`, cobertura de rango) — módulo aparte, retrospectivo. |
 
 ## Reaperturas de código ya comiteado
@@ -664,6 +664,37 @@ distinga "cambio de contrato" de "conexión en el orquestador").
   **No** da `NaN`: en JS `null + número = número` (el `null` se coacciona
   a `0`), así que `economic_total` no cambia — coincidencia aritmética, no
   protección real. La protección real es el filtro.
+
+### 7c — cobertura de §35 (17 pruebas) y §32 (15 reglas)
+
+Dos baterías que ejercitan el motor **completo** contra las listas
+normativas del documento.
+
+- `pruebas_minimas.test.js` → **17 asserts, 0 fallos** — las **17**
+  pruebas mínimas de §35, cada una end-to-end por `runEPD` /
+  `agregarEPDs` (el "18" que decían el README y la memoria era un error
+  arrastrado desde Fase 1; el texto de §35 tiene 17 viñetas). La mayoría
+  ya tenían cobertura en las baterías de fase; aquí se confirman a través
+  del orquestador, que es lo que §35 pide. **Mutación**:
+  `alerts.concat(eco.alerts)` → `alerts.concat([])` → §35.9 falla por su
+  nombre (UNRESOLVED conserva la cifra pero pierde `A10`).
+- `reglas_inviolables.test.js` → **18 asserts, 0 fallos** — las **15**
+  reglas de §32 (patrón de `invariantes_arquitectonicos.test.js` de CFF).
+  Cada una: **aserción concreta** vía `runEPD`/`agregarEPDs`
+  (`ASERCION` — 12), **aserción parcial** (`ASERCION_PARCIAL` — §32.9
+  CORRELACIÓN≠CAUSALIDAD y §32.10 RESULTADO HISTÓRICO≠FUTURO: la parte que
+  el motor sí puede hacer cumplir se testea, el resto es interpretación
+  fuera del motor), o **`FRAMING`** — solo **§32.12** (RELEVANCIA
+  ESTRATÉGICA ≠ VENTAJA COMPETITIVA): no hay salida de score/ventaja en
+  `EPD_OUTPUT`, `impact_type=IEP` es un rótulo descriptivo que §4 limita
+  explícitamente; no hay mecanismo que pudiera violar la regla, es una
+  restricción sobre la lectura del reporte. La justificación de cada
+  `FRAMING` se valida que sea **específica** (menciona `EPD_INPUT/OUTPUT`
+  o un campo o un §, no un genérico "es conceptual" — decisión E).
+  **Mutación**: `consolidarEPDOutput` `projection_base` terminal → `0` en
+  vez de `null` → §32.13 (NULL ≠ CERO) falla por su nombre.
+
+Con 7c, **Fase 7 queda cerrada**. Solo resta Fase 8 (calibración §36).
 
 ## Huecos conocidos
 
