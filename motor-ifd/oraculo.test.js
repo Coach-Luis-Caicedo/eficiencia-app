@@ -21,6 +21,7 @@ var P = require('./proyeccion');
 var SC = require('./escenarios');
 var EC = require('./economia');
 var H = require('./heredadas');
+var RUN = require('./runIFD');
 var cp = require('child_process');
 var path = require('path');
 
@@ -291,6 +292,62 @@ ok(['CFD', 'CFR', 'VER', 'ROI_P', 'TRE'].every(function (key) { return typeof sh
 console.log('\n  Nota: esto NO es un fallo del JS ni del engine — el engine es de una etapa anterior a');
 console.log('  §24. El invariante que SÍ se comparte y se contrasta arriba (Fase 5) es que la atribución');
 console.log('  no multiplica economic_base. ver/roi quedan PENDIENTE DE AUDITORÍA (§24).');
+
+// ═══════════════════════════════════════════════════════════════════════
+seccion('Fase 7a — runEPD: salida consolidada completa JS vs. run_epd del engine');
+// ═══════════════════════════════════════════════════════════════════════
+//
+// El contraste más fuerte: la cascada entera de §28 por ambos motores. Solo
+// casos NO divergentes (sin EV-CUAL, sin §20.1, con `unit`, sin recorte de
+// envelope). Se comparan admissible, FEP, output_level, status,
+// projection_*, economic_* y las alertas compartibles (A01-A07, A09, A10).
+
+function base7(o) {
+  return Object.assign({
+    epd_id: 'r7', engine_version: 'ifd-js-0.1',
+    deterioration_sustained: true, evidence_present: true, mechanism_traceable: true,
+    horizon_defined: true, assumptions_declared: true,
+    Q: 3, C: 3, T: 3, R: 3, variable_type: 'V3', evolution_type: 'EV-A',
+    series_sufficiency: 3, horizon: 6, hms: 12,
+    economic_traceability: false, attribution_category: 'CONFIRMED'
+  }, o || {});
+}
+var ECON7 = { lower_bound: 0, unit: 'horas', unit_value: 25, economic_traceability: true };
+var CASOS7 = [
+  base7(Object.assign({ epd_id: 'r7_cuant', baseline: 3000, delta: 400 }, ECON7)),
+  base7(Object.assign({ epd_id: 'r7_hms', trend_a: 3000, trend_b: 400, horizon: 20 }, ECON7)),
+  base7({ epd_id: 'r7_s0adm', deterioration_sustained: false, baseline: 3000, delta: 400 }),
+  base7({ epd_id: 'r7_s0r0', R: 0, baseline: 3000, delta: 400 }),
+  base7({ epd_id: 'r7_fep1', Q: 1, baseline: 3000, delta: 400 }),
+  base7({ epd_id: 'r7_serie', variable_type: 'V2', series_sufficiency: 1, baseline: 3000, delta: 400 }),
+  base7(Object.assign({ epd_id: 'r7_unres', baseline: 3000, delta: 400, attribution_category: 'UNRESOLVED' }, ECON7))
+];
+var refs7 = oraculo(CASOS7);
+var CODIGOS_COMPARTIBLES = ['A01', 'A02', 'A03', 'A04', 'A05', 'A06', 'A07', 'A09', 'A10'];
+function eqArr(a, b) { return JSON.stringify(a) === JSON.stringify(b); }
+
+CASOS7.forEach(function (caso, i) {
+  var ref = refs7[i];
+  var r = RUN.runEPD(caso);
+  ok(r.ok, caso.epd_id + ': runEPD ok');
+  var o = r.output;
+  ok(o.admissible === ref.admissible && o.FEP === ref.FEP,
+    caso.epd_id + ': admissible/FEP JS=' + o.admissible + '/' + o.FEP + ' == ref=' + ref.admissible + '/' + ref.FEP);
+  ok(o.output_level === ref.output_level && o.status === ref.status,
+    caso.epd_id + ': ' + o.output_level + '/' + o.status + ' == ref ' + ref.output_level + '/' + ref.status);
+  var cmp = function (a, b) { return (a == null && b == null) || (typeof a === 'number' && typeof b === 'number' && Math.abs(a - b) < 1e-6); };
+  ok(cmp(o.projection_base, ref.projection_base) && cmp(o.projection_lower, ref.projection_lower) && cmp(o.projection_upper, ref.projection_upper),
+    caso.epd_id + ': projection_* JS=[' + o.projection_base + ',' + o.projection_lower + ',' + o.projection_upper + '] == ref=[' + ref.projection_base + ',' + ref.projection_lower + ',' + ref.projection_upper + ']');
+  ok(cmp(o.economic_base, ref.economic_base) && cmp(o.economic_lower, ref.economic_lower) && cmp(o.economic_upper, ref.economic_upper),
+    caso.epd_id + ': economic_* JS=' + o.economic_base + ' == ref=' + ref.economic_base);
+  var jsC = o.alerts.filter(function (c) { return CODIGOS_COMPARTIBLES.indexOf(c) !== -1; }).sort();
+  var refC = ref.alert_codes.filter(function (c) { return CODIGOS_COMPARTIBLES.indexOf(c) !== -1; }).sort();
+  ok(eqArr(jsC, refC), caso.epd_id + ': alertas compartibles JS=' + JSON.stringify(jsC) + ' == ref=' + JSON.stringify(refC));
+});
+
+console.log('\n  Nota: la cascada entera de §28 coincide JS↔engine en los casos no divergentes.');
+console.log('  Las divergencias deliberadas (EV-CUAL, §20.1, 3ª condición de puerta §23.1, A06 de');
+console.log('  envelope, marcadores §24) se contrastan por separado arriba, nunca contra el engine.');
 
 // ═══════════════════════════════════════════════════════════════════════
 console.log('\n' + '═'.repeat(74));

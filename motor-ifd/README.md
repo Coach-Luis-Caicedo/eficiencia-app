@@ -530,6 +530,76 @@ deja sin fórmula o sin operacionalizar.
 | `detectarDobleConteo([k, k({resource:R9}), k])` | `pares_solapados = [[0,2]]`, `A14`, bloqueo |
 | registro de calibración sin `evidencia`/`version` | inválido, nombrados en `faltantes` (§38) |
 
+## Fase 7 — orquestador (§27-28)
+
+La fase más grande, en 3 entregas: **7a** `runEPD` (un EPD), **7b**
+`agregarEPDs` (multi-EPD, §13/§25), **7c** cobertura de §35 (17 pruebas) y
+§32 (15 reglas).
+
+### 7a — `runEPD(input)`
+Encadena Fases 1-6 en el orden del pseudocódigo de §28 y produce el
+`EPD_OUTPUT` consolidado (§31), **autovalidado** con `validarEPDOutput` en
+cualquier nivel S0-S3.
+
+- Cascada: `validarEPDInput` → §6+§7 (`resolverPuertaEvidencia`) → §18+§14-17
+  (`resolverClasificacion`) → §20 (`proyectar`) → §22 (`calcularEnvelope`) →
+  §21 (los 3 escenarios) → §23 (`monetizar`) → §24 (`construirSalidasHeredadas`)
+  → §25 (`detectarDobleConteo` sobre `double_count_ids`) → consolidar.
+- Cada corte terminal (S0 no admisible / FEP=0; S1 V5 / EV-CUAL /
+  effective_FEP=1 / serie / método) **detiene** la cascada — nunca se
+  fabrica `projection_base` ni `economic_base` aguas abajo de un corte
+  (§26: null ≠ 0).
+- `output_level` de un `CUANTIFICADO` = `nivelSalidaMax(effective_FEP)` (el
+  degradado de §18, no el `FEP` crudo — §30: nunca sube).
+- Alertas de todas las fases, **deduplicadas** (A06 puede venir de
+  proyección y de envelope → un solo código).
+- **Input rechazado** (§28): `{ ok: false, errors: [...] }`, sin
+  `EPD_OUTPUT` parcial (decisión A). No es una excepción — es un resultado
+  de dominio, como en `runCFF`.
+
+### Decisiones A-F (aprobadas por Luis antes de escribir código)
+- **A** — input inválido → `{ ok:false, errors }`, no `throw`.
+- **B** — agregación heterogénea (7b): `impact_type` distinto → `A17` +
+  bloqueo. **Decisión de diseño de Luis**, no lectura cerrada: §32 dice "no
+  se suman arbitrariamente" pero no define "homogéneo" con la fuerza con
+  que §25 definió "material" (ahí había frase de refuerzo). Se documenta
+  con la misma honestidad que "dirección adversa" (§21.2) o `unit` (§23.1).
+- **C** — `agregarEPDs` (7b) separa cuantificados de cualitativos, no
+  fuerza cifra donde no la hay.
+- **D** — determinismo (§35) por doble ejecución + deep-equal + guarda grep
+  (`runIFD.js` sin `Date.now`/`Math.random`). El deep-equal síncrono **no**
+  agarra un `Date.now()` en una nota (mismo ms); la guarda grep sí.
+- **E** — las 15 reglas de §32 (7c): tabla, cada una con aserción concreta
+  o "framing — sin código" con justificación **específica por regla** (p.ej.
+  "CORRELACIÓN ≠ CAUSALIDAD no tiene contraparte en ningún campo de
+  EPD_INPUT/OUTPUT; es una restricción sobre cómo se interpreta la salida
+  fuera del motor").
+- **F** — `runIFD.js` con `runEPD` + `agregarEPDs` juntos (comparten
+  contexto).
+
+### Baterías (7a)
+- `runIFD.test.js` → **55 asserts, 0 fallos** + **4 mutaciones**
+  (ejecutadas sobre copias reales, revertidas):
+  **(1)** `if (clas.terminal)` → `if (false)` → el corte de clasificación
+  deja de detener la cascada. Mecanismo real: cuando `terminal===true`,
+  `resolverClasificacion` devuelve `{ terminal, resultado:{...} }` sin
+  `alerts`/`notes` a nivel superior → al seguir, `clas.alerts` es
+  `undefined`, `alerts.concat(undefined)` mete un código inválido →
+  `validarEPDOutput` rechaza → `runEPD` devuelve `{ ok:false }`. El assert
+  "los 4 cortes → runEPD ok" y los `eq` de status/nivel fallan (7 rojos).
+  **(2)** `output_level = nivelSalidaMax(fep)` en vez de `effective_FEP` →
+  el caso HMS da S3 en vez de S2 (§30 violado).
+  **(3)** quitar `unicos()` → el caso de clamp da `["A06","A06"]`.
+  **(4a)** `Math.random()` en una nota → el deep-equal de determinismo
+  falla. **(4b)** `Date.now()` → lo agarra solo la guarda grep.
+- `oraculo.test.js` +42 asserts Fase 7a → **122 totales**. **El contraste
+  más fuerte**: la cascada entera de §28 por ambos motores en 7 casos no
+  divergentes (CUANTIFICADO, HMS→S2, S0 admisibilidad, S0 R=0, S1 FEP=1,
+  S1 serie, UNRESOLVED) — `admissible`/`FEP`/`output_level`/`status`/
+  `projection_*`/`economic_*` y las alertas compartibles (A01-A07, A09,
+  A10) coinciden exacto. Las divergencias deliberadas (EV-CUAL, §20.1, 3ª
+  condición §23.1, A06 de envelope, marcadores §24) se contrastan aparte.
+
 ## Huecos conocidos
 
 Ninguno abierto. (Hueco #1 —campo de unidad física §23.1— cerrado en
