@@ -465,14 +465,26 @@ componentes, uno por par, derivados de los mismos coeficientes de la
 fórmula global (normalizados dentro de cada par):
 
 ```
-A_EF = 100 × [.255·D_EST + .745·D_FOR]     (Estructura ↔ Fortaleza)
-A_IC = 100 × [.323·D_INE + .677·D_COH]     (Intención ↔ Coherencia)
-A_IE = 100 × [.255·D_IMP + .745·D_EQU]     (Impacto ↔ Equilibrio)
-A_NC = 100 × [.300·D_NEX + .700·D_CNF]     (Nexo ↔ Confianza)
-A_IA = 100 × [.417·D_ITG + .583·D_ACT]     (Integración ↔ Actitud)
+A_EF = 100 × [(12/47)·D_EST + (35/47)·D_FOR]     (Estructura ↔ Fortaleza)
+A_IC = 100 × [(10/31)·D_INE + (21/31)·D_COH]     (Intención ↔ Coherencia)
+A_IE = 100 × [(12/47)·D_IMP + (35/47)·D_EQU]     (Impacto ↔ Equilibrio)
+A_NC = 100 × [.300·D_NEX + .700·D_CNF]           (Nexo ↔ Confianza)
+A_IA = 100 × [(5/12)·D_ITG + (7/12)·D_ACT]       (Integración ↔ Actitud)
 
 IAO = .235·A_EF + .186·A_IC + .235·A_IE + .200·A_NC + .144·A_IA
 ```
+
+Los pesos internos de cada par se derivan de los coeficientes globales
+exactos (`.06/.175/.126/.140/.084` de la fórmula de §3.5) — nunca de
+literales redondeados a 3 decimales. Por ejemplo, `wSistema(EF) =
+.06/(.06+.175) = 12/47 ≈ 0.255319`, no `.255`. La diferencia es pequeña
+(~0.03 puntos en el resultado final) pero se acumula cuando se
+reensambla el IAO desde los cinco perfiles — con los pesos exactos, esa
+reconstrucción coincide con el cálculo directo sin margen de error;
+con los redondeados, no cierra exacto. El motor de referencia
+(`motor-iao`) ya implementa los pesos exactos, derivados en tiempo de
+ejecución — este documento debe coincidir con esa implementación, no al
+revés.
 
 Esto garantiza trazabilidad completa: dos organizaciones con el mismo IAO
 global pueden tener perfiles completamente distintos, y el perfil es el
