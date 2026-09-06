@@ -37,7 +37,8 @@ commit sueltos.
 | Qué se reabrió | Desde | Por qué | Commit |
 |---|---|---|---|
 | `enums.js` — `EVOLUTION_TYPE` de 5 a 4 valores (quitar `EV-LIM`) | Fase 0 (`fbd78ea`) | relectura de §16 ("una variable puede combinar propiedades") + verificación contra §16/§20/§21/§28: `EV-LIM` nunca cambia ningún comportamiento (el clamp §15 acota cualquier proyección). Decisión (b). | `f900b10` |
-| `enums.js` + `contratos.js` — `VOLUME_CHANGE_MATERIAL_PCT` + campo `volume_change_material` | Fase 0 (`fbd78ea`) | §20.1 "no se extrapola un conteo bruto cuando el volumen cambia materialmente" — sin umbral en el texto. Decisión híbrida: el motor **calcula** `\|exposure_future − exposure_obs\| / exposure_obs` cuando ambos existen (umbral calibrable); declaración explícita solo como último recurso; el motor manda y registra discrepancia. | *este commit* |
+| `enums.js` + `contratos.js` — `VOLUME_CHANGE_MATERIAL_PCT` + campo `volume_change_material` | Fase 0 (`fbd78ea`) | §20.1 "no se extrapola un conteo bruto cuando el volumen cambia materialmente" — sin umbral en el texto. Decisión híbrida: el motor **calcula** `\|exposure_future − exposure_obs\| / exposure_obs` cuando ambos existen (umbral calibrable); declaración explícita solo como último recurso; el motor manda y registra discrepancia. | `015a3bd` |
+| `enums.js` + `contratos.js` — campo `serie_historica` + params `INTENSIFICACION_MIN_PUNTOS` / `INTENSIFICACION_DISCREPANCIA_TOL` | Fase 0 (`fbd78ea`) | §21.2 presupone "variabilidad histórica adversa cuando la serie es suficiente" pero **no da** ni el campo de serie ni el mínimo de puntos ni la tolerancia. El motor deriva `g_int`/`δ_int` del `Q75` de los cambios período a período en la dirección neta de la serie (`s = signo(serie[último] − serie[primero])` — **decisión de diseño de Luis**, no exigida por §21.2: el término "adversa" aparece una sola vez en el documento y nunca se operacionaliza). Declaración explícita (`growth_rate_intensificacion` / `delta_intensificacion`) solo cuando la serie no alcanza; precedencia motor-manda con registro en `audit[]` (patrón §20.1). | *este commit* |
 
 ## Alcance del oráculo — el motor Python NO es fuente de verdad para `ver`/`roi`/contención
 
@@ -94,7 +95,10 @@ partir de ellos.
    `±15%` (FEP 2) / `±7%` (FEP 3), valores del engine (marcados "NOT
    empirically calibrated"), estado `PENDIENTE_CALIBRACION`.
 4. **`Q75` de Intensificación (§21.2).** Convención pre-piloto explícita,
-   `PENDIENTE_CALIBRACION`.
+   `PENDIENTE_CALIBRACION` (`INTENSIFICACION_PERCENTIL = 75`). El mínimo de
+   puntos de serie para derivar por `Q75` (`INTENSIFICACION_MIN_PUNTOS = 4`)
+   y la tolerancia serie-vs-declarado (`INTENSIFICACION_DISCREPANCIA_TOL =
+   0.05`) también son `PENDIENTE_CALIBRACION` — el documento no da ninguno.
 5. **Umbral de suficiencia de serie (§17).** El engine usa `series_sufficiency
    < 2`. §17: "los mínimos por método son parámetros calibrables". → constante
    editable `PARAMS.SERIE_MINIMA_CUANTITATIVA = 2`, no hardcodeada en la lógica.
@@ -107,7 +111,10 @@ partir de ellos.
 
 ### `enums.js`
 Los 8 enums + el catálogo de 15 alertas (`ALERTAS`) + `ALERTAS_RESERVADAS`
-(A08/A11) + `PARAMS` (los 3 calibrables con su estado).
+(A08/A11) + `PARAMS` (los parámetros calibrables con su estado
+`PENDIENTE_CALIBRACION`; los de Intensificación §21.2 —
+`INTENSIFICACION_MIN_PUNTOS`, `INTENSIFICACION_DISCREPANCIA_TOL` — se
+agregaron en la reapertura de Fase 0 para §21.2, ver "Reaperturas").
 
 ### `contratos.js`
 - `validarEPDInput` / `validarEPDOutput` — validadores de forma sobre el
@@ -132,9 +139,10 @@ de la puerta (Fase 5), no coherencia estructural de un objeto aislado. Se
 señala; se decide en Fase 5, no se fabrica ahora.
 
 ### Batería
-`node motor-ifd/contratos.test.js` → **55 asserts OK, 0 fallos** + 1 mutación
+`node motor-ifd/contratos.test.js` → **70 asserts OK, 0 fallos** + 1 mutación
 (aceptar un número 0-1 como "categoría" → los asserts de `0.70` rechazado, y el
-de `EPD_INPUT`, fallan juntos).
+de `EPD_INPUT`, fallan juntos). (`55` en `fbd78ea` → `58` en `015a3bd` → `70`
+con la reapertura de §21.2: +11 por los 3 campos nuevos y sus params.)
 
 ## Fase 1 — admisibilidad + FEP + niveles de salida
 

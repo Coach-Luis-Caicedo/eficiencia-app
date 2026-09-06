@@ -62,6 +62,23 @@ ok(C.validarEPDInput(epdInput({ volume_change_material: true })).valido, 'volume
 ok(C.validarEPDInput(epdInput({ volume_change_material: null })).valido, 'volume_change_material:null → válido (nullable)');
 ok(!C.validarEPDInput(epdInput({ volume_change_material: 'si' })).valido, 'volume_change_material:"si" → inválido (boolean o null, nunca cadena)');
 
+// ── §21.2 — params de intensificación (reapertura de Fase 0, 4ª) ──
+eq(E.PARAMS.INTENSIFICACION_MIN_PUNTOS, 4, '§21.2: mínimo de puntos de serie_historica para derivar por Q75 (documento no da número)');
+eq(E.PARAMS.INTENSIFICACION_MIN_PUNTOS_ESTADO, 'PENDIENTE_CALIBRACION', 'INTENSIFICACION_MIN_PUNTOS marcado PENDIENTE_CALIBRACION');
+eq(E.PARAMS.INTENSIFICACION_DISCREPANCIA_TOL, 0.05, '§21.2: tolerancia serie-vs-declarado (patrón §20.1)');
+eq(E.PARAMS.INTENSIFICACION_DISCREPANCIA_TOL_ESTADO, 'PENDIENTE_CALIBRACION', 'INTENSIFICACION_DISCREPANCIA_TOL marcado PENDIENTE_CALIBRACION');
+
+// ── §21.2 — serie_historica + growth_rate_intensificacion + delta_intensificacion ──
+ok(C.validarEPDInput(epdInput({ serie_historica: [10, 15, 20, 25] })).valido, 'serie_historica: array de números → válido');
+ok(C.validarEPDInput(epdInput({ serie_historica: null })).valido, 'serie_historica:null → válido (nullable, campo opcional)');
+var rSerie = C.validarEPDInput(epdInput({ serie_historica: [10, 'x', 20] }));
+ok(!rSerie.valido && rSerie.invalidos.some(function (m) { return m.indexOf('serie_historica') !== -1; }),
+  'serie_historica con un elemento no numérico → inválido, nombrado en invalidos');
+ok(!C.validarEPDInput(epdInput({ serie_historica: [10, Infinity, 20] })).valido, 'serie_historica con Infinity → inválido (debe ser finito)');
+ok(C.validarEPDInput(epdInput({ growth_rate_intensificacion: 0.2 })).valido, 'growth_rate_intensificacion: número → válido');
+ok(C.validarEPDInput(epdInput({ delta_intensificacion: null })).valido, 'delta_intensificacion:null → válido (nullable)');
+ok(!C.validarEPDInput(epdInput({ growth_rate_intensificacion: 'alto' })).valido, 'growth_rate_intensificacion:"alto" → inválido (número o null)');
+
 // ═══════════════════════════════════════════════════════════════════════
 seccion('§5/§31 — validarEPDInput');
 // ═══════════════════════════════════════════════════════════════════════

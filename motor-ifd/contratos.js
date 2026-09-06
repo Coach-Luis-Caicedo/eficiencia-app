@@ -156,7 +156,18 @@ var ESQUEMA_EPD_INPUT = [
   // permiten calcularlo (Fase 3). Si ambos están presentes, el motor
   // calcula y manda (registra discrepancia en auditoría si el declarado
   // contradice). Reapertura de Fase 0 (fbd78ea) — decisión híbrida de Luis.
-  { name: 'volume_change_material', required: false, type: 'boolean', nullable: true }
+  { name: 'volume_change_material', required: false, type: 'boolean', nullable: true },
+  // §21.2 — serie histórica cronológica (más antigua → más reciente). El
+  // documento la PRESUPONE ("puede utilizar variabilidad histórica
+  // adversa") pero no existía en EPD_INPUT hasta Fase 4. El motor deriva
+  // g_int/delta_int de sus cambios período a período (Q75 de los adversos).
+  // Reapertura de Fase 0 (fbd78ea) — 3ª (tras f900b10 y 015a3bd).
+  { name: 'serie_historica', required: false, type: 'array', nullable: true },
+  // §21.2 — parámetros de intensificación declarados explícitos, usados
+  // solo cuando serie_historica no alcanza INTENSIFICACION_MIN_PUNTOS.
+  // Paralelos a growth_rate/delta.
+  { name: 'growth_rate_intensificacion', required: false, type: 'number', nullable: true },
+  { name: 'delta_intensificacion', required: false, type: 'number', nullable: true }
 ];
 
 function validarEPDInput(obj) {
@@ -170,6 +181,12 @@ function validarEPDInput(obj) {
     if (!vc.valido) {
       return { valido: false, faltantes: base.faltantes, invalidos: base.invalidos.concat(['attribution_category: ' + vc.motivo]) };
     }
+  }
+  // §21.2 — serie_historica: array de números, si está presente
+  if (obj && Array.isArray(obj.serie_historica) &&
+      !obj.serie_historica.every(function (x) { return typeof x === 'number' && isFinite(x); })) {
+    return { valido: false, faltantes: base.faltantes,
+      invalidos: base.invalidos.concat(['serie_historica: todos los elementos deben ser números finitos']) };
   }
   return base;
 }

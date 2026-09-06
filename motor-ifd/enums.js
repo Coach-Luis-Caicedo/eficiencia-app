@@ -144,8 +144,27 @@ var PARAMS = {
 
   // §21.2 — Intensificación. "Q75 es una convención pre-piloto, no un
   // parámetro empíricamente cerrado."
+  //
+  // NOTA DE TRAZABILIDAD: estos dos campos existen desde Fase 0 pero NO
+  // fueron usados por ningún cálculo hasta Fase 4 (escenarios.js). No
+  // estuvieron huérfanos por descuido — quedaron reservados a propósito
+  // hasta resolver de dónde salía el parámetro de intensificación (la
+  // ambigüedad de §21.2: serie histórica declarada vs. Q75 derivado).
   INTENSIFICACION_PERCENTIL: 75,
   INTENSIFICACION_ESTADO: 'PENDIENTE_CALIBRACION',
+
+  // §21.2 — mínimo de puntos de serie_historica para derivar g_int/delta_int
+  // por Q75. El documento no da el número; el piloto lo ajustará.
+  INTENSIFICACION_MIN_PUNTOS: 4,
+  INTENSIFICACION_MIN_PUNTOS_ESTADO: 'PENDIENTE_CALIBRACION',
+
+  // §21.2 — tolerancia para considerar que el g_int calculado de la serie
+  // y el declarado por el llamante "coinciden" (diferencia relativa; para
+  // un declarado de 0 se compara en absoluto). Fuera de tolerancia → el
+  // motor manda con el calculado y registra la discrepancia en audit[]
+  // (mismo patrón que volume_change_material en §20.1).
+  INTENSIFICACION_DISCREPANCIA_TOL: 0.05,
+  INTENSIFICACION_DISCREPANCIA_TOL_ESTADO: 'PENDIENTE_CALIBRACION',
 
   // §17 — umbral de suficiencia de serie para admitir método cuantitativo
   // en V1-V4. El engine usa `series_sufficiency < 2`. §17: "Los mínimos por
