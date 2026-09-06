@@ -213,12 +213,59 @@ var ESQUEMA_EPD_OUTPUT = [
   { name: 'scenarios', required: false, type: 'array' },
   { name: 'method', required: true, type: 'string', nullable: true },
   { name: 'impact_type', required: false, type: 'string', enum: 'IMPACT_TYPE' },
-  // salidas heredadas — SIEMPRE marcador PENDIENTE_AUDITORIA, nunca número (§24)
+  // salidas heredadas — SIEMPRE marcador PENDIENTE_AUDITORIA, nunca número
+  // (§24). La FORMA se hace cumplir en validarSalidasHeredadas (abajo),
+  // llamada por validarEPDOutput. Reapertura de Fase 0 (fbd78ea) — 5ª.
   { name: 'heritage_outputs', required: true, type: 'object' }, // {CFD,CFR,VER,ROI_P,TRE} → cada uno {estado:'PENDIENTE_AUDITORIA'}
   { name: 'alerts', required: true, type: 'array' },
   { name: 'notes', required: true, type: 'array' },
   { name: 'assumptions', required: false, type: 'array' }
 ];
+
+// §24 — las 5 salidas heredadas, congeladas: cada una es exactamente el
+// marcador { estado: 'PENDIENTE_AUDITORIA' }, NUNCA un número.
+var SALIDAS_HEREDADAS = ['CFD', 'CFR', 'VER', 'ROI_P', 'TRE'];
+var MARCADOR_HEREDADO_ESTADO = 'PENDIENTE_AUDITORIA';
+
+/**
+ * validarSalidasHeredadas(ho) → { valido, invalidos: [] }
+ *
+ * §24: "En v1.2.2 no se fija fórmula normativa para ninguna de estas cinco
+ * salidas." Se exige la FORMA congelada:
+ *   - exactamente las 5 claves CFD, CFR, VER, ROI_P, TRE (ni más ni menos)
+ *   - cada valor: objeto con EXACTAMENTE { estado: 'PENDIENTE_AUDITORIA' }
+ *   - un número (o string, o cualquier otra forma) en cualquiera de las 5
+ *     → RECHAZADO. Ahí es donde entraría una fórmula fabricada.
+ * §24: "No presentar CFR = VER" — son 5 entradas independientes; este
+ * validador no las colapsa ni las compara entre sí.
+ */
+function validarSalidasHeredadas(ho) {
+  if (ho === null || typeof ho !== 'object' || Array.isArray(ho)) {
+    return { valido: false, invalidos: ['heritage_outputs: se esperaba objeto {CFD,CFR,VER,ROI_P,TRE}, llegó ' +
+      (ho === null ? 'null' : Array.isArray(ho) ? 'array' : typeof ho)] };
+  }
+  var invalidos = [];
+  var claves = Object.keys(ho);
+  claves.forEach(function (k) {
+    if (SALIDAS_HEREDADAS.indexOf(k) === -1) invalidos.push('heritage_outputs: clave inesperada "' + k + '" (solo ' + SALIDAS_HEREDADAS.join(', ') + ')');
+  });
+  SALIDAS_HEREDADAS.forEach(function (k) {
+    if (claves.indexOf(k) === -1) { invalidos.push('heritage_outputs: falta la clave "' + k + '"'); return; }
+    var v = ho[k];
+    if (v === null || typeof v !== 'object' || Array.isArray(v)) {
+      invalidos.push('heritage_outputs.' + k + ': se esperaba el marcador { estado: "' + MARCADOR_HEREDADO_ESTADO +
+        '" }, llegó ' + (Array.isArray(v) ? 'array' : v === null ? 'null' : typeof v) +
+        ' — §24 NO fija fórmula para ' + k + ', nunca es un número/cifra');
+      return;
+    }
+    var vk = Object.keys(v);
+    if (vk.length !== 1 || vk[0] !== 'estado' || v.estado !== MARCADOR_HEREDADO_ESTADO) {
+      invalidos.push('heritage_outputs.' + k + ': el marcador debe ser EXACTAMENTE { estado: "' +
+        MARCADOR_HEREDADO_ESTADO + '" }, llegó ' + JSON.stringify(v));
+    }
+  });
+  return { valido: invalidos.length === 0, invalidos: invalidos };
+}
 
 function validarEPDOutput(obj) {
   var base = validarObjeto(ESQUEMA_EPD_OUTPUT, obj);
@@ -233,6 +280,9 @@ function validarEPDOutput(obj) {
         extra.push('alerts: código de alerta desconocido "' + code + '"');
       }
     });
+    // §24 — forma congelada de heritage_outputs (reapertura de Fase 0, 5ª)
+    var vh = validarSalidasHeredadas(obj.heritage_outputs);
+    if (!vh.valido) extra = extra.concat(vh.invalidos);
     if (extra.length) return { valido: false, faltantes: base.faltantes, invalidos: base.invalidos.concat(extra) };
   }
   return base;
@@ -285,8 +335,11 @@ module.exports = {
   validarObjeto: validarObjeto,
   validarEPDInput: validarEPDInput,
   validarEPDOutput: validarEPDOutput,
+  validarSalidasHeredadas: validarSalidasHeredadas,
   validarAtribucionCategoria: validarAtribucionCategoria,
   clasificarValorNulo: clasificarValorNulo,
+  SALIDAS_HEREDADAS: SALIDAS_HEREDADAS,
+  MARCADOR_HEREDADO_ESTADO: MARCADOR_HEREDADO_ESTADO,
   ESQUEMA_EPD_INPUT: ESQUEMA_EPD_INPUT,
   ESQUEMA_EPD_OUTPUT: ESQUEMA_EPD_OUTPUT
 };

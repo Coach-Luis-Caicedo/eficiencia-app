@@ -174,6 +174,23 @@ ok(!C.validarEPDOutput(epdOutput({ alerts: [{ code: 'A11' }] })).valido, 'alerta
 ok(!C.validarEPDOutput(epdOutput({ alerts: [{ code: 'A99' }] })).valido, 'alerta A99 (desconocida) → RECHAZADA');
 ok(!C.validarEPDOutput(epdOutput({ output_level: 'S4' })).valido, 'output_level S4 (fuera de S0-S3) → inválido');
 
+// ── §24 — forma congelada de heritage_outputs (reapertura de Fase 0, 5ª) ──
+eq(C.SALIDAS_HEREDADAS, ['CFD', 'CFR', 'VER', 'ROI_P', 'TRE'], 'las 5 salidas heredadas de §24');
+ok(C.validarSalidasHeredadas({ CFD: { estado: 'PENDIENTE_AUDITORIA' }, CFR: { estado: 'PENDIENTE_AUDITORIA' }, VER: { estado: 'PENDIENTE_AUDITORIA' }, ROI_P: { estado: 'PENDIENTE_AUDITORIA' }, TRE: { estado: 'PENDIENTE_AUDITORIA' } }).valido,
+  'las 5 con el marcador correcto → válido');
+ok(!C.validarSalidasHeredadas({ CFD: { estado: 'PENDIENTE_AUDITORIA' }, CFR: { estado: 'PENDIENTE_AUDITORIA' }, VER: 21772.8, ROI_P: { estado: 'PENDIENTE_AUDITORIA' }, TRE: { estado: 'PENDIENTE_AUDITORIA' } }).valido,
+  'VER = 21772.8 (un número) → RECHAZADO — §24 no fija fórmula, nunca es una cifra');
+ok(!C.validarEPDOutput(epdOutput({ heritage_outputs: { CFD: { estado: 'PENDIENTE_AUDITORIA' }, CFR: { estado: 'PENDIENTE_AUDITORIA' }, VER: 21772.8, ROI_P: { estado: 'PENDIENTE_AUDITORIA' }, TRE: { estado: 'PENDIENTE_AUDITORIA' } } })).valido,
+  'validarEPDOutput también rechaza VER numérico (la forma se hace cumplir en el output)');
+ok(!C.validarSalidasHeredadas({ CFD: { estado: 'PENDIENTE_AUDITORIA' }, CFR: { estado: 'PENDIENTE_AUDITORIA' }, VER: { estado: 'PENDIENTE_AUDITORIA' }, ROI_P: { estado: 'PENDIENTE_AUDITORIA' } }).valido,
+  'falta TRE → RECHAZADO (deben estar las 5)');
+ok(!C.validarSalidasHeredadas({ CFD: { estado: 'PENDIENTE_AUDITORIA' }, CFR: { estado: 'PENDIENTE_AUDITORIA' }, VER: { estado: 'PENDIENTE_AUDITORIA' }, ROI_P: { estado: 'PENDIENTE_AUDITORIA' }, TRE: { estado: 'PENDIENTE_AUDITORIA' }, EXTRA: { estado: 'PENDIENTE_AUDITORIA' } }).valido,
+  'clave EXTRA → RECHAZADO (ni más ni menos que 5)');
+ok(!C.validarSalidasHeredadas({ CFD: { estado: 'AUDITADO' }, CFR: { estado: 'PENDIENTE_AUDITORIA' }, VER: { estado: 'PENDIENTE_AUDITORIA' }, ROI_P: { estado: 'PENDIENTE_AUDITORIA' }, TRE: { estado: 'PENDIENTE_AUDITORIA' } }).valido,
+  'estado distinto de PENDIENTE_AUDITORIA → RECHAZADO');
+ok(!C.validarSalidasHeredadas({ CFD: { estado: 'PENDIENTE_AUDITORIA', valor: 100 }, CFR: { estado: 'PENDIENTE_AUDITORIA' }, VER: { estado: 'PENDIENTE_AUDITORIA' }, ROI_P: { estado: 'PENDIENTE_AUDITORIA' }, TRE: { estado: 'PENDIENTE_AUDITORIA' } }).valido,
+  'marcador con clave extra ({estado, valor}) → RECHAZADO (marcador EXACTO, no un contenedor de cifra)');
+
 // ═══════════════════════════════════════════════════════════════════════
 seccion('Mutación — validarAtribucionCategoria (§35: coeficiente continuo se rechaza)');
 // ═══════════════════════════════════════════════════════════════════════
