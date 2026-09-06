@@ -24,13 +24,24 @@ var ENUMS = {
   // V1 Conteo · V2 Tasa/proporción · V3 Magnitud continua · V4 Stock/acumulación · V5 Capacidad cualitativa o latente
 
   // §16 — tipo de evolución. El texto nombra 5 dinámicas (aditiva,
-  // multiplicativa, acumulativa, limitada, cualitativa) SIN código. El
-  // engine Python usa los substrings "EV-A"/"EV-M" con coincidencia PARCIAL
-  // (`"EV-M" in x.evolution_type`) — frágil. Aquí se codifican explícitos y
-  // se validan por IGUALDAD ESTRICTA (ver contratos.js), nunca por
-  // includes(): "EV-MX" es un valor inválido, no un match parcial de EV-M.
-  EVOLUTION_TYPE: ['EV-A', 'EV-M', 'EV-ACUM', 'EV-LIM', 'EV-CUAL'],
-  // EV-A aditiva · EV-M multiplicativa · EV-ACUM acumulativa · EV-LIM limitada · EV-CUAL cualitativa
+  // multiplicativa, acumulativa, limitada, cualitativa) SIN código, y solo
+  // da fórmula de proyección para 3 (aditiva/multiplicativa/acumulativa).
+  //
+  // "limitada" NO es un evolution_type — decisión (b) aprobada por Luis,
+  // verificada contra §16/§20/§21/§28: NINGÚN punto del documento trata
+  // "multiplicativa + limitada" distinto de "multiplicativa con bounds".
+  // El acotamiento es el clamp de dominio §15 (`Y* = min(U, max(L, Ŷ))`),
+  // aplicado DESPUÉS de seleccionar el método a CUALQUIER proyección
+  // ("sujeto al dominio", §20.2; "enforce natural domain", §28). Un
+  // `evolution_type` con un valor que no cambia ningún comportamiento
+  // invita a usarlo pensando que hace algo — se elimina. La combinación de
+  // §16 ("tasa multiplicativa y limitada") se expresa como `EV-M` +
+  // lower_bound/upper_bound declarados.
+  //
+  // El engine Python usa substrings (`"EV-M" in x.evolution_type`) — frágil.
+  // Aquí: IGUALDAD ESTRICTA (contratos.js), nunca includes().
+  EVOLUTION_TYPE: ['EV-A', 'EV-M', 'EV-ACUM', 'EV-CUAL'],
+  // EV-A aditiva · EV-M multiplicativa · EV-ACUM acumulativa · EV-CUAL cualitativa (sin proyección cuantitativa → S1, como V5)
 
   // §23.3 — atribución categórica. Texto literal (§23.3, §28, §34, §35):
   // NUNCA coeficiente continuo. Cualquier otro valor (p.ej. "0.70") se

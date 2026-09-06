@@ -30,7 +30,7 @@ seccion('enums.js — vocabulario canónico');
 // ═══════════════════════════════════════════════════════════════════════
 
 eq(E.ENUMS.VARIABLE_TYPE, ['V1', 'V2', 'V3', 'V4', 'V5'], 'VARIABLE_TYPE (§14) — V1..V5');
-eq(E.ENUMS.EVOLUTION_TYPE, ['EV-A', 'EV-M', 'EV-ACUM', 'EV-LIM', 'EV-CUAL'], 'EVOLUTION_TYPE (§16) — 5 dinámicas con código');
+eq(E.ENUMS.EVOLUTION_TYPE, ['EV-A', 'EV-M', 'EV-ACUM', 'EV-CUAL'], 'EVOLUTION_TYPE (§16) — 4 valores (EV-LIM eliminado: "limitada" = clamp §15, no un tipo)');
 eq(E.ENUMS.ATTRIBUTION_CATEGORY, ['CONFIRMED', 'SUPPORTED', 'UNRESOLVED', 'N_A'], 'ATTRIBUTION_CATEGORY (§23.3) — 4 discretas, ningún coeficiente');
 eq(E.ENUMS.OUTPUT_LEVEL, ['S0', 'S1', 'S2', 'S3'], 'OUTPUT_LEVEL (§8) — S0..S3');
 eq(E.ENUMS.STATUS, ['NO_PROYECTABLE', 'CUALITATIVO', 'DEGRADADO_A_CUALITATIVO', 'CUANTIFICADO'], 'STATUS (engine) — 4 estados, no redundante con S0-S3');

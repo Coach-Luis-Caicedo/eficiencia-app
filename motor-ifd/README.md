@@ -28,6 +28,16 @@ valor económico. Ver "Alcance del oráculo" abajo.
 | **7** | Orquestador `runIFD()` §27-28 + catálogo de alertas §29 + reglas inviolables §32 + 18 pruebas mínimas §35. |
 | **8** | Calibración §36 (`Error`, `EA`, `MAE`, `Sesgo`, cobertura de rango) — módulo aparte, retrospectivo. |
 
+## Reaperturas de código ya comiteado
+
+Misma disciplina de trazabilidad que en CFF: cuando una fase posterior
+corrige algo ya comiteado, se documenta aquí en vez de rastrear mensajes de
+commit sueltos.
+
+| Qué se reabrió | Desde | Por qué | Commit |
+|---|---|---|---|
+| `enums.js` — `EVOLUTION_TYPE` de 5 a 4 valores (quitar `EV-LIM`) | Fase 0 (`fbd78ea`) | relectura de §16 ("una variable puede combinar propiedades") + verificación contra §16/§20/§21/§28: `EV-LIM` nunca cambia ningún comportamiento (el clamp §15 acota cualquier proyección). Decisión (b). | *este commit* |
+
 ## Alcance del oráculo — el motor Python NO es fuente de verdad para `ver`/`roi`/contención
 
 El engine de referencia **sí calcula** `ver` y `roi` a partir de
@@ -59,11 +69,19 @@ partir de ellos.
    A12. **A08 y A11 quedan reservados y vacíos** — la coincidencia posicional
    (A08↔#8, A11↔#11) es circunstancial y **no se usa**: no se les asigna
    contenido sin evidencia de qué debían representar. Ver `enums.js`.
-2. **`evolution_type`.** §16 nombra 5 dinámicas sin código → `EV-A / EV-M /
-   EV-ACUM / EV-LIM / EV-CUAL`. El engine usa coincidencia **parcial** de
-   substring (`"EV-M" in x.evolution_type`) — frágil: `"EV-MX"` haría match.
-   Este motor valida por **igualdad estricta** (verificado: `"EV-MX"` y
-   `"EV-MAL"` → rechazados).
+2. **`evolution_type`.** §16 nombra 5 dinámicas sin código y da fórmula
+   solo para 3. Enum = **4 valores** `EV-A / EV-M / EV-ACUM / EV-CUAL`
+   (`EV-CUAL` → sin proyección cuantitativa, como V5).
+   **`EV-LIM` eliminado** (Fase 0 lo tenía; decisión (b), reapertura de
+   `fbd78ea` en commit propio — ver "Reaperturas" abajo): verificado contra
+   §16/§20/§21/§28 que **ningún punto** trata "multiplicativa + limitada"
+   distinto de "multiplicativa con bounds". El acotamiento es el clamp de
+   dominio §15 aplicado a **cualquier** proyección tras seleccionar método.
+   Un valor de enum que no cambia comportamiento invita a usarlo pensando
+   que hace algo → se quita. `EV-M` + `lower_bound`/`upper_bound` expresa la
+   combinación de §16.
+   Validación por **igualdad estricta** (verificado: `"EV-MX"`, `"EV-MAL"`
+   → rechazados).
    **Divergencia deliberada con el oráculo.** Esta es una de las áreas donde
    el contraste con el engine Python **debe dar resultados distintos a
    propósito**: `evolution_type = "EV-MX"` → el engine lo aceptaría (por
