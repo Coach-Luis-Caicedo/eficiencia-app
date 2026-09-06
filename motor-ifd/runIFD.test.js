@@ -140,6 +140,8 @@ var kk = { event_id: 'E1', resource_id: 'R1', cost_component_id: 'CC1', period_i
 var dc = R.runEPD(econ({ double_count_ids: [kk, kk] }));
 ok(dc.output.alerts.indexOf('A14') !== -1, '§25: misma clave de solapamiento dos veces → A14 DOBLE_CONTEO_POTENCIAL');
 ok(dc.output.notes.some(function (n) { return n.indexOf('agregación automática bloqueada') !== -1; }), '§25/§35: nota de bloqueo de la agregación');
+eq(dc.output.double_count_ids, [kk, kk], '§31: double_count_ids viaja de EPD_INPUT a EPD_OUTPUT (la agregación §25 lo necesita)');
+eq(R.runEPD(econ()).output.double_count_ids, undefined, 'sin double_count_ids en la entrada → ausente en la salida (opcional)');
 
 // ═══════════════════════════════════════════════════════════════════════
 seccion('§28 — input rechazado: { ok: false, errors }, sin EPD_OUTPUT');

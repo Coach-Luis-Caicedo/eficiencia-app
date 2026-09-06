@@ -80,6 +80,10 @@ function consolidarEPDOutput(input, partes) {
   };
   if (input.impact_type !== undefined) out.impact_type = input.impact_type;
   if (input.assumptions !== undefined) out.assumptions = input.assumptions;
+  // §31 — "identificadores de doble conteo" viajan a la salida para que la
+  // agregación (§25, Fase 7b) los tenga sin volver a pedir el EPD_INPUT.
+  // (El campo se agregó a ESQUEMA_EPD_OUTPUT en 86ff75b — reapertura #6.)
+  if (input.double_count_ids !== undefined) out.double_count_ids = input.double_count_ids;
   return out;
 }
 
