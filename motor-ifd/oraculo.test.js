@@ -19,6 +19,7 @@ var A = require('./admisibilidad');
 var CL = require('./clasificacion');
 var P = require('./proyeccion');
 var SC = require('./escenarios');
+var EC = require('./economia');
 var cp = require('child_process');
 var path = require('path');
 
@@ -196,6 +197,67 @@ CASOS4.forEach(function (caso, i) {
 
 console.log('\n  Nota: solo el envelope §22 coincide con el engine. Continuidad/Intensificación/Contención');
 console.log('  (§21) son de este motor — el engine no los tiene (ver README).');
+
+// ═══════════════════════════════════════════════════════════════════════
+seccion('Fase 5 — módulo económico §23: JS vs. motor de referencia');
+// ═══════════════════════════════════════════════════════════════════════
+//
+// EEB (§23.2) e invariante de atribución (§34/§35). El engine modela 2
+// condiciones de puerta (§23.1); el motor JS agrega `unit` (3ª condición).
+// Los casos que contrastan valor llevan `unit` → ambos coinciden. La
+// divergencia (unit ausente) se asevera aparte, NO contra el engine.
+
+// delta 3000 + 400×6 = 5400; FEP 3; envelope ±7% → [5022, 5778]
+// unit_value 25 → §12 normativo: 5400 × 25 = 135000
+var ECON = {
+  variable_type: 'V3', evolution_type: 'EV-A', delta: 400, baseline: 3000,
+  horizon: 6, hms: 12, lower_bound: 0, Q: 3, C: 3, T: 3, R: 3,
+  unit_value: 25, economic_traceability: true
+};
+var CASOS5 = [
+  { epd_id: 'econ_confirmed', attribution_category: 'CONFIRMED' },
+  { epd_id: 'econ_supported', attribution_category: 'SUPPORTED' },
+  { epd_id: 'econ_unresolved', attribution_category: 'UNRESOLVED' },
+  { epd_id: 'econ_na', attribution_category: 'N_A' }
+].map(function (o) { return Object.assign({}, ECON, o); });
+var refs5 = oraculo(CASOS5);
+
+var jsValoraciones = [];
+CASOS5.forEach(function (caso, i) {
+  var ref = refs5[i];
+  var fep = A.calcularFEP(caso).fep;
+  var hms = CL.aplicarHMS(fep, caso.horizon, caso.hms);
+  var pr = P.proyectar(Object.assign({ horizon: caso.horizon }, caso));
+  var env = SC.calcularEnvelope(pr.projection_base, hms.effectiveFep, caso.lower_bound, caso.upper_bound);
+  var m = EC.monetizar(Object.assign({ unit: 'horas' }, caso), { base: env.B, lower: env.L, upper: env.U });
+  jsValoraciones.push(m.economic_base);
+
+  ok(Math.abs(m.economic_base - ref.economic_base) < 1e-6,
+    caso.epd_id + ': economic_base JS=' + m.economic_base + ' == ref=' + ref.economic_base + ' (§23.2 EEB = Q^fut × VU)');
+  ok(Math.abs(m.economic_lower - ref.economic_lower) < 1e-6,
+    caso.epd_id + ': economic_lower JS=' + m.economic_lower + ' == ref=' + ref.economic_lower);
+  ok(Math.abs(m.economic_upper - ref.economic_upper) < 1e-6,
+    caso.epd_id + ': economic_upper JS=' + m.economic_upper + ' == ref=' + ref.economic_upper);
+
+  var jsA10 = m.alerts.indexOf('A10') !== -1;
+  var refA10 = ref.alert_codes.indexOf('A10') !== -1;
+  ok(jsA10 === refA10,
+    caso.epd_id + ': alerta A10 (atribución UNRESOLVED) JS=' + jsA10 + ' == ref=' + refA10);
+});
+
+ok(jsValoraciones.every(function (v) { return v === jsValoraciones[0] && v === 135000; }),
+  'INVARIANTE §34/§35: las 4 categorías → 135000 idéntico (engine y JS coinciden en que la atribución no pondera)');
+ok(refs5.every(function (r) { return r.economic_base === refs5[0].economic_base; }),
+  'el engine también da la misma cifra para las 4 categorías (regresión v1.2.1 del propio engine)');
+
+// Divergencia deliberada §23.1 — NO contra el engine
+var sinUnit = EC.monetizar(Object.assign({}, ECON, { attribution_category: 'CONFIRMED' }), { base: 5400, lower: 5022, upper: 5778 });
+ok(sinUnit.economic_base === null && sinUnit.alerts.indexOf('A09') !== -1,
+  'sin `unit`: el motor JS cierra la puerta (§23.1, 3 condiciones) + A09 — el engine SÍ monetizaría (solo 2). Divergencia documentada.');
+
+console.log('\n  Nota: los casos económicos del contraste llevan `unit` → JS y engine coinciden exacto en');
+console.log('  economic_base/lower/upper y en la alerta A10. La 3ª condición de §23.1 (unit) es');
+console.log('  divergencia deliberada: se asevera aparte, no contra el engine (ver README).');
 
 // ═══════════════════════════════════════════════════════════════════════
 console.log('\n' + '═'.repeat(74));

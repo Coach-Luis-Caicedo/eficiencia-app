@@ -47,6 +47,13 @@ def run(case: dict) -> dict:
         projection_base=out.projection_base,
         projection_lower=out.projection_lower,
         projection_upper=out.projection_upper,
+        # §23.2 — EEB. El engine modela 2 condiciones de puerta (unit_value +
+        # economic_traceability); el motor JS modela 3 (§23.1 agrega `unit`).
+        # Los casos economicos del contraste llevan `unit` -> ambos coinciden.
+        economic_base=out.economic_base,
+        economic_lower=out.economic_lower,
+        economic_upper=out.economic_upper,
+        attribution_category=out.attribution_category,
     )
 
 

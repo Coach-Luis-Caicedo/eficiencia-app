@@ -62,6 +62,14 @@ con el oráculo**. Si se usan para ejercitar el gate económico en general, se
 verifica explícitamente que la implementación JS **no** produzca `ver`/`roi` a
 partir de ellos.
 
+**Fase 5 — qué SÍ se contrasta:** `economic_base` / `economic_lower` /
+`economic_upper` (§23.2 `EEB = Q^fut × VU`) y la alerta `A10` (atribución
+UNRESOLVED). Coinciden exacto JS↔engine en los casos que llevan `unit`.
+**Qué NO:** la 3ª condición de puerta `unit` (§23.1) — el engine solo
+modela 2; un caso sin `unit` diverge a propósito (JS cierra + `A09`, el
+engine monetiza). Esa divergencia se asevera **aparte**, nunca contra el
+engine.
+
 ## Las 6 ambigüedades — decisiones tomadas (aprobadas por Luis)
 
 1. **Códigos de alerta.** §29 lista 15 alertas conceptuales, **sin códigos**. El
@@ -340,24 +348,114 @@ Tres escenarios, cada uno una proyección física **distinta** desde el mismo
 | Envelope FEP 3, `projBase = 100` | `[100×0.93, 100×1.07]` | `[93, 107]` |
 | Envelope FEP 2, clamp a `upper_bound = 110` | `U = 115 → 110` | `[85, 110]` + `[A06]` |
 
-## Huecos conocidos — para Fase 5
+## Fase 5 — módulo económico §23
 
-Registrados aquí para que reaparezcan al abrir Fase 5, no como sorpresa:
+### `economia.js`
+Se activa **solo** tras una proyección física cuantificada (§23: "la
+economía se activa únicamente después de proyectar una consecuencia
+cuantificable"). `CUANTIFICABLE ≠ MONETIZABLE`, `EXPOSICIÓN ECONÓMICA ≠
+ATRIBUCIÓN`.
 
-1. **Campo de unidad física (§23.1).** `AEᵢ = Unidadᵢ ∧ ValorUnitarioᵢ ∧
-   TrazabilidadEconómicaᵢ` — tres condiciones. **Falta el campo de unidad
-   física en `ESQUEMA_EPD_INPUT`; §23.1 exige tres condiciones, hoy solo se
-   modelan dos** (`unit_value` = valor monetario por unidad, y
-   `economic_traceability`). "Unidadᵢ" = la unidad de medida física (horas,
-   eventos) — §31 la lista aparte, §12 la distingue del valor unitario
-   monetario. El engine Python de referencia tiene el mismo hueco.
-2. **`heritage_outputs` no se hace cumplir todavía.** `validarEPDOutput`
+- `evaluarPuertaEconomica(input)` — §23.1: `AE = unit ∧ unit_value ∧
+  economic_traceability`, **AND estricto de las 3**. `unit` = rótulo de
+  unidad de medida física ("horas"), string no vacío. Puerta cerrada →
+  sin cifras; **A09** (`VALOR_ECONOMICO_INSUFICIENTE`, §29 #9) **solo si
+  hubo intención económica** (`unit_value` presente **o**
+  `economic_traceability === true`). Sin ninguna señal → EPD no-económico,
+  cerrada **sin alerta** (§35: "cantidad sin valor unitario → no
+  monetizar"). `unit_value = 0` abre la puerta (§26: 0 = valor demostrado
+  ≠ `null`).
+- `exposicionEconomicaBruta(proyeccion, unitValue)` — §23.2: `EEBᵢ =
+  Qᵢ^fut × VUᵢ`. `proyeccion = {base, lower, upper}` = el envelope [L,B,U]
+  de §22. Los rangos monetarios vienen de la **incertidumbre de la
+  proyección**, no de la atribución (§23.3). Null-safe. **NO recibe
+  `attribution_category`.**
+- `tratamientoAtribucion(categoria)` — §23.3: `CONFIRMED`/`SUPPORTED` → la
+  categoría acompaña la cifra, sin alerta; `UNRESOLVED` → **A10** +
+  restringe la afirmación ("no como costo atribuible demostrado"); `N_A` →
+  sin coeficiente sustituto, sin alerta. **Nunca devuelve un número** —
+  solo strings/null.
+- `monetizar(input, proyeccion)` — orquesta el orden de §28: puerta → EEB
+  → tratamiento. La aritmética (EEB) **no lee** `attribution_category`; el
+  tratamiento lo lee solo para la afirmación, jamás para la cifra.
+
+**Divergencia deliberada con el oráculo (§23.1).** El engine Python modela
+2 condiciones de puerta (`unit_value` + `economic_traceability`); este
+motor agrega la 3ª (`unit`). Un caso con VU + trazabilidad pero sin `unit`
+→ el engine monetiza, este motor cierra la puerta + A09. Los casos del
+contraste llevan `unit` (coinciden exacto); la divergencia se asevera
+aparte. Ver "Alcance del oráculo".
+
+Cierra el **hueco #1** (campo de unidad física, abierto desde Fase 3).
+
+### Decisiones A-E (aprobadas por Luis antes de escribir código)
+- **A** — "Unidadᵢ" como condición de puerta = **presencia** de `unit` no
+  vacío. El documento no da un segundo campo de unidad contra el cual
+  verificar coherencia; "Unidades incompatibles" (§29 #13 / A15) es
+  agregación entre EPDs (Fase 7), no un EPD individual.
+- **B** — `A09` renombrada `VALOR_ECONOMICO_SIN_TRAZABILIDAD` →
+  `VALOR_ECONOMICO_INSUFICIENTE` (texto literal §29 #9); cubre puerta
+  incompleta por falta de trazabilidad **o** de unidad. Reapertura de
+  Fase 0.
+- **C** — `unit` **opcional/nullable**: la monetización es "una rama
+  posible" (§20); un EPD no-económico legítimamente no lo trae. `unit`
+  ausente = fallo de puerta, no error de esquema.
+- **D** — `heritage_outputs` (forma) y marca "no normativo" de `VER`/`ROI_P`
+  → **Fase 6** (la fase de §24), no aquí.
+- **E** — divergencia de `unit` documentada como la de EV-CUAL; en el
+  contraste los casos económicos llevan `unit`.
+
+### Baterías
+- `economia.test.js` → **46 asserts, 0 fallos** + **4 mutaciones**
+  (ejecutadas sobre copias reales, revertidas):
+  **(1)** `exposicionEconomicaBruta` lee `attribution_category` y aplica
+  factor (UNRESOLVED ×0.5) → **el invariante §34/§35 falla por su nombre**:
+  `UNRESOLVED → 67.500 ≠ 135.000` de CONFIRMED (3 asserts rojos).
+  **(2)** puerta con `OR` en vez de `AND` → `unit` ausente monetiza
+  135.000 en vez de cerrar (8 rojos).
+  **(3)** `A09` siempre (sin la guarda de intención) → EPD no-económico
+  recibe A09 espurio (2 rojos).
+  **(4)** `tratamientoAtribucion` UNRESOLVED → `alerta: null` → se pierde
+  la restricción de la afirmación (§35) (2 rojos).
+- `oraculo.test.js` +19 asserts Fase 5 → **75 totales**. `econ_confirmed
+  / supported / unresolved / na` → `economic_base` **135.000**, `lower`
+  **125.550**, `upper` **144.450**, idénticos JS↔engine; `A10` solo en
+  UNRESOLVED en ambos. El propio engine confirma su regresión v1.2.1 (4
+  categorías → misma cifra). La divergencia de `unit` se asevera **aparte**
+  (JS cierra puerta + A09; el engine monetizaría).
+
+### El invariante — §34 / §35 (la protección central del módulo)
+> "CONFIRMED, SUPPORTED, UNRESOLVED y N_A producen **exactamente la misma
+> valoración económica** cuando la consecuencia, el valor unitario y la
+> trazabilidad son iguales."
+
+`economia.test.js` lo corre como regresión nombrada: las 4 categorías con
+el mismo `proyeccion` + `unit_value` → `[135000, 125550, 144450]` idéntico.
+`attribution_category` **nunca** entra en `exposicionEconomicaBruta` (ni
+siquiera se le pasa como argumento). §32: `ATRIBUIR ≠ PONDERAR`,
+`ATRIBUCIÓN ≠ COEFICIENTE DE DESCUENTO DEL COSTO`.
+
+### Números verificados (§23)
+| Caso | Cálculo | Resultado |
+|---|---|---|
+| §12 normativo: 5.400 horas × 25 u.m./hora | `EEB = 5400 × 25` | `economic_base = 135.000` |
+| Rango del envelope §22 (±7%, FEP 3) | `5022 × 25` … `5778 × 25` | `[125.550, 144.450]` |
+| UNRESOLVED, misma consecuencia | cifra igual + `A10` | `135.000` + restricción de afirmación |
+| `unit_value = 0` (§26: valor demostrado) | `5400 × 0` | `economic_base = 0` (no `null`) |
+| Sin `unit`, con VU + trazabilidad | puerta §23.1 cerrada | sin cifras + `A09` |
+| Sin `unit_value`, `traz = false` | EPD no-económico | sin cifras, **sin** alerta |
+
+## Huecos conocidos — para Fase 6
+
+Registrados aquí para que reaparezcan al abrir Fase 6, no como sorpresa:
+
+1. **`heritage_outputs` no se hace cumplir todavía.** `validarEPDOutput`
    solo verifica `type:'object'` — acepta `{ VER: 21772.8 }` (un número)
-   como válido. Fase 5-6 debe agregar validación de forma: cada una de las
+   como válido. Fase 6 debe agregar validación de forma: cada una de las
    5 claves (`CFD/CFR/VER/ROI_P/TRE`) siempre `{estado:'PENDIENTE_AUDITORIA'}`,
    **nunca un número**, hasta que la auditoría contra IFT v1.0 FINAL cierre
-   la migración (§24). Parte del alcance declarado de Fase 5-6.
-3. **Marca "no normativo" de `VER`/`ROI_P` en el output.** El engine Python
+   la migración (§24). (Decisión D de Fase 5: se difirió a Fase 6.)
+2. **Marca "no normativo" de `VER`/`ROI_P` en el output.** El engine Python
    los devuelve como números limpios sin alerta/nota de procedencia — pero
    el engine es oráculo de referencia congelado, **no se toca**. El motor
    JS (Fase 6) construye las 5 salidas heredadas como marcadores
