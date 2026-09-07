@@ -286,6 +286,87 @@ mutaciones** (ejecutadas sobre copias reales, revertidas):
 **Total motor-fpv tras Fase 2: 132 asserts** (contratos 49, persona 28,
 poblacional 55), 0 fallos.
 
+## Fase 3 — cobertura §7.2.D + escalera de estatus §8
+
+Tercera de las "cuatro salidas simultáneas" de §7.2 (nivel, distribución,
+heterogeneidad, **cobertura**). `coberturaSensor` toma el resultado de
+`poblacionalSensor` (Fase 2) y le añade `CE`, `CV` y el `estatus` de §8;
+`PR` se calcula a nivel **posición** (no lleva subíndice ⱼ en §14).
+
+### Fórmulas, verbatim
+- `CEⱼ = 100·nᵥ/(nᵥ + nNE)` — §14 l.875 *"si denominador > 0"*; si no → `null`.
+- `CVⱼ = 100·nᵥ/Nelegibles` — solo con `N_elegibles` (> 0); si no → `null`.
+- `PR = 100·nrespondentes/Nelegibles` — nivel posición.
+
+### `cobertura.js`
+- `coberturaSensor(pob, diseno?, N_elegibles?)` → `pob` + `{ CE, CV,
+  estatus, censal_aplica, inferencial_aplica, intervalos_permitidos }`.
+- `participacionPosicion(perfiles, N_elegibles?)` → `{ nrespondentes, PR }`.
+
+### DESVIACIÓN DELIBERADA del pseudocódigo §14 (decisión E)
+§14 hace `continuar` inmediatamente tras `estado_j = NO_CALCULABLE`
+(`nᵥ = 0`), lo que **en la letra del pseudocódigo salta también el cálculo
+de CEⱼ**. Este motor **no sigue esa rama**: calcula `CE` (y `CV`) también
+cuando `nᵥ = 0`. Para un sensor todo-NE, `CE = 100·0/(0+nNE) = 0` es
+información real ("0 % de quienes se involucraron tiene experiencia
+suficiente"). Es una **desviación del pseudocódigo, nombrada como tal** —
+no una lectura de él. Lo único que `nᵥ = 0` sí anula es el **nivel** (§8
+fila 1: "no se produce nivel"). El comentario de cabecera de `cobertura.js`
+la marca con la etiqueta explícita `DESVIACIÓN DELIBERADA`.
+
+### Escalera de estatus §8 (decisión B — no estrictamente monótona)
+`CENSAL` depende de *cobertura*, `INFERENCIAL` depende de *diseño* — son
+upgrades **independientes** sobre el piso `DESCRIPTIVO`:
+
+| Estatus | Condición | Fuente |
+|---|---|---|
+| `NO_CALCULABLE` | `nᵥ = 0` — **piso duro**, gana a cualquier diseño | §8 fila 1 |
+| `DESCRIPTIVO` | `nᵥ ≥ 1` | §8 fila 2 |
+| `CENSAL` | `CV ≥ PARAMS.UMBRAL_CENSAL_CV` (80 %, `PENDIENTE_CALIBRACION`) | §8 fila 3 + decisión D |
+| `INFERENCIAL` | `diseno.probabilistico === true` **o** `diseno.modelo_documentado === true` (§8 usa "o") | §8 fila 4 |
+
+Se reporta el **más alto aplicable**, precedencia `INFERENCIAL > CENSAL >
+DESCRIPTIVO`. `nᵥ = 0` → `NO_CALCULABLE` **siempre** (no hay lectura
+inferencial de un nivel que no existe). Los booleanos `censal_aplica` /
+`inferencial_aplica` viajan en la salida para que el llamante vea *por
+qué* el estatus es el que es.
+
+### Decisión F — INFERENCIAL habilita intervalos, no los calcula
+`intervalos_permitidos: true` cuando el estatus es `INFERENCIAL`. Fase 3
+**no** calcula el intervalo: exige metadata de diseño (estratos,
+conglomerados, ponderaciones — §8/§14) que el input no lleva, y §15 pide
+"análisis de sensibilidad antes de introducir cualquier ponderación,
+umbral o índice". Se expone el **permiso**, no el número.
+
+### Decisión D (ya anotada) — lo que el motor no audita
+`diseno.probabilistico` / `diseno.modelo_documentado` los **declara el
+llamante**. El motor los registra, no los verifica: un llamante que mienta
+puede inflar el estatus a `INFERENCIAL`. Igual con `N_elegibles` — no se
+comprueba que `≥ nᵥ`; si el marco es inconsistente `CV` puede pasar de 100
+(señal visible de input malo, no se recorta ni se oculta).
+
+### `nrespondentes` (decisión D)
+Personas que **enviaron** respuesta a esa posición, aunque sea toda NE/NR
+— un `perfilPersona` existe por cada fila de `respuestas`. La unicidad
+`(posicion, persona_id)` ya la fuerza `validarFPVInput`.
+
+### Batería
+`node motor-fpv/cobertura.test.js` → **44 asserts, 0 fallos** + **6
+mutaciones** (sobre copias reales, revertidas):
+1. `escaleraEstatus` sin el piso `nv === 0` → **3 rojos**.
+2. `CENSAL`: `CV >= UMBRAL` → `CV > UMBRAL` → **1 rojo** (borde `CV = 80`).
+3. `disenoHabilitaInferencia`: `||` → `&&` (exigir ambos) → **6 rojos**.
+4. `coberturaExperiencial`: denom `nv + nNE` → `nv` → **4 rojos**.
+5. **Decisión E revertida** (reintroducir el `continuar` de §14, `nᵥ=0` →
+   `CE/CV = null`) → **3 rojos**. Esta mutación es la que fija la
+   desviación como intencional.
+6. `participacionPosicion` sin la guarda de `N_elegibles` → `PR = NaN` en
+   vez de `null` → **1 rojo** (`esNull` distingue `NaN` de `null` —
+   `JSON.stringify(NaN) === "null"` engañaría a un `eq` ingenuo).
+
+**Total motor-fpv tras Fase 3: 176 asserts** (contratos 49, persona 28,
+poblacional 55, cobertura 44), 0 fallos.
+
 ## Ambigüedades del documento — resueltas (ver Decisiones A-I)
 
 El documento deja abierto, y se resuelve como decisión de diseño de Luis:
