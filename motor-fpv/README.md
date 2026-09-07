@@ -436,6 +436,79 @@ mutaciones** (sobre copias reales, revertidas):
 **Total motor-fpv tras Fase 4: 224 asserts** (contratos 49, persona 28,
 poblacional 55, cobertura 44, configuración 48), 0 fallos.
 
+## Fase 5 — ponderación §9
+
+El cálculo por defecto del motor es **no ponderado** (`poblacionalSensor`,
+Fase 2). `poblacionalSensorPonderado` es la variante ponderada **paralela**
+— no modifica Fase 2 (mismo patrón que `coberturaSensor` extiende Fase 2).
+
+### `ponderacion.js`
+`poblacionalSensorPonderado(perfiles, sensor, opciones)` → misma forma que
+`poblacionalSensor` + `{ ponderado: true, metodologia, n_no_ponderado,
+suma_pesos }`.
+
+- `Lⱼ,w = Σ wᵢ s(rᵢⱼ) / Σ wᵢ` (§9).
+- `pₖ,w = Σ wᵢ I(rᵢⱼ = k) / Σ wᵢ` (§9), `Σ pₖ,w = 1`.
+- `Hⱼ,w = 50·Σᵢ Σₖ pᵢ,w pₖ,w |i−k|` **sobre `pₖ,w`** (§9), `C = 100 − H`.
+  Aquí H,w es float (pesos reales) — el truco de enteros exactos de Fase 2
+  no aplica; se testea con `near`.
+- **Cross-check**: con todos los pesos iguales, `L/p/H` coinciden EXACTO
+  con `poblacionalSensor` (incl. `H = 80` del §10 "distribución uniforme").
+
+### Qué pondera §9 y qué NO
+
+| Salida | ¿Ponderada? | Por qué |
+|---|---|---|
+| `L`, `p`, `H`, `C` | **sí** | §9 da fórmula explícita para L,w y p,w; H "sobre pₖ,w" |
+| `mediana` | **no** (decisión D) | §9 no la lista; §11.1 la exige igual → mediana no ponderada de §7.2.A |
+| `CE` / `CV` / `PR` (§7.2.D) | **no** (decisión E) | no es "nivel" ni "distribución" — es participación sobre conteos de personas |
+| configuración F–P–V (§7.3) | **no — DIFERIDA** (decisión F) | §7.3 / §14 (bloque `CONFIGURACION` completo) no mencionan pesos ni de pasada; un `LF*,w` sería la extensión analógica más alejada del texto — si se necesita, será decisión nueva y consciente |
+
+### Decisiones
+
+- **B — pesos: todo o nada por sensor.** §9: *"Si existen pesos wᵢ"*.
+  Si el llamante pide ponderado y **alguna** persona con respuesta válida
+  a ese sensor no tiene `peso` numérico positivo → **lanza** (contrato del
+  llamante mal formado). NO se imputa `peso = 1`. Una persona cuya
+  respuesta a ese sensor es NE/NR no necesita peso (no contribuye).
+- **C/G — normalización por sensor** (decisión G de Fase 0): `Σ wᵢ` sobre
+  las personas con respuesta **válida a ESE sensor**. Persona con F válido
+  y V='NE': su peso entra en `Σw` de F, no de V.
+- **G — `metodologia` requerida.** §9: *"deben conservar [...] metodología
+  de ponderación"*. `opciones.metodologia` (string no vacío) es
+  obligatorio; el motor la **registra y devuelve, no la audita** (patrón
+  `diseno` de Fase 3).
+- **§9 — `n_no_ponderado` conservado**: la salida lleva el conteo de
+  personas (`nv`) además de `suma_pesos`.
+- **H — segmentación (§9 último párrafo): NO se implementa.** Segmentar por
+  antigüedad/producto/canal es el llamante troceando el input y llamando
+  al motor por trozo. *"El motor no atribuye causalidad a diferencias entre
+  segmentos"* ya se respeta — el motor nunca emite afirmaciones causales.
+
+### Composición
+`coberturaSensor` (Fase 3) consume la salida ponderada igual que la no
+ponderada — `CE`/`CV` salen sobre `nv`/`nNE` (conteos), sin ponderar
+(decisión E), y la `L` ponderada se preserva.
+
+### Batería
+`node motor-fpv/ponderacion.test.js` → **40 asserts, 0 fallos** + **7
+mutaciones** (sobre copias reales, revertidas):
+1. `L,w` numerador sin `wᵢ` (`v.w * v.s` → `v.s`) → **6 rojos**.
+2. `p,w` numerador conteo simple (`v.w` → `1`) → **7 rojos** (p,w, Σp,w,
+   H,w y C,w derivados, cross-check).
+3. `L,w` normaliza `/ nv` en vez de `/ Σ wᵢ` → **6 rojos**.
+4. `H,w` recalculada sobre `p` de conteos, no `p,w` → **2 rojos** (el
+   cross-check con pesos iguales sigue verde — ahí `p == p,w`).
+5. **decisión B revertida** (peso faltante → `w = 1`) → **3 rojos** (los
+   3 `lanza`).
+6. **decisión C revertida** (`Σ wᵢ` sobre todos los perfiles, no solo los
+   válidos al sensor) → **2 rojos** (`Σw(V)` y `L,w(V)`).
+7. `n_no_ponderado: nv` → `: suma_pesos` (no conservar el n crudo) →
+   **1 rojo**.
+
+**Total motor-fpv tras Fase 5: 264 asserts** (contratos 49, persona 28,
+poblacional 55, cobertura 44, configuración 48, ponderación 40), 0 fallos.
+
 ## Ambigüedades del documento — resueltas (ver Decisiones A-I)
 
 El documento deja abierto, y se resuelve como decisión de diseño de Luis:
