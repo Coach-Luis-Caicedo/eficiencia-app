@@ -162,6 +162,10 @@ anotada con la misma honestidad que "dirección adversa" (IFD §21.2),
 | **T** *(Fase 2)* | `value = 0` + `quality_status` declarado `MISSING` — ¿qué gana? | `INVALID` + flag `VALOR_CALIDAD_INCONSISTENTE`. El valor presente contradice el "missing" de la fuente (§9: "missing no es cero"); ninguno se cree ciegamente, la inconsistencia se marca. Lectura de §9. |
 | **U** *(Fase 2)* | `value = null` + `quality_status` declarado `VALID`/`VWL` + con `absence_reason` (§28 lo permite) | Calidad efectiva → `MISSING` (no hay valor que pueda ser VALID); `absence_reason` preservada en flag `NULL_EXPLICADO`. §28 no crea un 5º `DATA_QUALITY_STATUS`. Lectura de §28 + §9.1. |
 | **V** *(Fase 2)* | `NOT_APPLICABLE` como resultado de `boundary_behavior` — `DATA_QUALITY_STATUS` no lo tiene | Fase 2 lo mapea a `MISSING` + flag `BOUNDARY_NOT_APPLICABLE` (no hay valor utilizable, pero no es "dato inválido" — es "la métrica no aplica en este régimen"). La distinción se preserva en el flag para Fase 5. Decisión de diseño. |
+| **W** *(Fase 3)* | §8.1 "las referencias se seleccionan; **no se promedian**" — prohibición pura, sin alternativa cuando hay varias candidatas | Con un solo `condition_reference_id`/`temporal_reference_id` por KPI_SPEC, la única multiplicidad = varias VERSIONES del mismo `reference_id` con ventanas de vigencia solapadas. → `NOT_ADMISSIBLE` para ese período + flag `REFERENCIA_VERSIONES_SOLAPADAS`. **No** "la más reciente gana" silenciosa (§30). Decisión de diseño. |
+| **X** *(Fase 3, reapertura)* | `REFERENCE_SPEC` (§25.3) no tiene campo de admisibilidad, pero §8.2 exige un veredicto de 3 valores por referencia, hoy | Reapertura Fase 0 (`fa0a467`): `admissibility_declared` (obligatorio) + `critical_failure?` + `change_mode?`/`supersedes?`. El motor chequea vigencia; el resto lo declara el analista (patrón `diseno` del FPV). Distinto de S — aquí el veredicto **ya lo exige el documento**. |
+| **Y** *(Fase 3, reapertura)* | §8.4 `BRIDGED exige regla de transformación validada` — `METRIC_DEFINITION` no tiene `bridge_rule` | Reapertura: `bridge_rule?` en `METRIC_DEFINITION` (opcional en el contrato). `continuidadDefinicion` trata `BRIDGED` sin `bridge_rule` como `NEW_SERIES` + flag (AC15 / INV-29). |
+| **Z** *(Fase 3)* | §8.3 no dice qué pasa con los estados históricos ya calculados al hacer `REBASE_HISTORY` | Fase 3 solo emite la directiva `REBASE_HISTORY`; la re-versión de `KPI_STATE`/... históricos es **Fase 11** (§31: "produce nuevas versiones de estados históricos; no sobrescribe"). Se cierra en Fase 11. |
 
 ---
 
@@ -173,7 +177,7 @@ de la fase que lo motivó).
 
 | Qué se reabrió | Desde | Por qué | Commit |
 |---|---|---|---|
-| `contratos.js` — `ESQUEMA_REFERENCE_SPEC` (+`admissibility_declared` obligatorio, `critical_failure?`, `change_mode?`/`supersedes?`) y `ESQUEMA_METRIC_DEFINITION` (+`bridge_rule?`) | Fase 3 | §8.2 exige un veredicto de admisibilidad por referencia (ambig. X) y §8.4 exige una regla de bridge validada (ambig. Y) — ninguno tenía dónde vivir en §25.3 / §7 | *este commit* |
+| `contratos.js` — `ESQUEMA_REFERENCE_SPEC` (+`admissibility_declared` obligatorio, `critical_failure?`, `change_mode?`/`supersedes?`) y `ESQUEMA_METRIC_DEFINITION` (+`bridge_rule?`) | Fase 3 | §8.2 exige un veredicto de admisibilidad por referencia (ambig. X) y §8.4 exige una regla de bridge validada (ambig. Y) — ninguno tenía dónde vivir en §25.3 / §7 | `fa0a467` |
 
 ---
 
@@ -317,6 +321,44 @@ a "partir de `'VALID'`" (2 rojos).
 
 **Total motor-piio tras Fase 2: 157 asserts** (contratos 76, config 42,
 observaciones 39).
+
+## Fase 3 — referencias: condición y tiempo (§8)
+
+`referencias.js` — RESUELVE la referencia vigente por período y produce
+las directivas de cambio. **No clasifica pos/traj** (Fase 5) **ni
+re-versiona estados históricos** (Fase 11).
+
+Se hace en **dos commits**: A reabre `contratos.js` (`fa0a467`,
+ambigüedades X/Y), B es `referencias.js`.
+
+| Función | Qué hace | AC / INV |
+|---|---|---|
+| `resolverReferenciaVigente(references, reference_id, role, period)` | filtra por `reference_id` + `role` (INV-08: no se cruzan); selecciona la versión cuya ventana `[valid_from, valid_to]` contiene `period`. **0 aplicables → `NOT_ADMISSIBLE`+`FUERA_DE_VIGENCIA`; ≥2 (ventanas solapadas) → `NOT_ADMISSIBLE`+`REFERENCIA_VERSIONES_SOLAPADAS`** (ambig. W). Devuelve **exactamente una instancia del input o `null`** — nunca una combinada (INV-09) | AC72, INV-08/09 |
+| `admisibilidadReferencia(refSpec)` | `critical_failure` presente → `NOT_ADMISSIBLE` (§8.2); si no → `admissibility_declared` | §8.2 |
+| `evaluarCambioReferencia(refNueva)` | lee `change_mode`/`supersedes` → **directiva** (`REBASE_HISTORY` → Fase 11 re-versiona; `START_NEW_REGIME` → Fase 5 no compara traj). No ejecuta el rebase ni rompe la serie | AC12/13, INV-28 |
+| `continuidadDefinicion(metricDef)` | `CONTINUOUS`→une; `BRIDGED`+`bridge_rule`→une; `BRIDGED` sin regla→`NEW_SERIES`+`BRIDGE_SIN_REGLA`; `NEW_SERIES`→traj no cruza | AC14/15/16, INV-29 |
+
+### Batería
+`node motor-piio/referencias.test.js` → **31 asserts, 0 fallos** + **7
+mutaciones** (sobre copias reales, revertidas):
+1. quitar el filtro por `reference_role` → **3 rojos** (INV-08).
+2. `aplicables.length > 1` → `false` (elegir `aplicables[0]`) → **3 rojos**
+   (ambig. W — no se elige silenciosamente).
+3. `admisibilidadReferencia` ignora `critical_failure` → **1 rojo** (§8.2).
+4. `_vigente` sin la cota `period > valid_to` → **3 rojos**.
+5. `REBASE_HISTORY` y `START_NEW_REGIME` colapsan a la misma rama → **2
+   rojos** (INV-28).
+6. `BRIDGED` sin `bridge_rule` devuelve modo `BRIDGED` → **2 rojos**
+   (AC15 / INV-29).
+7. `resolverReferenciaVigente` devuelve una **copia** de la ref → **1
+   rojo** (INV-09).
+
+Hallazgo: MUT1 y MUT4 crasheaban la batería (`.ref.X` sobre `null`) hasta
+añadir los accesores tolerantes `refVer`/`refRol` — mismo patrón que
+`dig()` en Fase 1 y en `runIFD`.
+
+**Total motor-piio tras Fase 3: 197 asserts** (contratos 85, config 42,
+observaciones 39, referencias 31).
 
 ## Qué NO hace este módulo
 
