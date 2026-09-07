@@ -367,6 +367,75 @@ mutaciones** (sobre copias reales, revertidas):
 **Total motor-fpv tras Fase 3: 176 asserts** (contratos 49, persona 28,
 poblacional 55, cobertura 44), 0 fallos.
 
+## Fase 4 — configuración F–P–V con muestra emparejada §7.3
+
+Tercer y último nivel del motor. Compara F, P y V **dentro de una misma
+posición** usando SOLO las Personas con las tres dimensiones válidas —
+para no atribuir a la relación una brecha que en realidad viene de haber
+calculado cada sensor con grupos distintos (§7.3).
+
+### `configuracion.js`
+`configuracionFPV(perfiles)` → `{ Ncfg, calculable, Lstar: {F,P,V}|null,
+G, limitante: string[]|null, fortalecida: string[]|null }`
+
+- `matched = perfiles.filter(p => p.completo)` — `completo` (Fase 1) ya es
+  exactamente "F, P y V los tres válidos" (§7.1).
+- `Lstar.F = (1/Ncfg)·Σ_matched p.F.s` — nivel `s(r)` 0–100 sobre el
+  emparejado (§7.3 "se recalculan LF*, LP* y LV*"). Las marginales por
+  sensor de Fase 2 (toda la evidencia válida) **siguen disponibles** — no
+  se reemplazan.
+- `G = max(Lstar) − min(Lstar)` (§7.3 — "desbalance interno, no deterioro").
+- **No hay promedio F+P+V** — §7.3 y §14 lo prohíben explícitamente, igual
+  que §11 con el índice global. Un test estructural fija el conjunto exacto
+  de claves de la salida.
+
+### Ambigüedades (todas confirmadas abiertas en el texto)
+
+- **A — `Ncfg = 0`**: §14 "si Ncfg > 0" → `{ Ncfg:0, calculable:false,
+  Lstar:null, G:null, limitante:null, fortalecida:null }`. Paralelo a
+  `NO_CALCULABLE`.
+- **B — `Ncfg = 1`**: se calcula, sin piso artificial (§8: sin tamaño de
+  muestra universal pre-piloto). El llamante ve `Ncfg=1` y juzga. Mismo
+  patrón que Fases 2–3.
+- **C — sin campo `estatus`**: §11.2 lista los campos de la salida
+  configuracional y **no incluye estatus**. No se inventa uno; `calculable`
+  (= `Ncfg > 0`) es lo único que se reporta sobre suficiencia. La escalera
+  CENSAL/INFERENCIAL es de sensores (§8), no de esta salida derivada.
+- **D — empates → arrays**: `limitante` / `fortalecida` son arrays
+  (normalmente `['F']`, `['F','P']` en empate). §11.2 usa singular y no
+  contempla empates; elegir el primero en orden ocultaría el otro.
+  **Caso `G = 0`** (las tres iguales, tratado explícitamente): `limitante`
+  y `fortalecida` son **ambos `['F','P','V']`** — NO se suprimen a `null`.
+  `G = 0` ya es la señal de "sin desbalance"; hacer que el motor decida
+  "no hay limitante cuando está balanceado" sería una regla que el texto
+  no da. El array con las tres es el resultado mecánico y honesto.
+- **E — no se recalcula distribución/H sobre el emparejado**: §7.3 y §14
+  dicen "se recalculan LF*, LP* y LV*" — SOLO los niveles. El "distribución
+  e heterogeneidad visibles" de §11.2 se satisface con la salida por sensor
+  de Fase 2 y es disciplina de presentación → Fase 6. Un test estructural
+  fija que la salida configuracional no trae `p`/`H`/`C`.
+- **F — sin ponderación**: §9 es "no ponderado por defecto"; el `Lstar`
+  ponderado, si lo hay, se layerea en Fase 5.
+
+### Batería
+`node motor-fpv/configuracion.test.js` → **48 asserts, 0 fallos** + **6
+mutaciones** (sobre copias reales, revertidas):
+1. `matched`: `p.completo === true` → `p != null` (incluir incompletos) →
+   **11 rojos**.
+2. `G`: `max − min` → `max` → **4 rojos**.
+3. `limitante`/`fortalecida`: `=== min` ↔ `=== max` (intercambiados) →
+   **7 rojos**.
+4. `SENSORES.filter(...)` → `SENSORES.find(...)` (string, no array) —
+   colapsa la decisión D a "el primero en orden" → **9 rojos** (incluye
+   empates y el caso `G = 0`).
+5. quitar la guarda `Ncfg === 0` → `Lstar = 0/0 = NaN` (no `null`) →
+   **5 rojos** (`esNull` distingue `NaN`).
+6. suma con `p.F.r` (crudo 1–5) en vez de `p.F.s` (normalizado 0–100) →
+   **18 rojos**.
+
+**Total motor-fpv tras Fase 4: 224 asserts** (contratos 49, persona 28,
+poblacional 55, cobertura 44, configuración 48), 0 fallos.
+
 ## Ambigüedades del documento — resueltas (ver Decisiones A-I)
 
 El documento deja abierto, y se resuelve como decisión de diseño de Luis:
