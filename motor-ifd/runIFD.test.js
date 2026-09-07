@@ -144,9 +144,9 @@ eq(dc.output.double_count_ids, [kk, kk], '§31: double_count_ids viaja de EPD_IN
 eq(R.runEPD(econ()).output.double_count_ids, undefined, 'sin double_count_ids en la entrada → ausente en la salida (opcional)');
 
 // §31 — variable_type SIEMPRE en la salida, incluso terminal (la calibración §36 agrupa por él)
-eq(R.runEPD(econ({ variable_type: 'V3' })).output.variable_type, 'V3', 'variable_type en EPD_OUTPUT CUANTIFICADO');
-eq(R.runEPD(inp({ variable_type: 'V5' })).output.variable_type, 'V5', 'variable_type en EPD_OUTPUT terminal S1 (V5)');
-eq(R.runEPD(inp({ variable_type: 'V1', deterioration_sustained: false })).output.variable_type, 'V1', 'variable_type en EPD_OUTPUT terminal S0 — NO solo en el camino feliz');
+eq(out(R.runEPD(econ({ variable_type: 'V3' }))).variable_type, 'V3', 'variable_type en EPD_OUTPUT CUANTIFICADO');
+eq(out(R.runEPD(inp({ variable_type: 'V5' }))).variable_type, 'V5', 'variable_type en EPD_OUTPUT terminal S1 (V5)');
+eq(out(R.runEPD(inp({ variable_type: 'V1', deterioration_sustained: false }))).variable_type, 'V1', 'variable_type en EPD_OUTPUT terminal S0 — NO solo en el camino feliz');
 
 // ═══════════════════════════════════════════════════════════════════════
 seccion('§28 — input rechazado: { ok: false, errors }, sin EPD_OUTPUT');
@@ -248,8 +248,9 @@ console.log('     serie) deja de detener la cascada. Mecanismo real de la falla:
 console.log('     resolverClasificacion devuelve { terminal, resultado:{...} } SIN alerts/notes a nivel');
 console.log('     superior; al seguir, `clas.alerts` es undefined y alerts.concat(undefined) mete un');
 console.log('     código de alerta inválido -> validarEPDOutput rechaza -> runEPD devuelve { ok:false }.');
-console.log('     8 rojos: "los 4 cortes -> runEPD ok", los eq de status/nivel de V5/EV-CUAL/FEP1/serie,');
-console.log('     A04, y "el V5 NO entra en la suma" de 7b (el Vq malformado hace que agregarEPDs lo rechace).');
+console.log('     9 rojos (todos los asserts son null-safe vía out(), no hay crash): "los 4 cortes ->');
+console.log('     runEPD ok", los eq de status/nivel de V5/EV-CUAL/FEP1/serie, A04, "variable_type en');
+console.log('     terminal S1 (V5)" (el V5 sale {ok:false}), y "el V5 NO entra en la suma" de 7b.');
 console.log('  2. output_level = nivelSalidaMax(fep) en vez de effectiveFep → el caso HMS da S3 en');
 console.log('     vez de S2 (la degradación de §18 se pierde, §30 violado).');
 console.log('  3. quitar unicos() (dedup de alertas) → el caso de clamp da ["A06","A06"] (proyección');

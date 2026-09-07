@@ -580,17 +580,20 @@ cualquier nivel S0-S3.
   contexto).
 
 ### Baterías (7a)
-- `runIFD.test.js` → **55 asserts, 0 fallos** + **4 mutaciones**
-  (ejecutadas sobre copias reales, revertidas):
+- `runIFD.test.js` → sección 7a **60 asserts** (55 al cerrar 7a; +2
+  `double_count_ids` en `22e0e83`, +3 `variable_type` en `027b2f4`) +
+  **4 mutaciones** (ejecutadas sobre copias reales, revertidas):
   **(1)** `if (clas.terminal)` → `if (false)` → el corte de clasificación
   deja de detener la cascada. Mecanismo real: cuando `terminal===true`,
   `resolverClasificacion` devuelve `{ terminal, resultado:{...} }` sin
   `alerts`/`notes` a nivel superior → al seguir, `clas.alerts` es
   `undefined`, `alerts.concat(undefined)` mete un código inválido →
-  `validarEPDOutput` rechaza → `runEPD` devuelve `{ ok:false }`. **8
-  rojos**: "los 4 cortes → runEPD ok", los `eq` de status/nivel de
-  V5/EV-CUAL/FEP1/serie, `A04`, y "el V5 no entra en la suma" de la
-  sección 7b (el `Vq` malformado hace que `agregarEPDs` lo rechace).
+  `validarEPDOutput` rechaza → `runEPD` devuelve `{ ok:false }`. **9
+  rojos** (todos los asserts usan acceso null-safe `out()`, no hay crash):
+  "los 4 cortes → runEPD ok", los `eq` de status/nivel de
+  V5/EV-CUAL/FEP1/serie, `A04`, "variable_type en terminal S1 (V5)" (el V5
+  sale `{ok:false}`), y "el V5 no entra en la suma" de la sección 7b (el
+  `Vq` malformado hace que `agregarEPDs` lo rechace).
   **(2)** `output_level = nivelSalidaMax(fep)` en vez de `effective_FEP` →
   el caso HMS da S3 en vez de S2 (§30 violado).
   **(3)** quitar `unicos()` → el caso de clamp da `["A06","A06"]`.
@@ -645,7 +648,7 @@ se agregó a `ESQUEMA_EPD_OUTPUT` (`86ff75b`) y `runEPD` lo copia de
 distinga "cambio de contrato" de "conexión en el orquestador").
 
 ### Baterías (7b)
-- `runIFD.test.js` → **82 asserts, 0 fallos** (7a 57 + 7b 25) + **8
+- `runIFD.test.js` → **85 asserts, 0 fallos** (7a 60 + 7b 25) + **8
   mutaciones** (1-4 de 7a; 5-8 de 7b, sobre copias reales, revertidas):
   **(5)** `detectarDobleConteo([])` en vez de la unión → dos EPD que
   solapan se suman igual (sin `A14`, `aggregation_blocked` queda `false`).
