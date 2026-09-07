@@ -70,7 +70,7 @@ mezclado con el trabajo de la fase que lo motivó).
 
 | Qué se reabrió | Desde | Por qué | Commit |
 |---|---|---|---|
-| `contratos.js` — `validarFPVOutput` de LIGERO a COMPLETO | Fase 6 | El hueco conocido de Fase 0 (forma interna de sensor + configuración, regla 1 de §19.8, índice global anidado) se cierra cuando el orquestador produce la salida real | *este commit* |
+| `contratos.js` — `validarFPVOutput` de LIGERO a COMPLETO | Fase 6 | El hueco conocido de Fase 0 (forma interna de sensor + configuración, regla 1 de §19.8, índice global anidado) se cierra cuando el orquestador produce la salida real | `f4621e8` |
 
 ## Decisiones A-I (aprobadas por Luis antes de escribir código)
 
@@ -513,6 +513,117 @@ mutaciones** (sobre copias reales, revertidas):
 
 **Total motor-fpv tras Fase 5: 264 asserts** (contratos 49, persona 28,
 poblacional 55, cobertura 44, configuración 48, ponderación 40), 0 fallos.
+
+## Fase 6 — orquestador `runFPV` §7 / §11 / §14
+
+La fase final. `runFPV(input)` encadena las Fases 1–5 por posición y
+produce el `FPV_OUTPUT` autovalidado. **Una sola entrada** — no hay
+agregación aparte: las 3 posiciones son independientes y nunca se
+combinan (§11). Se hace en **dos commits** (reapertura + orquestador).
+
+### Commit A — reapertura de `contratos.js`: `validarFPVOutput` completo
+
+En Fase 0 era LIGERO (esqueleto de 3 posiciones + índice global en la
+raíz). Ahora hace cumplir:
+- **§11.1** — cada sensor lleva `L, mediana, p, H, C, CE, nv, nNE` (valor
+  `null` permitido en `NO_CALCULABLE`; `undefined` o ausente, no).
+- **§19.8 regla 1** — la única de las 4 formulable como validación de
+  forma: si `L` no es nulo, `H` y `p` tampoco pueden serlo.
+- **§8** — estatus `CENSAL` obliga a `CV` presente.
+- **§11.2** — la configuración lleva `Ncfg, calculable, Lstar, G,
+  limitante, fortalecida`; **sin** `estatus` (decisión C de Fase 4).
+- **§11** — claves de índice global prohibidas, ahora también en los
+  niveles anidados (posición y sensor), no solo la raíz.
+- **§14** — `meta.version` (trazabilidad).
+
+Las otras 3 reglas de §19.8 (proximidad ≠ equivalencia; contraste externo
+como corroboración no automática; pruebas externas etiquetadas como
+analógicas) son **disciplina de interpretación**, no verificables por un
+validador de forma — no se intenta codificarlas.
+
+### Commit B — `runFPV.js`
+
+`runFPV(input)` → `{ ok:true, output }` | `{ ok:false, errores }` (patrón
+`runEPD` de IFD — no lanza ante input mal formado).
+
+Salida (§14 "perfil F|P|V + distribución + H + C + cobertura +
+trazabilidad"):
+```
+{ posiciones: { CONSUMIDOR:{ etiqueta:'FPV-C', n_respondientes,
+    participacion:{nrespondentes,PR}, sensores:{F,P,V}, configuracion:{…} },
+    INVERSIONISTA:{…'FPV-I'…}, PROVEEDOR:{…'FPV-P'…} },
+  meta:{ version:'v1.2', posiciones:{ <POS>:{ n_respondientes, ponderado, metodologia? } } } }
+```
+
+### Decisiones
+
+- **A — ponderación OPT-IN por posición**: `input.posiciones.<POS>.
+  ponderacion = { metodologia }`. Presente ⇒ los 3 sensores de esa
+  posición usan `poblacionalSensorPonderado` (Fase 5). Ausente ⇒ no
+  ponderado. Si se pide ponderación y falta un peso, la excepción de
+  Fase 5 se captura y se convierte en `{ ok:false }` (problema del input
+  del llamante).
+- **B — posición sin respuestas**: se emite igual (§11.1: las 3
+  obligatorias), sensores en `NO_CALCULABLE`, configuración
+  `calculable:false`. §18: "no calcular" es una salida válida.
+- **C — bandas descriptivas (§7.2.B): NO se incluyen en la salida**
+  (decisión de Luis). Son presentación opcional; `bandasDescriptivas`
+  sigue exportada desde `poblacional.js` para el llamante que las quiera.
+- **D — posición ponderada**: emite SOLO las stats ponderadas +
+  `n_no_ponderado` + `metodologia` (lo que ya devuelve Fase 5). NO un
+  bloque paralelo sin ponderar — §9 pide conservar el n y la metodología,
+  no un recálculo completo.
+- **E — trazabilidad**: `meta` con `version` + por posición
+  `{ n_respondientes, ponderado, metodologia? }`. Mínimo para reconstruir
+  qué se calculó. Decisión de diseño ante un texto vago.
+- **F — "conserva siempre la respuesta original" (§6/§1)**: la salida
+  lleva `p₁..p₅` + conteos, no la lista cruda por persona (decisión H de
+  Fase 0). La distribución completa a nivel agregado satisface la
+  garantía.
+
+### Autovalidación
+`runFPV` corre `validarFPVOutput` sobre su propia salida; si falla ⇒
+`{ ok:false, errores:['salida auto-inválida …'] }`. Red de seguridad para
+invariantes internos — no debería dispararse nunca con el pipeline
+correcto (patrón IFD).
+
+### `meta.ponderado` — derivado de la salida real, no de la intención
+
+`meta.posiciones.<POS>.ponderado` (y `.metodologia`) se calculan de
+`sensores.F.ponderado === true` — lo que el pipeline REALMENTE produjo —
+no de `!!pond` (lo que el input pidió). Así `meta` no puede mentir si un
+bug hace que el pipeline no honre la petición de ponderación. Sin este
+matiz la mutación 3 daba un conteo distinto según su forma exacta.
+
+### Baterías
+- `node motor-fpv/contratos.test.js` → **61 asserts** (49 + 12 de la
+  reapertura), 7 mutaciones (ver sección Fase 0).
+- `node motor-fpv/runFPV.test.js` → **54 asserts, 0 fallos** + **4
+  mutaciones** sobre `runFPV.js` (copias reales, revertidas):
+  1. emite solo las posiciones con datos (filtra las vacías) — el caso
+     "omite" → **17 rojos** (todo escenario de input parcial → salida
+     incompleta → `validarFPVOutput` falla → `ok:false` → cascada).
+  3. ignora `pond` aunque la posición lo pida → **8 rojos**, iguales en
+     sus dos formas (`var pond = false && …` o mutar el sitio de uso):
+     F.L / F.ponderado / F.metodologia / F.n_no_ponderado / meta.ponderado
+     / meta.metodologia + los 2 del escenario "peso faltante" (sin la rama
+     de ponderación nunca se llega a la función que lanza).
+  5. posición vacía → `salida.posiciones[pos] = {}` (bypass del pipeline)
+     — el caso "no emitir NO_CALCULABLE" → **17 rojos** (la autovalidación
+     §11.1 detecta el bloque vacío → `ok:false`).
+  7. `sensores[sen].H = null` tras calcular (bug de post-proceso
+     simulado) → **30 rojos** — la autovalidación §19.8 lo atrapa en toda
+     salida con datos → `ok:false`. Prueba que la autovalidación está
+     conectada.
+
+  No hay una mutación "crashea": el pipeline maneja la posición vacía sin
+  lanzar y el `try/catch` convertiría cualquier excepción en `{ ok:false }`
+  igual. (Mutaciones 2/4/6 del plan viven en `contratos.test.js` como las
+  reglas de `validarFPVOutput`.)
+
+**Total motor-fpv COMPLETO tras Fase 6: 330 asserts** (contratos 61,
+persona 28, poblacional 55, cobertura 44, configuración 48, ponderación
+40, runFPV 54), 0 fallos.
 
 ## Ambigüedades del documento — resueltas (ver Decisiones A-I)
 
