@@ -26,7 +26,7 @@ valor económico. Ver "Alcance del oráculo" abajo.
 | **5** | Módulo económico §23: gate `AE`, `EEB = Q^fut × VU`, atribución categórica — **invariante más protegido**. |
 | **6** | Salidas heredadas §24 como `PENDIENTE_AUDITORIA` (nunca fórmula) + doble conteo §25 + versionamiento §38. |
 | **7** | Orquestador `runIFD()` §27-28 + catálogo de alertas §29 + 15 reglas inviolables §32 + 17 pruebas mínimas §35. |
-| **8** | Calibración §36 (`Error`, `EA`, `MAE`, `Sesgo`, cobertura de rango) — módulo aparte, retrospectivo. |
+| **8** | Calibración §36 (`Error`, `EA`, `MAE`, `Sesgo`, cobertura de rango) — módulo aparte, retrospectivo. **Aritmética verificada con datos sintéticos; la calibración real queda pendiente del piloto.** |
 
 ## Reaperturas de código ya comiteado
 
@@ -42,7 +42,7 @@ commit sueltos.
 | `enums.js` + `contratos.js` — campo `unit` (unidad física §23.1) + renombre `A09` → `VALOR_ECONOMICO_INSUFICIENTE` | Fase 0 (`fbd78ea`) | §23.1 `AEᵢ = Unidadᵢ ∧ ValorUnitarioᵢ ∧ TrazabilidadEconómicaᵢ` — 3 condiciones, el motor modelaba 2 (hueco #1). `unit` (rótulo físico: "horas") se agrega **opcional/nullable** — la monetización es "una rama posible" (§20); `unit` ausente es fallo de PUERTA (A09), no de esquema. `A09` renombrada al texto literal de §29 #9 (era `VALOR_ECONOMICO_SIN_TRAZABILIDAD`, nombre propio de Fase 0): ahora cubre puerta incompleta por falta de trazabilidad **o** de unidad. El bridge del oráculo compara el prefijo `A09`, el contraste no se rompe. Decisiones A-E aprobadas por Luis (ver "Fase 5"). | `164f72a` |
 | `contratos.js` — `validarEPDOutput` hace cumplir la FORMA de `heritage_outputs` (`validarSalidasHeredadas`) | Fase 0 (`fbd78ea`) | hueco #2: `validarEPDOutput` solo comprobaba `type:'object'` — aceptaba `{ VER: 21772.8 }`. §24: "en v1.2.2 no se fija fórmula normativa para ninguna de estas cinco salidas". Ahora exige exactamente `{CFD,CFR,VER,ROI_P,TRE}`, cada una `{ estado: 'PENDIENTE_AUDITORIA' }` — un número / clave de más o de menos / estado distinto → RECHAZADO. Decisión E: el marcador es `{ estado: 'PENDIENTE_AUDITORIA' }`. | `24862b1` |
 | `contratos.js` — `ESQUEMA_EPD_OUTPUT` gana `double_count_ids` | Fase 0 (`fbd78ea`) | §31 ("estructura mínima de datos") lista "identificadores de doble conteo" — y el listado mezcla campos de entrada (`Q/C/T/R`, `mecanismo`, `HMS`) con campos de salida (`economic_base`, `nivel de salida`, `valor observado y error`): es la estructura del EPD en todo su ciclo, no segregada. La agregación (§25, Fase 7b) corre el control de doble conteo "antes de agregar" y necesita las claves de cada `EPD_OUTPUT`. `runEPD` las copia de `EPD_INPUT`. | `86ff75b` + fix `22e0e83` |
-| `contratos.js` — `ESQUEMA_EPD_OUTPUT` gana `variable_type` | Fase 0 (`fbd78ea`) | §31 lista "variable, unidad, dominio y evolución" en la misma línea (misma lectura no-segregada que `double_count_ids`). La calibración (§36, Fase 8) agrupa los errores por `variable_type` ("los errores solo se agregan entre variables comparables"). `runEPD` lo copia de `EPD_INPUT` en **todas** las salidas (S0/S1/CUANTIFICADO) — `variable_type` siempre existe en la entrada, a diferencia de `double_count_ids`. Alcance acotado a solo `variable_type` (no `unidad`/`dominio`/`evolución` "por si acaso"). | *este commit* |
+| `contratos.js` — `ESQUEMA_EPD_OUTPUT` gana `variable_type` | Fase 0 (`fbd78ea`) | §31 lista "variable, unidad, dominio y evolución" en la misma línea (misma lectura no-segregada que `double_count_ids`). La calibración (§36, Fase 8) agrupa los errores por `variable_type` ("los errores solo se agregan entre variables comparables"). `runEPD` lo copia de `EPD_INPUT` en **todas** las salidas (S0/S1/CUANTIFICADO) — `variable_type` siempre existe en la entrada, a diferencia de `double_count_ids`. Alcance acotado a solo `variable_type` (no `unidad`/`dominio`/`evolución` "por si acaso"). | `4c1bad2` + fix `027b2f4` |
 
 ## Alcance del oráculo — el motor Python NO es fuente de verdad para `ver`/`roi`/contención
 
@@ -700,7 +700,81 @@ normativas del documento.
   **Mutación**: `consolidarEPDOutput` `projection_base` terminal → `0` en
   vez de `null` → §32.13 (NULL ≠ CERO) falla por su nombre.
 
-Con 7c, **Fase 7 queda cerrada**. Solo resta Fase 8 (calibración §36).
+Con 7c, **Fase 7 queda cerrada**.
+
+## Fase 8 — verificación posterior y calibración §36
+
+**Módulo RETROSPECTIVO** (`calibracion.js`) — se corre DESPUÉS del piloto,
+con `Y_obs` reales. NO toca el camino de cálculo en vivo. El engine Python
+no tiene calibración agregada → sin contraste con el oráculo.
+
+- `errorEPD(y_obs, y_proj)` → `y_obs − y_proj` · `errorAbsoluto` → `|·|`
+- `mae(pares)` → `(1/n) Σ |y_obs − y_proj|` · `sesgo(pares)` →
+  `(1/n) Σ (y_proj − y_obs)`
+- `cobertura(items)` → `{ n, dentro, fuera, tasa }`, `items = [{y_obs, L, U}]`,
+  frontera incluida (`L ≤ y_obs ≤ U`); solo EPD que emitieron rango
+- `calibrarLote([{ output: EPD_OUTPUT, y_obs }])` → agrupa por
+  `variable_type`, MAE/Sesgo/cobertura **por grupo**; solo `CUANTIFICADO`
+  con `projection_base` numérico (los `S0/S1` → `no_calibrables`, sin
+  métrica); `y_obs` es el único dato nuevo (del piloto)
+
+### El signo de `Sesgo` — literal de §36, opuesto a `Error`
+`Error = Y_obs − Y_proj` pero `Sesgo = (1/n) Σ (Y_proj − Y_obs)` —
+**signos opuestos**. Se implementa **exactamente como §36 lo escribe**, no
+se "corrige" para igualar convenciones (eso sería fabricar una lectura que
+el documento no pide). Consecuencia: `Sesgo > 0` ⟺ el motor
+**sobre-proyecta** en promedio. La mutación 1 de `calibracion.test.js` es
+precisamente la tentación de "arreglarlo" → hace fallar el test por su
+nombre.
+
+### `variable_type` como criterio de comparabilidad — decisión de diseño
+§36: "los errores solo se agregan entre variables comparables" — **sin
+definir qué hace comparables a dos variables** (no hay frase de refuerzo,
+a diferencia de "material" en §25). **Decisión de diseño de Luis** (como
+"dirección adversa" §21.2, `unit` §23.1, "homogéneo"=`impact_type` §29#15):
+se toma "mismo `variable_type`" como criterio. `calibrarLote` NUNCA
+produce un MAE/Sesgo global cruzando tipos. Una lectura más estricta
+podría exigir además la misma unidad física — pero `unit` no está en
+`EPD_OUTPUT` (la reapertura #7 se acotó a `variable_type`) y §36 no lo
+especifica.
+
+### Qué se puede afirmar hoy vs. qué queda pendiente hasta el piloto
+- **Con datos sintéticos AHORA** — que la aritmética de
+  `Error`/`EA`/`MAE`/`Sesgo`/`cobertura` es correcta según §36, y que la
+  regla de comparabilidad se hace cumplir. Verificable con mutación real.
+- **PENDIENTE hasta el piloto** — si el motor **calibra bien**: si el
+  `MAE` real es aceptable, el `Sesgo` real cercano a cero, la cobertura
+  empírica cerca de la nominal del envelope (±7% / ±15%,
+  `PENDIENTE_CALIBRACION`). Y la calibración de rúbricas / suficiencia de
+  serie / HMS / percentiles / métodos por variable / parámetros de
+  contención (§36 los enumera; todos siguen abiertos). **Nada de eso se
+  puede afirmar con datos inventados.**
+
+### Baterías (8)
+- `calibracion.test.js` → **30 asserts, 0 fallos** + **4 mutaciones**
+  (sobre copias reales, revertidas):
+  **(1)** `sesgo`: `(y_proj − y_obs)` → `(y_obs − y_proj)` ("corregir" el
+  signo) → **3 rojos** (incl. "sobre-proyección pura: Sesgo = +55" da −55).
+  **(2)** `mae` sin `Math.abs` → **5 rojos** (incl. errores que se cancelan
+  → 0 en vez de 100).
+  **(3)** `cobertura` con `<` en vez de `<=` → **2 rojos** (los casos
+  `y_obs == L` e `y_obs == U` pasan a contarse como fuera).
+  **(4)** `calibrarLote` sin agrupar (grupo global único) → **1 rojo** (V1
+  y V3 se mezclan en un solo MAE).
+
+### §38 — sin envoltorio automático
+`calibracion.js` produce las métricas; NO incluye un `proponerAjuste` que
+genere el registro de §38 automáticamente. §38 ("cualquier cambio
+calibrable debe **documentar** parámetro anterior/nuevo/evidencia/muestra/
+efecto/versión") es una obligación sobre **quien decide el cambio**, no
+sobre el motor. Un humano revisa las métricas, decide si amerita mover un
+parámetro, y si sí, usa `construirRegistroCalibracion` (ya en
+`heredadas.js`, Fase 6) por separado. Fabricar el paso automático sería
+inventar algo que el documento no describe.
+
+**Con Fase 8, el motor IFD queda completo** (9 fases: 0-8; la 7 en 3
+sub-entregas). Solo queda, retrospectivamente, correr la calibración real
+cuando el piloto produzca `Y_obs`.
 
 ## Huecos conocidos
 
