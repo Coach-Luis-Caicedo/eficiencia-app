@@ -588,12 +588,14 @@ cualquier nivel S0-S3.
   `resolverClasificacion` devuelve `{ terminal, resultado:{...} }` sin
   `alerts`/`notes` a nivel superior → al seguir, `clas.alerts` es
   `undefined`, `alerts.concat(undefined)` mete un código inválido →
-  `validarEPDOutput` rechaza → `runEPD` devuelve `{ ok:false }`. **9
-  rojos** (todos los asserts usan acceso null-safe `out()`, no hay crash):
-  "los 4 cortes → runEPD ok", los `eq` de status/nivel de
-  V5/EV-CUAL/FEP1/serie, `A04`, "variable_type en terminal S1 (V5)" (el V5
-  sale `{ok:false}`), y "el V5 no entra en la suma" de la sección 7b (el
-  `Vq` malformado hace que `agregarEPDs` lo rechace).
+  `validarEPDOutput` rechaza → `runEPD` devuelve `{ ok:false }`. **8
+  rojos**, el script termina limpio (hasta `RESULTADO`): todo assert que
+  consume un `runEPD` que puede quedar `{ok:false}` usa `out()`, y el `Vq`
+  de la sección 7b se cambió de `V5` a un EPD terminal **S0** (`fdbf2c0` +
+  `d348bed`) — el corte de admisibilidad §6 es previo a la clasificación y
+  ninguna mutación lo toca. Fallan: "los 4 cortes → runEPD ok", los `eq`
+  de status/nivel de V5/EV-CUAL/FEP1/serie, `A04`, y "variable_type en
+  terminal S1 (V5)".
   **(2)** `output_level = nivelSalidaMax(fep)` en vez de `effective_FEP` →
   el caso HMS da S3 en vez de S2 (§30 violado).
   **(3)** quitar `unicos()` → el caso de clamp da `["A06","A06"]`.
@@ -653,11 +655,11 @@ distinga "cambio de contrato" de "conexión en el orquestador").
   **(5)** `detectarDobleConteo([])` en vez de la unión → dos EPD que
   solapan se suman igual (sin `A14`, `aggregation_blocked` queda `false`).
   **3 rojos**.
-  **(6)** `tiposDistintos.length > 1` → `> 0` → dos EPD del **mismo**
-  `impact_type` se marcan `A17` y se bloquean (falso positivo). **7
-  rojos** (el total + lower + upper + "homogéneos no bloqueado" + "distinto
-  período no bloqueado" + los 2 casos con V5 cualitativo que ahora salen
-  `null`).
+  **(6)** `tiposDistintos.length > 1` → `> 0` → un lote con un solo
+  `impact_type` se marca `A17` y se bloquea (falso positivo). **7 rojos**
+  (`agg`: total + lower + upper + "homogéneos no bloqueado"; "distinto
+  período no bloqueado"; y los 2 casos con un EPD terminal en
+  `cualitativos` cuyo total esperado 135.000 pasa a `null`).
   **(7)** quitar `!aggregation_blocked` de la definición de `puedeSumar` →
   los roll-ups bloqueados por §25/§29#15 emiten total igual (§35 violado).
   **2 rojos** (`aggDC`, `het`; el caso "sin EPD cuantificado" lo protege

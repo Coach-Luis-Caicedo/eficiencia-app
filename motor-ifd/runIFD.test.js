@@ -195,15 +195,19 @@ near(agg.economic_upper_total, 256800, 'upper sumado: 144.450 + 112.350');
 eq(agg.n_cuantificados, 2, '2 EPD cuantificados');
 eq(agg.aggregation_blocked, false, 'homogéneos, sin solape → no bloqueado');
 
-// cualitativos no se suman
-var Vq = R.runEPD(inp({ epd_id: 'Vq', variable_type: 'V5' })).output;
+// cualitativos no se suman. Se usa un EPD terminal S0 (no admisible), no
+// un V5: bajo la mutación 1 de 7a (if(clas.terminal)->if(false)) un V5
+// saldría { ok:false } y este bloque de 7b crashearía por una mutación
+// que no lo apunta. El corte de admisibilidad (§6) no lo toca ninguna
+// mutación → runEPD siempre tiene éxito aquí.
+var Vq = out(R.runEPD(inp({ epd_id: 'Vq', deterioration_sustained: false })));
 var aggQ = R.agregarEPDs([A, Vq]);
-near(aggQ.economic_total, 135000, 'el EPD cualitativo (V5) NO entra en la suma');
-eq(aggQ.cualitativos.map(function (c) { return c.epd_id; }), ['Vq'], 'el V5 va en cualitativos, sin cifra');
+near(aggQ.economic_total, 135000, 'el EPD terminal (S0) NO entra en la suma');
+eq((aggQ.cualitativos || []).map(function (c) { return c.epd_id; }), ['Vq'], 'el S0 va en cualitativos, sin cifra');
 eq(aggQ.n_cuantificados, 1, 'solo A cuenta como cuantificado');
 
-// todos cualitativos → total null (no 0, §26)
-var aggAllQ = R.agregarEPDs([Vq, R.runEPD(inp({ epd_id: 'Vq2', variable_type: 'V5' })).output]);
+// todos no-cuantificados → total null (no 0, §26)
+var aggAllQ = R.agregarEPDs([Vq, out(R.runEPD(inp({ epd_id: 'Vq2', deterioration_sustained: false })))]);
 eq(aggAllQ.economic_total, null, 'sin EPD cuantificado → economic_total null (§26: no 0)');
 
 // CUANTIFICADO pero sin economía (puerta §23.1 cerrada) → NO entra en la suma
@@ -248,9 +252,10 @@ console.log('     serie) deja de detener la cascada. Mecanismo real de la falla:
 console.log('     resolverClasificacion devuelve { terminal, resultado:{...} } SIN alerts/notes a nivel');
 console.log('     superior; al seguir, `clas.alerts` es undefined y alerts.concat(undefined) mete un');
 console.log('     código de alerta inválido -> validarEPDOutput rechaza -> runEPD devuelve { ok:false }.');
-console.log('     9 rojos (todos los asserts son null-safe vía out(), no hay crash): "los 4 cortes ->');
-console.log('     runEPD ok", los eq de status/nivel de V5/EV-CUAL/FEP1/serie, A04, "variable_type en');
-console.log('     terminal S1 (V5)" (el V5 sale {ok:false}), y "el V5 NO entra en la suma" de 7b.');
+console.log('     8 rojos, el script termina limpio (todos los asserts que consumen un runEPD que');
+console.log('     puede quedar {ok:false} usan out(); el Vq de la seccion 7b se cambio a un EPD S0');
+console.log('     que ninguna mutacion toca): "los 4 cortes -> runEPD ok", los eq de status/nivel de');
+console.log('     V5/EV-CUAL/FEP1/serie, A04, y "variable_type en terminal S1 (V5)".');
 console.log('  2. output_level = nivelSalidaMax(fep) en vez de effectiveFep → el caso HMS da S3 en');
 console.log('     vez de S2 (la degradación de §18 se pierde, §30 violado).');
 console.log('  3. quitar unicos() (dedup de alertas) → el caso de clamp da ["A06","A06"] (proyección');
