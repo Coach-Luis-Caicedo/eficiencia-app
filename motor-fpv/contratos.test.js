@@ -121,26 +121,90 @@ ok(!C.validarFPVInput(inp({ posiciones: { CONSUMIDOR: { diseno: { probabilistico
 ok(!C.validarFPVInput(inp({ posiciones: { ACCIONISTA: {} } })).valido, 'posiciones con clave que no es §4 → inválido');
 
 // ═══════════════════════════════════════════════════════════════════════
-seccion('§11 — validarFPVOutput: esqueleto + prohibición de índice global');
+seccion('§11 / §19.8 — validarFPVOutput COMPLETO (reapertura Fase 6)');
 // ═══════════════════════════════════════════════════════════════════════
 
-var salidaOK = { posiciones: { CONSUMIDOR: {}, INVERSIONISTA: {}, PROVEEDOR: {} } };
-ok(C.validarFPVOutput(salidaOK).valido, 'salida con las 3 posiciones → válida (forma interna: hueco conocido para Fase 6)');
-ok(!C.validarFPVOutput({ posiciones: { CONSUMIDOR: {}, INVERSIONISTA: {} } }).valido, 'falta PROVEEDOR → inválida (§11.1: las 3)');
-ok(!C.validarFPVOutput({ posiciones: { CONSUMIDOR: {}, INVERSIONISTA: {}, PROVEEDOR: {}, EMPLEADO: {} } }).valido, 'posición de más → inválida');
+function sensorOK(over) {
+  return Object.assign({
+    sensor: 'F', estatus: 'DESCRIPTIVO', nv: 3, nNE: 0, nNR: 0,
+    L: 50, mediana: 3, p: { 1: 0, 2: 0, 3: 1, 4: 0, 5: 0 }, H: 0, C: 100, CE: 100
+  }, over || {});
+}
+function configOK(over) {
+  return Object.assign({
+    Ncfg: 3, calculable: true, Lstar: { F: 50, P: 50, V: 50 }, G: 0,
+    limitante: ['F', 'P', 'V'], fortalecida: ['F', 'P', 'V']
+  }, over || {});
+}
+function posOK(over) {
+  return Object.assign({
+    etiqueta: 'FPV-C', n_respondientes: 3, participacion: { nrespondentes: 3, PR: null },
+    sensores: { F: sensorOK(), P: sensorOK({ sensor: 'P' }), V: sensorOK({ sensor: 'V' }) },
+    configuracion: configOK()
+  }, over || {});
+}
+function salidaOK(over) {
+  return Object.assign({
+    posiciones: { CONSUMIDOR: posOK(), INVERSIONISTA: posOK({ etiqueta: 'FPV-I' }), PROVEEDOR: posOK({ etiqueta: 'FPV-P' }) },
+    meta: { version: 'v1.2' }
+  }, over || {});
+}
+// pasar un override a UNA posición manteniendo la salida por lo demás válida
+function salidaConSensor(sensorOver) {
+  var s = salidaOK();
+  s.posiciones.CONSUMIDOR.sensores.F = sensorOver;
+  return s;
+}
+function salidaConConfig(cfgOver) {
+  var s = salidaOK();
+  s.posiciones.CONSUMIDOR.configuracion = cfgOver;
+  return s;
+}
 
-var conIndice = { posiciones: { CONSUMIDOR: {}, INVERSIONISTA: {}, PROVEEDOR: {} }, fpv_global: 62 };
-ok(!C.validarFPVOutput(conIndice).valido,
-  '§11: una clave `fpv_global` en la salida → RECHAZADA (nunca se promedia F+P+V ni se combinan posiciones)');
-ok(!C.validarFPVOutput(Object.assign({ indice_fpv: 1 }, salidaOK)).valido, '`indice_fpv` → RECHAZADA');
+ok(C.validarFPVOutput(salidaOK()).valido, 'salida completa bien formada → válida');
+ok(!C.validarFPVOutput({ posiciones: { CONSUMIDOR: posOK(), INVERSIONISTA: posOK() } }).valido, 'falta PROVEEDOR → inválida (§11.1: las 3)');
+ok(!C.validarFPVOutput(salidaOK({ posiciones: Object.assign(salidaOK().posiciones, { EMPLEADO: posOK() }) })).valido, 'posición de más → inválida');
+ok(!C.validarFPVOutput(salidaOK({ meta: {} })).valido, 'sin `meta.version` → inválida (trazabilidad §14)');
+
+// §11 — índice global en la raíz Y anidado
+ok(!C.validarFPVOutput(salidaOK({ fpv_global: 62 })).valido, '§11: `fpv_global` en la raíz → RECHAZADA');
+ok(!C.validarFPVOutput(salidaOK({ indice_fpv: 1 })).valido, '`indice_fpv` en la raíz → RECHAZADA');
+ok(!C.validarFPVOutput(salidaConSensor(sensorOK({ fpv_total: 40 }))).valido, '§11: `fpv_total` DENTRO de un sensor → RECHAZADA (chequeo anidado)');
+{
+  var sPos = salidaOK(); sPos.posiciones.CONSUMIDOR.fpv_compuesto = 55;
+  ok(!C.validarFPVOutput(sPos).valido, '§11: `fpv_compuesto` en un bloque de posición → RECHAZADA');
+}
+
+// §11.1 — contenido obligatorio por sensor
+ok(!C.validarFPVOutput(salidaConSensor(sensorOK({ CE: undefined }))).valido, 'sensor sin `CE` → inválida (§11.1)');
+ok(!C.validarFPVOutput(salidaConSensor((function () { var s = sensorOK(); delete s.mediana; return s; })())).valido, 'sensor sin `mediana` → inválida (§11.1)');
+
+// §19.8 regla 1 — L nunca sin H y distribución
+ok(!C.validarFPVOutput(salidaConSensor(sensorOK({ L: 50, H: null }))).valido, '§19.8: `L` con `H` nulo → RECHAZADA');
+ok(!C.validarFPVOutput(salidaConSensor(sensorOK({ L: 50, p: null }))).valido, '§19.8: `L` con `p` (distribución) nula → RECHAZADA');
+ok(C.validarFPVOutput(salidaConSensor(sensorOK({ L: null, mediana: null, p: null, H: null, C: null }))).valido,
+  'sensor NO_CALCULABLE (todo null) → VÁLIDA — §19.8 solo aplica cuando HAY L');
+
+// §8 — CENSAL debe mostrar CV
+ok(!C.validarFPVOutput(salidaConSensor(sensorOK({ estatus: 'CENSAL', CV: null }))).valido, '§8: estatus CENSAL sin `CV` → RECHAZADA');
+ok(C.validarFPVOutput(salidaConSensor(sensorOK({ estatus: 'CENSAL', CV: 92 }))).valido, 'CENSAL con `CV` → válida');
+
+// §11.2 — salida configuracional
+ok(!C.validarFPVOutput(salidaConConfig(configOK({ G: undefined }))).valido, 'config sin `G` → inválida (§11.2)');
+ok(!C.validarFPVOutput(salidaConConfig(configOK({ estatus: 'DESCRIPTIVO' }))).valido, 'config CON `estatus` → inválida (decisión C de Fase 4: §11.2 no lo lista)');
 
 // ═══════════════════════════════════════════════════════════════════════
 seccion('Mutaciones — ejecutadas como paso de Bash aparte (ver cierre)');
 // ═══════════════════════════════════════════════════════════════════════
-console.log('  1. clasificarValorRespuesta: "NR" → "NE" (fusionar) → "NE y NR se clasifican DISTINTO" falla.');
-console.log('  2. s(r): quitar la cota superior (r>5) → "s(6) lanza" falla.');
-console.log('  3. validarFPVInput sin el chequeo de unicidad → "mismo persona_id dos veces → inválido" falla.');
-console.log('  4. validarFPVOutput sin la lista de claves prohibidas → "fpv_global → RECHAZADA" falla.');
+console.log('  1. clasificarValorRespuesta: "NR" → "NE" (fusionar) → 2 rojos.');
+console.log('  2. s(r): quitar la cota superior (r>5) → 1 rojo ("s(6) lanza").');
+console.log('  3. validarFPVInput sin el chequeo de unicidad → 1 rojo.');
+console.log('  4. CLAVES_INDICE_GLOBAL_PROHIBIDAS vaciada → 4 rojos (raíz ×2 + sensor + posición;');
+console.log('     en Fase 0 eran 2 — la reapertura de Fase 6 añadió los chequeos anidados).');
+console.log('  5. validarFPVOutput: quitar la regla §19.8 (L sin H/p) → 2 rojos.');
+console.log('  6. validarFPVOutput: `_indiceGlobalEn` NO se llama en sensores → 1 rojo');
+console.log('     (el chequeo anidado en el nivel de sensor desaparece).');
+console.log('  7. `CE` fuera de SENSOR_OBLIGATORIOS → 1 rojo ("sensor sin `CE` → inválida").');
 
 // ═══════════════════════════════════════════════════════════════════════
 console.log('\n' + '═'.repeat(74));

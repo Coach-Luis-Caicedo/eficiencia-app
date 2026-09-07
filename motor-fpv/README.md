@@ -70,7 +70,7 @@ mezclado con el trabajo de la fase que lo motivó).
 
 | Qué se reabrió | Desde | Por qué | Commit |
 |---|---|---|---|
-| *(ninguna todavía)* | | | |
+| `contratos.js` — `validarFPVOutput` de LIGERO a COMPLETO | Fase 6 | El hueco conocido de Fase 0 (forma interna de sensor + configuración, regla 1 de §19.8, índice global anidado) se cierra cuando el orquestador produce la salida real | *este commit* |
 
 ## Decisiones A-I (aprobadas por Luis antes de escribir código)
 
@@ -151,15 +151,20 @@ honestidad que "dirección adversa" (IFD §21.2), `unit` (IFD §23.1),
   hace cumplir todavía.
 
 ### Batería
-`node motor-fpv/contratos.test.js` → **49 asserts, 0 fallos** + **4
-mutaciones** (ejecutadas sobre copias reales, revertidas):
-1. `clasificarValorRespuesta`: `'NR'` → `'NE'` (fusionar) → "NE y NR se
-   clasifican DISTINTO" falla (2 rojos).
-2. `s(r)`: quitar la cota `r > 5` → "s(6) lanza" falla (1 rojo).
-3. `validarFPVInput` sin el chequeo de unicidad → "mismo persona_id dos
-   veces en la misma posición → inválido" falla (1 rojo).
-4. `validarFPVOutput` sin la lista de claves prohibidas → "`fpv_global`
-   → RECHAZADA" falla (2 rojos).
+`node motor-fpv/contratos.test.js` → **61 asserts, 0 fallos** (49 en
+Fase 0 + 12 añadidos por la reapertura de Fase 6) + **7 mutaciones**
+(ejecutadas sobre copias reales, revertidas):
+1. `clasificarValorRespuesta`: `'NR'` → `'NE'` (fusionar) → **2 rojos**.
+2. `s(r)`: quitar la cota `r > 5` → **1 rojo** ("s(6) lanza").
+3. `validarFPVInput` sin el chequeo de unicidad → **1 rojo**.
+4. `CLAVES_INDICE_GLOBAL_PROHIBIDAS` vaciada → **4 rojos** (raíz ×2 +
+   sensor + posición; en Fase 0 eran **2** — la reapertura de Fase 6
+   añadió los chequeos anidados que usan la misma lista).
+5. *(reapertura Fase 6)* `validarFPVOutput` sin la regla 1 de §19.8
+   (`L` sin `H`/`p`) → **2 rojos**.
+6. *(reapertura Fase 6)* `_indiceGlobalEn` no se llama en el nivel de
+   sensor → **1 rojo**.
+7. *(reapertura Fase 6)* `CE` fuera de `SENSOR_OBLIGATORIOS` → **1 rojo**.
 
 ## Fase 1 — nivel Persona §7.1
 
