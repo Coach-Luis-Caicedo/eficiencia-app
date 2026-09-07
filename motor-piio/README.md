@@ -173,7 +173,7 @@ de la fase que lo motivó).
 
 | Qué se reabrió | Desde | Por qué | Commit |
 |---|---|---|---|
-| *(ninguna todavía)* | | | |
+| `contratos.js` — `ESQUEMA_REFERENCE_SPEC` (+`admissibility_declared` obligatorio, `critical_failure?`, `change_mode?`/`supersedes?`) y `ESQUEMA_METRIC_DEFINITION` (+`bridge_rule?`) | Fase 3 | §8.2 exige un veredicto de admisibilidad por referencia (ambig. X) y §8.4 exige una regla de bridge validada (ambig. Y) — ninguno tenía dónde vivir en §25.3 / §7 | *este commit* |
 
 ---
 
@@ -210,8 +210,9 @@ de la fase que lo motivó).
   completa → Fase 11.
 
 ### Batería
-`node motor-piio/contratos.test.js` → **76 asserts, 0 fallos** + **6
-mutaciones** (sobre copias reales, revertidas):
+`node motor-piio/contratos.test.js` → **85 asserts, 0 fallos** (76 en
+Fase 0 + 9 de la reapertura de Fase 3) + **8 mutaciones** (sobre copias
+reales, revertidas):
 1. `clasificarAusencia` sin la rama de cero → **4 rojos** (los 4 asserts
    de `value=0`) — INV-PIIO-03 (cero ≠ missing).
 2. `clasificarAusencia`: null sin razón → `MISSING` en vez de `INVALIDO`
@@ -223,8 +224,13 @@ mutaciones** (sobre copias reales, revertidas):
    `core_or_supporting_by_domain` → **2 rojos** (§18).
 6. `validarEFOStateLigero` con `CLAVES_SCORE_PROHIBIDAS` vacía → **2
    rojos** (AC75 / INV-PIIO-75/76).
+7. *(reapertura Fase 3)* `admissibility_declared` opcional en vez de
+   obligatorio → **1 rojo** (§8.2 / ambig. X).
+8. *(reapertura Fase 3)* `validarReferenceSpec` sin el chequeo
+   `change_mode ⟹ supersedes` → **1 rojo** (§8.3).
 
-**Total motor-piio tras Fase 0: 76 asserts.**
+**Total motor-piio tras Fase 0: 76 asserts** (85 tras la reapertura de
+Fase 3).
 
 ## Fase 1 — validación de configuración (§29 pasos 1–4)
 

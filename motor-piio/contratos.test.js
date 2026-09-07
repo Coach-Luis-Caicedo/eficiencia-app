@@ -157,12 +157,25 @@ ok(!C.validarDomainSpec(ds({ applicability_by_context: { default: 'SIEMPRE' } })
 function rs(over) {
   return Object.assign({
     reference_id: 'rc1', reference_role: 'CONDITION', reference_type: 'NORMATIVE', source: 'ISO', valid_from: '2026-01-01',
-    rule: 'r', comparability_assessment: 'a', traceability: 't', version: 'v1'
+    rule: 'r', comparability_assessment: 'a', traceability: 't', version: 'v1',
+    admissibility_declared: 'ADMISSIBLE'
   }, over || {});
 }
 ok(C.validarReferenceSpec(rs()).valido, 'REFERENCE_SPEC mínimo válido');
 ok(!C.validarReferenceSpec(rs({ reference_role: 'BOTH' })).valido, 'reference_role fuera de CONDITION|TEMPORAL → inválido (§8)');
 ok(!C.validarReferenceSpec(rs({ reference_type: 'GUT_FEEL' })).valido, 'reference_type fuera de enum → inválido');
+// REAPERTURA Fase 3 (ambigüedad X) — admissibility_declared obligatorio (§8.2)
+ok(!C.validarReferenceSpec(rs({ admissibility_declared: undefined })).valido, 'sin admissibility_declared → inválido (§8.2 exige veredicto por referencia)');
+ok(!C.validarReferenceSpec(rs({ admissibility_declared: 'MAYBE' })).valido, 'admissibility_declared fuera de enum → inválido');
+ok(C.validarReferenceSpec(rs({ admissibility_declared: 'ADMISSIBLE_WITH_LIMITATIONS' })).valido, 'ADMISSIBLE_WITH_LIMITATIONS → válido');
+ok(C.validarReferenceSpec(rs({ critical_failure: 'benchmark no comparable tras la fusión' })).valido, 'critical_failure (string) → válido');
+// §8.3 — change_mode exige supersedes
+ok(C.validarReferenceSpec(rs({ change_mode: 'REBASE_HISTORY', supersedes: 'v0' })).valido, 'change_mode + supersedes → válido');
+ok(!C.validarReferenceSpec(rs({ change_mode: 'REBASE_HISTORY' })).valido, 'change_mode sin supersedes → inválido (§8.3)');
+ok(!C.validarReferenceSpec(rs({ change_mode: 'MUDANZA', supersedes: 'v0' })).valido, 'change_mode fuera de enum → inválido');
+// REAPERTURA Fase 3 (ambigüedad Y) — bridge_rule opcional en METRIC_DEFINITION
+ok(C.validarMetricDefinition(md({ continuity_mode: 'BRIDGED', bridge_rule: 'multiplicar la serie vieja por 1.08' })).valido, 'METRIC_DEFINITION BRIDGED + bridge_rule → válido');
+ok(C.validarMetricDefinition(md({ continuity_mode: 'BRIDGED' })).valido, 'BRIDGED sin bridge_rule → VÁLIDO en el contrato (Fase 3 lo degrada a NEW_SERIES + flag, ambig. Y)');
 
 function ns(over) {
   return Object.assign({
@@ -226,6 +239,10 @@ console.log('     → 2 rojos ("rol distinto de CORE|SUPPORTING → inválido", 
 console.log('     no canónico → inválido") — §18.');
 console.log('  6. validarEFOStateLigero: vaciar CLAVES_SCORE_PROHIBIDAS.');
 console.log('     → 2 rojos (efo_score, promedio_dominios) — AC75 / INV-PIIO-75/76.');
+console.log('  7. (reapertura Fase 3) `admissibility_declared` opcional en vez de required.');
+console.log('     → 1 rojo ("sin admissibility_declared → inválido", §8.2 / ambig. X).');
+console.log('  8. (reapertura Fase 3) validarReferenceSpec sin el chequeo change_mode⇒supersedes.');
+console.log('     → 1 rojo ("change_mode sin supersedes → inválido", §8.3).');
 
 // ═══════════════════════════════════════════════════════════════════════
 console.log('\n' + '═'.repeat(74));

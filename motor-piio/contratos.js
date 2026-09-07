@@ -129,7 +129,12 @@ var ESQUEMA_METRIC_DEFINITION = [
   { name: 'target_range_rules', required: false, check: function (v) {
       return v !== null && typeof v === 'object' && !Array.isArray(v) &&
         esStringNoVacio(v.below) && esStringNoVacio(v.above);
-    }, msg: '{ below, above } — reglas de clasificación (extensión §7 por ambigüedad D)' }
+    }, msg: '{ below, above } — reglas de clasificación (extensión §7 por ambigüedad D)' },
+  // ── REAPERTURA (Fase 3, ambigüedad Y): §8.4 "BRIDGED exige regla de
+  //    transformación validada", pero §7 no lista un campo. Opcional en el
+  //    contrato — `continuidadDefinicion` (Fase 3) trata BRIDGED sin
+  //    bridge_rule como NEW_SERIES + flag (AC15 / INV-PIIO-29).
+  { name: 'bridge_rule', required: false, check: esStringNoVacio, msg: 'string no vacío — regla de transformación validada (§8.4, obligatoria de hecho si continuity_mode=BRIDGED)' }
 ];
 
 function validarMetricDefinition(obj) {
@@ -309,9 +314,29 @@ var ESQUEMA_REFERENCE_SPEC = [
   { name: 'rule', required: true, check: esStringNoVacio, msg: 'string no vacío' },
   { name: 'comparability_assessment', required: true, check: esStringNoVacio, msg: 'string no vacío (§8.2)' },
   { name: 'traceability', required: true, check: esStringNoVacio, msg: 'string no vacío' },
-  { name: 'version', required: true, check: esStringNoVacio, msg: 'string no vacío' }
+  { name: 'version', required: true, check: esStringNoVacio, msg: 'string no vacío' },
+  // ── REAPERTURA (Fase 3, ambigüedad X): §8.2 exige un veredicto de
+  //    admisibilidad (ADMISSIBLE | ADMISSIBLE_WITH_LIMITATIONS |
+  //    NOT_ADMISSIBLE) para CADA referencia, hoy — pero §25.3 no lo lista.
+  //    El motor chequea vigencia mecánicamente; las otras 4 dimensiones
+  //    (pertinencia, comparabilidad, trazabilidad, estabilidad) son
+  //    evaluación del analista → veredicto declarado (patrón `diseno` del
+  //    FPV — el motor no fabrica el juicio, le da dónde vivir).
+  { name: 'admissibility_declared', required: true, check: enEnum('EVIDENCE_ADMISSIBILITY'), msg: ENUMS.EVIDENCE_ADMISSIBILITY.join(' | ') + ' (§8.2 — veredicto del analista sobre las 4 dimensiones no mecánicas)' },
+  { name: 'critical_failure', required: false, check: esStringNoVacio, msg: 'string no vacío — §8.2 "un fallo crítico impide usarla"; si presente, fuerza NOT_ADMISSIBLE' },
+  // §8.3 — modo de cambio, propiedad de la versión NUEVA. `supersedes` =
+  //   `version` de la referencia que reemplaza.
+  { name: 'change_mode', required: false, check: enEnum('REFERENCE_CHANGE_MODE'), msg: ENUMS.REFERENCE_CHANGE_MODE.join(' | ') + ' (§8.3)' },
+  { name: 'supersedes', required: false, check: esStringNoVacio, msg: 'string no vacío — `version` de la referencia reemplazada (obligatoria de hecho si change_mode presente)' }
 ];
-function validarReferenceSpec(obj) { return validarObjeto(ESQUEMA_REFERENCE_SPEC, obj); }
+function validarReferenceSpec(obj) {
+  var r = validarObjeto(ESQUEMA_REFERENCE_SPEC, obj);
+  // §8.3 — un change_mode sin decir a quién reemplaza no tiene sentido
+  if (obj && typeof obj === 'object' && esStringNoVacio(obj.change_mode) && !esStringNoVacio(obj.supersedes)) {
+    r = { valido: false, faltantes: r.faltantes.concat(['supersedes (change_mode presente, §8.3)']), invalidos: r.invalidos.slice() };
+  }
+  return r;
+}
 
 // ═════════════════════════════════════════════════════════════════════
 // §25.4 — NODE_SPEC

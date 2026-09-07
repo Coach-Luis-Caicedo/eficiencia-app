@@ -35,7 +35,8 @@ function md(over) {
 function rs(over) {
   return Object.assign({
     reference_id: 'rc1', reference_role: 'CONDITION', reference_type: 'NORMATIVE', source: 'ISO', valid_from: '2026-01-01',
-    rule: 'r', comparability_assessment: 'a', traceability: 't', version: 'v1'
+    rule: 'r', comparability_assessment: 'a', traceability: 't', version: 'v1',
+    admissibility_declared: 'ADMISSIBLE'  // reapertura Fase 3 (ambig. X)
   }, over || {});
 }
 function ph(over) {
