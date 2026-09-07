@@ -1,0 +1,225 @@
+# motor-piio — Panel de Indicadores de Impacto Operativo
+
+Módulo de cálculo **aislado**, mismo patrón que `motor-ice-ieh`,
+`motor-sdmo`, `motor-iao`, `motor-cff`, `motor-ifd` y `motor-fpv`:
+construcción por fases, contratos como validadores primero, mutación real
+en cada regla negativa, nada se comitea sin verificación mostrada, nada se
+conecta a otro módulo (arnés aparte, después).
+
+**Fuente de verdad — única:**
+`EFICIENCIA_Documento_Tecnico_PIIO_v1_1_FINAL.docx` (raíz del repo).
+Versión canónica: **v1.1 FINAL**. Sin desfase de nomenclatura (0
+apariciones de "IFT", 29 de "IFD" — verificado; una edición previa de este
+documento usaba "IFT" por error genealógico, ya corregido).
+
+**PIIO previo en el Workbook — NO es fuente de este motor.** Existe hoy un
+panel "PIIO" corriendo (`piio-*`/`sm-*` en `workbook.html`, migraciones
+SQL 022 + 026 + 027); ver el informe de auditoría
+`INVENTARIO_PIIO_ANTIGUO.md`. Es un enfoque radicalmente más simple
+(captura de 8 KPIs mensuales + roll-up por promedio simple entre áreas +
+feed al CFF). **No comparte una sola pieza de la cascada inferencial de
+v1.1** — ni F/I/D, ni referencias, ni dominios/fenómenos, ni EFO. Mismo
+patrón que el FPV viejo frente al FPV v1.2: mismo dominio conceptual,
+arquitectura incomparablemente más simple. **Nada del sistema viejo se
+retrofitea.**
+
+## Qué es PIIO
+
+Produce la **EFO** (Evidencia de Funcionamiento Operativo) para el AIE,
+mediante una **cascada inferencial determinista de 6 niveles** (§4):
+
+```
+OBSERVACIÓN → KPI_STATE → EVIDENCE_GROUP → PHENOMENON_STATE
+           → DOMAIN_STATE → EFO_STATE → AIE
+```
+
+Cada nivel resuelve **posición** (`F | I | D | N_A`), **trayectoria**
+(`IMPROVING | STABLE | DETERIORATING | N_A`) y **persistencia**
+(`POINT | REPEATED | PERSISTENT | N_A`). Cada nivel agrega significado sin
+borrar el anterior (INV-PIIO-10). **Sin promedios, sin pesos universales,
+sin votación, sin score 0–100** (§4, §20.1, §35, INV-PIIO-75/76).
+
+7 dominios canónicos (§5): `PRODUCTIVITY`, `QUALITY`, `COMPLIANCE`,
+`OPERATIONAL_CONTINUITY`, `OPERATIONAL_AVAILABILITY`, `OPERATIONAL_SAFETY`,
+`RESOURCE_EFFICIENCY`.
+
+**Frase rectora** (§30, equivalente a IFD §0 / FPV §18):
+> Ante evidencia insuficiente, PIIO debe perder cobertura antes que
+> inventar posición.
+
+## Oráculo — el más fuerte hasta ahora, pero NO numérico
+
+Ni motor Python de referencia (como IFD) ni tabla de estrés numérica
+(como FPV §10). El oráculo son:
+
+- **80 invariantes** `INV-PIIO-01..80` (§33) — cada uno un "nunca/siempre"
+  duro. Es el oráculo **fuerte**.
+- **80 casos de aceptación** `AC01..80` (§34) — `ID | Caso | Resultado
+  esperado`. Cobertura de cada rama de la cascada, cada combinación
+  DIRECT/PROXY, CORE/SUPPORTING, REQUIRED/OPTIONAL, versionamiento,
+  jerarquía de nodos, y 3 cruces con otros instrumentos (AC61 PIIO→CFF,
+  AC62 PIIO→IFD, AC64–66: CFF/IFD/AIE nunca reescriben EFO).
+
+**Varios AC son conductuales, no numéricos** ("según regla explícita",
+"puede ser IMPROVING", "flag si procede"). La batería AC codifica el
+resultado **tal como el texto lo enuncia**: donde el texto da un enum
+exacto (F+D→I), se testea el enum; donde da una condición ("puede ser
+IMPROVING si…"), se testea la condición, no un valor fijo. Los 80
+invariantes son el oráculo duro; los AC son cobertura de rama.
+(Ambigüedad I.)
+
+## Interoperabilidad — alcance CERRADO
+
+§26 / §1.4 / INV-PIIO-43/44/45/68/70/72: PIIO exporta
+`PIIO_OPERATIONAL_EXPORT` (fenómenos / métricas / exposición / nodos)
+hacia CFF e IFD. **PIIO ↛ costo · ↛ ROI · ↛ TRE · ↛ proyección
+predictiva.** `motor-piio` **no implementa nada de esa lógica**, ni "de
+conveniencia" para un futuro arnés. CFF/IFD/AIE nunca reescriben EFO
+retroactivamente. El flujo es unidireccional: PIIO produce, CFF/IFD
+consumen. (El panel viejo tiene a PIIO invocando al motor CFF — eso NO se
+reproduce; ver `INVENTARIO_PIIO_ANTIGUO.md` §3.)
+
+---
+
+## Plan de 14 fases (aprobado antes de escribir código)
+
+### Orden de ejecución (§29 `runPIIO`) vs. orden de construcción
+
+**Runtime (§29):** validar config → catálogos → jerarquía de nodos →
+métricas/referencias → ingest → *por observación*: calidad + preservar
+valor + `resolve_kpi_state` → `resolve_evidence_groups` → *por
+fenómeno/nodo/período*: state + cobertura/admisibilidad + temporales →
+*por dominio*: idem → *por nodo/org*: EFO pos + deterioration + traj/pers +
+cobertura → perfiles → export CFF/IFD → invariantes → trace → persist →
+publish.
+
+**3 diferencias explícitas construcción vs. runtime:**
+
+1. **Temporales (§12/§13) se construyen UNA vez** (Fase 4) como módulo
+   compartido; el runtime lo invoca 3 veces (fenómeno, dominio, y el
+   `traj` del KPI). No es reordenamiento — es de-duplicación.
+2. **Jerarquía de nodos**: el runtime la *valida* temprano (paso 3); la
+   construcción pone esa validación en Fase 1, pero la *lógica de
+   agregación de nodos* (§22/§23) en Fase 10 — porque consume DOMAIN/EFO
+   ya resueltos por nodo. Validar aciclicidad ≠ agregar.
+3. **`run_invariants()`** es un paso del orquestador (§29); en
+   construcción los 80 invariantes son la Fase 12 (batería), y el paso
+   del orquestador (Fase 11) llama a esos validadores. Cada invariante
+   relevante se teje además como mutación negativa en su fase.
+
+### Las 14 fases
+
+| Fase | Módulo | Alcance (§) |
+|---|---|---|
+| **0** | `enums.js`, `contratos.js` | ~30 enums; validadores de forma de `METRIC_DEFINITION` §7, `KPI_OBSERVATION` §9, `KPI_SPEC` §10, `EVIDENCE_GROUP` §14, `PHENOMENON_SPEC`/`DOMAIN_SPEC`/`REFERENCE_SPEC`/`NODE_SPEC` §25, `PIIO_INPUT` §29; `clasificarAusencia` §28 |
+| **1** | `config.js` | `validate_case_configuration` + catálogos + jerarquía de nodos (aciclicidad, mutua exclusión) + versiones presentes. Fallos BLOCKING (§30). **AC70/71/72/73** |
+| **2** | `observaciones.js` | `KPI_OBSERVATION` + `DATA_QUALITY_STATUS` + missing≠0 + fuera de dominio → INVALID sin clamp + preservar valor original. **AC08–11, INV-03/04/10/54** |
+| **3** | `referencias.js` | `REF_COND` vs `REF_TEMP` (§8) + admisibilidad de referencia + no promediar + cambios de referencia/definición. **AC12–16, AC28, INV-08/09/28/29** |
+| **4** | `temporal.js` | Módulo compartido: `TEMPORAL_METHOD`, `TEMPORAL_PATTERN`, `SERIES_STABILITY`, `REGIME_STATUS`, `SHOCK_STATUS`+`SHOCK_TREATMENT`, `FRESHNESS_STATUS`, continuidad + `MAX_CONTINUITY_GAP`. **AC17–19, AC56–60, INV-07/26/57/58/59/61/62** |
+| **5** | `kpiState.js` | `KPI_STATE` (§10/§11): `pos` contra REF_COND admisible; `traj` contra REF_TEMP + serie comparable; `pers` sobre `det_run`; directionality. **AC01–07, INV-01/02/05/06/11/13/24/25/26** |
+| **6** | `evidenceGroup.js` | Colapso de KPI dependientes (§14): tabla F+F→F, D+D→D, F+I→F, D+I→D, I+I→I, **F+D→N_A+INTERNAL_INCONSISTENCY**. **AC20–22, INV-12/16/17** |
+| **7** | `phenomenon.js` | Motor KPI→PHENOMENON (§15–17): filtrar → colapsar grupos → DIRECT (tabla §15) → PROXY solo si autorizado; `PHENOMENON_STATE` + cobertura + admisibilidad + lag. **AC23–31, INV-14/15/22/23/30** |
+| **8** | `domain.js` | Motor PHENOMENON→DOMAIN (§18–19): CORE/SUPPORTING (tabla §18), ≥1 CORE por dominio aplicable, SUPPORTING no sustituye/neutraliza CORE. **AC32–36, INV-18/19/20/21/31** |
+| **9** | `efo.js` | Motor DOMAIN→EFO (§20–21, §24): la regla determinista de 5 ramas (§20.1); `deterioration_present` separado; EFO_traj/pers sobre historia EFO; **sin votación/promedio/score**. **AC37–46, AC75/76, INV-32–41/74/75/76** |
+| **10** | `nodos.js` | Nodos y agregación (§22–23): ORGANIZATIONAL vs SEGMENT_ONLY, padre/hijos no simultáneos, agregación por tipo de métrica, exposición ≠ incidencia, `node_profile[]`. **NO** NODE_CONCENTRATION/POLARIZATION (es AIE). **AC47–55, INV-46–56** |
+| **11** | `runPIIO.js` | Orquestador (§29): encadenar en orden runtime; `PIIO_RESULT`; `PIIO_RUN` + versionamiento (§31); `PIIO_OPERATIONAL_EXPORT` (§26); fallos y propagación (§30); `TRACE_PATH` (§32). **AC61–69, AC72–74, AC80, INV-63–72/79/80** |
+| **12** | `invariantes.test.js`, `aceptacion.test.js` | Los **80 invariantes** como validadores/asserts + la suite **AC01–80** como oráculo conductual. Acceptance gate §35. Probablemente 3 commits (12a INV, 12b AC01–40, 12c AC41–80) |
+| **13** | cierre | Verificación posterior §35: no score 0–100, no ruta PIIO→dinero, no PIIO→Estado EFICIENCIA sin AIE, reproducibilidad; tabla de reaperturas si las hubo |
+
+## Ambigüedades del documento (traídas antes de fijar nada)
+
+Donde el texto deja algo abierto, se resuelve como **decisión de diseño**,
+anotada con la misma honestidad que "dirección adversa" (IFD §21.2),
+`unit` (IFD §23.1), `persona_id` único por posición (FPV decisión E).
+
+| # | Ambigüedad | Lectura adoptada |
+|---|---|---|
+| **A** | `runPIIO(case)` (§29) nunca define `case`/`PIIO_INPUT` | Objeto único: catálogos + jerarquía + specs + referencias + evidence groups + observaciones + ruleset, una organización, uno o más períodos. Decisión de diseño. |
+| **B** | `MAX_CONTINUITY_GAP` (§11.3, AC19) referenciado, nunca valuado | `PARAMS.MAX_CONTINUITY_GAP = null`, `PENDIENTE_CALIBRACION`. |
+| **C** | `freshness_spec` (§10) — §13 da solo el enum, no la fórmula | Forma `{ max_age_current, max_age_aging }` relativa a `calculation_frequency`; `PARAMS.FRESHNESS_*` calibrables. |
+| **D** | TARGET_RANGE (§11.1) exige "reglas explícitas por debajo y por encima" — §7 no lista un campo | `METRIC_DEFINITION.target_range_rules = { below, above }`, obligatorio **sii** `directionality = TARGET_RANGE`. Extensión de contrato. |
+| **E** | `continuity_mode` (§7) sin valores enumerados | Reusa `DEFINITION_CONTINUITY` `CONTINUOUS | BRIDGED | NEW_SERIES` (concepto contiguo). |
+| **F** | "cobertura suficiente" / "parcial suficiente" (§16, §19, §20.1) sin umbral | **F**: todos los `required_evidence_group_ids` en COMPLETE. **D**: ≥1 CORE D válido sin CORE F contradictorio (§19 lo da). Lo demás → umbral declarado por SPEC. Mezcla lectura + decisión (se cierra en Fases 7–9). |
+| **G** | `independence_basis` (§14) sin enum/formato | `{ kind: SEPARATE_SOURCE | SEPARATE_METHOD | SEPARATE_PROCESS | DECLARED_OTHER, detail }`. Decisión de diseño. |
+| **H** | `det_duration` vs `det_run` (§10, §11.3): §11.3 gobierna `det_run` (conteo); `det_duration` sin regla | `det_run` = nº de períodos consecutivos en D del mismo nivel; `det_duration` = span temporal opcional derivado de esos períodos. (Se cierra en Fase 5.) |
+| **I** | Suite AC (§34) es conductual, no numérica | Ver "Oráculo" arriba. |
+| **J** | Temporales a nivel fenómeno (§15.1) — ¿sobre qué serie si el fenómeno tiene varios KPI? | Sobre la serie del KPI DIRECT que gobernó la posición; a igualdad, el de mayor `evidence_proximity` / menor lag. (Se cierra en Fase 7.) |
+| **K** | §22 "misma lógica por nodo cuando los datos lo permiten" — ¿qué niveles por nodo? | PHENOMENON / DOMAIN / EFO llevan `node_id` → los tres por nodo. EFO organizacional = evidencia `ORGANIZATIONAL` **o** regla explícita de agregación de nodos mutuamente excluyentes. Lectura del texto. (Se cierra en Fase 10.) |
+| **L** | §15 "si no existe DIRECT utilizable, PROXY…" — ¿DIRECT que dio I/N_A cuenta como "utilizable"? | "Utilizable" = admisible con `pos ∈ {F, D}` **o** `I` resolutivo por divergencia válida. DIRECT que da `N_A` por insuficiencia **no** bloquea PROXY. (Se cierra en Fase 7.) |
+
+---
+
+## Reaperturas de código ya comiteado
+
+Misma disciplina que CFF/IFD/FPV: cuando una fase posterior corrige algo
+ya comiteado, se documenta aquí (commit propio, no mezclado con el trabajo
+de la fase que lo motivó).
+
+| Qué se reabrió | Desde | Por qué | Commit |
+|---|---|---|---|
+| *(ninguna todavía)* | | | |
+
+---
+
+## Fase 0 — enums, contratos, semántica de ausencia
+
+### `enums.js`
+- `DOMAINS` — los 7 canónicos (§5).
+- `ENUMS` — 23 de §27 (verbatim) + 7 de otras secciones (`METRIC_TYPE`
+  §7, `BOUNDARY_BEHAVIOR` §7, `CONTINUITY_MODE` §7/ambig. E,
+  `REFERENCE_TYPE` §8.1, `REFERENCE_ROLE` §25.3, `SHOCK_TREATMENT` §12,
+  `TEMPORAL_METHOD` §11.2, `EVIDENCE_BASIS` §15.1) + `AUSENCIA_KIND` §28.
+- `PARAMS` — `MAX_CONTINUITY_GAP` (ambig. B), `FRESHNESS_MAX_AGE_*`
+  (ambig. C), todos `null` + `PENDIENTE_CALIBRACION`.
+
+### `contratos.js`
+- `clasificarAusencia({ value, quality_status?, absence_reason? })` →
+  `VALOR_PRESENTE | CERO_OBSERVADO | MISSING | NULL_CON_RAZON | INVALIDO`
+  (§28 / INV-PIIO-02/03/64). **Fuente única** de la distinción 0 vs
+  missing vs null (patrón `clasificarValorRespuesta` del FPV). `N_A`
+  nunca se devuelve — §28: es categoría de pos/traj/pers, no de valor.
+- `validarObjeto(schema, obj)` genérico (reusado de FPV/IFD).
+- 8 validadores de forma (`validarMetricDefinition` con la regla
+  condicional de ambig. D; `validarKpiSpec` con los campos DERIVED-only;
+  `validarKpiObservation` con la regla `value=null ⇒ razón`; los demás
+  directos).
+- `validarPIIOInput(obj)` — forma de alto nivel (arrays presentes,
+  `organization_id`, `ruleset_version`, `periods` no vacío) + valida cada
+  elemento de cada array con su validador. **Validación cruzada
+  (referencias entre catálogos, aciclicidad de jerarquía, versiones
+  consistentes) → Fase 1.**
+- `validarEFOStateLigero(obj)` — **Fase 0: ligero.** Esqueleto de campos
+  §24 + `pos ∈ POSITION` + rechazo de `CLAVES_SCORE_PROHIBIDAS`
+  (§35 / AC75 / INV-PIIO-75/76: no existe score EFO 0–100). Forma interna
+  completa → Fase 11.
+
+### Batería
+`node motor-piio/contratos.test.js` → **76 asserts, 0 fallos** + **6
+mutaciones** (sobre copias reales, revertidas):
+1. `clasificarAusencia` sin la rama de cero → **4 rojos** (los 4 asserts
+   de `value=0`) — INV-PIIO-03 (cero ≠ missing).
+2. `clasificarAusencia`: null sin razón → `MISSING` en vez de `INVALIDO`
+   → **1 rojo** (INV-PIIO-64 / AC74).
+3. `validarMetricDefinition` sin el chequeo TARGET_RANGE → **1 rojo**
+   (ambigüedad D).
+4. `validarKpiSpec` sin el bloque DERIVED → **1 rojo** (§10).
+5. `validarPhenomenonSpec` acepta cualquier rol en
+   `core_or_supporting_by_domain` → **2 rojos** (§18).
+6. `validarEFOStateLigero` con `CLAVES_SCORE_PROHIBIDAS` vacía → **2
+   rojos** (AC75 / INV-PIIO-75/76).
+
+**Total motor-piio tras Fase 0: 76 asserts.**
+
+## Qué NO hace este módulo
+
+- No calcula costo, ROI, TRE ni proyección predictiva (§26 — eso es
+  CFF/IFD).
+- No produce un score EFO 0–100 ni promedio ponderado de dominios
+  (§35, INV-75/76).
+- No determina el Estado EFICIENCIA (eso es AIE, INV-42).
+- No duplica `NODE_CONCENTRATION` / `POLARIZATION` (eso es AIE, INV-46).
+- No retrofitea nada del panel PIIO viejo (ver
+  `INVENTARIO_PIIO_ANTIGUO.md`).
+- No invoca al motor CFF (a diferencia del panel viejo).
+- No se conecta a `workbook.html` / producción — módulo aislado.
+- No hace merge a `main` sin aprobación.
