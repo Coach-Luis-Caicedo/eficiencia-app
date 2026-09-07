@@ -146,6 +146,11 @@ anotada con la misma honestidad que "dirección adversa" (IFD §21.2),
 | **J** | Temporales a nivel fenómeno (§15.1) — ¿sobre qué serie si el fenómeno tiene varios KPI? | Sobre la serie del KPI DIRECT que gobernó la posición; a igualdad, el de mayor `evidence_proximity` / menor lag. (Se cierra en Fase 7.) |
 | **K** | §22 "misma lógica por nodo cuando los datos lo permiten" — ¿qué niveles por nodo? | PHENOMENON / DOMAIN / EFO llevan `node_id` → los tres por nodo. EFO organizacional = evidencia `ORGANIZATIONAL` **o** regla explícita de agregación de nodos mutuamente excluyentes. Lectura del texto. (Se cierra en Fase 10.) |
 | **L** | §15 "si no existe DIRECT utilizable, PROXY…" — ¿DIRECT que dio I/N_A cuenta como "utilizable"? | "Utilizable" = admisible con `pos ∈ {F, D}` **o** `I` resolutivo por divergencia válida. DIRECT que da `N_A` por insuficiencia **no** bloquea PROXY. (Se cierra en Fase 7.) |
+| **M** *(Fase 1)* | "mutuamente excluyentes" para `NODE_SET` (§22, §22.1) — mencionado 3×, nunca operacionalizado | El motor **verifica** que dentro de un `aggregation_membership` declarado ningún miembro sea ancestro de otro (cadena `parent_node_id`) — sentido operativo de "sin doble conteo por contención" (INV-PIIO-48). **NO** verifica —ni puede— solapamiento real entre `NODE_SET` distintos ni entre hermanos con poblaciones que se traslapan: vive fuera de los datos. Decisión de diseño (patrón "declarado por el llamante" del FPV). |
+| **N** *(Fase 1)* | ¿Quién manda entre `phenomenon.core_or_supporting_by_domain` y `domain.{core,supporting}_phenomenon_ids`? | **Deben concordar** (chequeo bidireccional). Un desacuerdo es catálogo corrupto → `BLOCKING` global (AC70). Ninguno es autoritativo. |
+| **O** *(Fase 1)* | §22: "cada observación y estado conserva `node_id`, `node_level` y `scope`" | Realidad: `node_level` **no aparece en ningún esquema** del documento; `scope` **solo en `EFO_STATE`** (§24) — ni `KPI_OBSERVATION`, ni `NODE_SPEC`, ni `PHENOMENON_STATE`, ni `DOMAIN_STATE`. La prosa promete algo que ningún esquema cumple completo. Decisión: `node_level` = profundidad desde la raíz (derivada de la cadena de padres); `scope` = `NODE_SPEC.scope_rules.scope ∈ SCOPE`. **`EFO_STATE.scope` ya tiene forma fijada por §24 — la derivación debe ser consistente con eso y Fase 9 NO reabre esta decisión.** |
+| **P** *(Fase 1)* | AC72 "KPI afectado no clasificable" — ¿desaparece o produce estado `N_A`? | Produce `KPI_STATE` con `pos=N_A`, `admissibility=false` + flag. Fase 1 emite `DEGRADED`/KPI; Fase 5 lo consume y fuerza `N_A`. Lectura de §30 + INV-01. |
+| **Q** *(Fase 1)* | `kpi_spec.definition_version` vs `metric_definition.definition_version` — ¿iguales, o el caso trae varias versiones? | El caso **puede** traer `md1@v1` y `md1@v2` (§7). Resolución = `metric_definition_id` coincide **y** `definition_version` == `kpi_spec.definition_version`. No encontrada → AC73 (`BLOCKING`/STATE). Decisión. |
 
 ---
 
@@ -209,6 +214,51 @@ mutaciones** (sobre copias reales, revertidas):
    rojos** (AC75 / INV-PIIO-75/76).
 
 **Total motor-piio tras Fase 0: 76 asserts.**
+
+## Fase 1 — validación de configuración (§29 pasos 1–4)
+
+`config.js` — las 4 validaciones pre-vuelo de `runPIIO`. **No mutan
+estado.** Producen un reporte con severidad (§30):
+
+```
+finding = { code, severity: WARNING|DEGRADED|BLOCKING, scope: GLOBAL|STATE|KPI, target?, message }
+```
+
+- **`BLOCKING` + `GLOBAL`** → la corrida no procede (AC70 catálogo
+  corrupto, AC71 jerarquía cíclica).
+- **`BLOCKING` + `STATE`** → bloquea el estado afectado, no la corrida
+  (AC73 `metric_definition` version ausente).
+- **`DEGRADED` + `KPI`** → el KPI queda no clasificable → Fase 5 lo
+  fuerza a `pos=N_A` (AC72 reference version ausente).
+
+`validarConfiguracion(input)` corre primero la validación de forma de
+Fase 0; si falla → un único `BLOCKING`/`GLOBAL` (Fase 1 no inspecciona
+estructura mal formada). Devuelve `{ ok, findings, kpis_degradados,
+estados_bloqueados }` donde `ok` = no hay `BLOCKING`/`GLOBAL`.
+
+| Función | Verifica | AC / INV |
+|---|---|---|
+| `validarConfiguracionCaso` | `organization_id` consistente entre observaciones e input | §31 |
+| `validarCatalogos` | fenómeno→dominio y dominio→fenómeno sin colgantes; **INV-31** (dominio aplicable ≥1 CORE); consistencia **bidireccional** `phenomenon.role` ⟺ `domain.lista` (ambig. N) | AC70, INV-31 |
+| `validarJerarquiaNodos` | `parent_node_id` no colgante; **sin ciclos** (visited-set); `active_from < active_to`; **por `aggregation_membership`: ningún miembro es ancestro de otro** (INV-48 / ambig. M) | AC71, AC49, INV-48 |
+| `validarMetricasYReferencias` | `metric_definition_id`+`definition_version` resuelve (ambig. Q); `condition_reference_id`→rol `CONDITION`, `temporal_reference_id`→rol `TEMPORAL` (ambig. P); `md.phenomenon_id` existe; observaciones con `kpi_id`/`md` colgante → `DEGRADED`/KPI (§30) | AC72, AC73 |
+
+### Batería
+`node motor-piio/config.test.js` → **42 asserts, 0 fallos** + **7
+mutaciones** (sobre copias reales, revertidas):
+1. `_cadenaAncestros`: `return null` → `return cadena` al re-visitar →
+   **3 rojos** (ciclos de 2 y 3; la guarda a 10000 no lo enmascara).
+2. quitar el chequeo `NODE_SET_CONTENCION` → **2 rojos** (INV-48).
+3. quitar `INV-31` (`DOMINIO_APLICABLE_SIN_CORE`) → **1 rojo**.
+4. quitar el bloque de consistencia **inversa** del catálogo → **1 rojo**
+   (ambig. N es bidireccional).
+5. `_resolverMetricDefinition` ignora `definition_version` → **1 rojo**
+   (ambig. Q).
+6. `_hayReferenciaConRol` ignora el rol → **1 rojo** (ambig. P).
+7. `ok` = "no hay NINGÚN `BLOCKING`" (en vez de solo `GLOBAL`) → **1
+   rojo** (la corrida debe proceder ante `BLOCKING`/STATE).
+
+**Total motor-piio tras Fase 1: 118 asserts** (contratos 76, config 42).
 
 ## Qué NO hace este módulo
 
