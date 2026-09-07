@@ -178,6 +178,7 @@ de la fase que lo motivó).
 | Qué se reabrió | Desde | Por qué | Commit |
 |---|---|---|---|
 | `contratos.js` — `ESQUEMA_REFERENCE_SPEC` (+`admissibility_declared` obligatorio, `critical_failure?`, `change_mode?`/`supersedes?`) y `ESQUEMA_METRIC_DEFINITION` (+`bridge_rule?`) | Fase 3 | §8.2 exige un veredicto de admisibilidad por referencia (ambig. X) y §8.4 exige una regla de bridge validada (ambig. Y) — ninguno tenía dónde vivir en §25.3 / §7 | `fa0a467` |
+| `enums.js` — `PARAMS` (+7 constantes calibrables de `temporal.js`: `STABILITY_CV_*`, `PATTERN_*`, `MIN_HISTORIA_TRAJ`, `SPARSITY_MIN_DENSIDAD`, `TEMPORAL_METHOD_DEFAULT`, `TEMPORAL_WINDOW`) | Fase 4 | §11.2/§12 nombran los conceptos sin dar número — Grupo 1 (`PENDIENTE_CALIBRACION`); aditivo, no rompe nada | *este commit* |
 
 ---
 

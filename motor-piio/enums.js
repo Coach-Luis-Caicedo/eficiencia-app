@@ -153,7 +153,40 @@ var PARAMS = {
   // CURRENT; <= AGING → AGING; si no → STALE.
   FRESHNESS_MAX_AGE_CURRENT: null,
   FRESHNESS_MAX_AGE_AGING: null,
-  FRESHNESS_ESTADO: 'PENDIENTE_CALIBRACION'
+  FRESHNESS_ESTADO: 'PENDIENTE_CALIBRACION',
+
+  // ── REAPERTURA (Fase 4) — constantes calibrables de temporal.js. El
+  //    documento nombra los conceptos (§11.2 "no existe ventana universal",
+  //    §12) pero no da NINGÚN número. Todas null + PENDIENTE_CALIBRACION;
+  //    ninguna requiere decisión de diseño — se fijan en el piloto.
+
+  // §12 — SERIES_STABILITY: cortes del coeficiente de variación (ambig. AA).
+  // CV <= STABLE → STABLE; <= MODERATE → MODERATELY_VARIABLE; si no → HIGHLY_VARIABLE.
+  STABILITY_CV_STABLE: null,
+  STABILITY_CV_MODERATE: null,
+
+  // §12 — TEMPORAL_PATTERN (ambig. AB): mínimo de puntos para intentar
+  // detección; pendiente relativa que cuenta como TREND; fuerza de
+  // autocorrelación estacional que cuenta como SEASONAL.
+  PATTERN_MIN_PUNTOS: null,
+  PATTERN_TREND_SLOPE: null,
+  PATTERN_SEASONAL: null,
+
+  // §11.2 / INV-PIIO-26 — mínimo de historia comparable para traj ≠ N_A (ambig. AC).
+  MIN_HISTORIA_TRAJ: null,
+
+  // §12 / INV-PIIO-58 — densidad mínima (puntos observados / períodos del
+  // rango) por debajo de la cual la serie es "sparse" (ambig. AG).
+  SPARSITY_MIN_DENSIDAD: null,
+
+  // §11.2 — TEMPORAL_METHOD (ambig. AD): no aparece en ningún esquema.
+  // Default DELTA (comparar con el período anterior). Override por-KPI →
+  // diferido (reapertura solo si el piloto lo pide). La VENTANA sigue sin
+  // número.
+  TEMPORAL_METHOD_DEFAULT: 'DELTA',
+  TEMPORAL_WINDOW: null,
+
+  TEMPORAL_ESTADO: 'PENDIENTE_CALIBRACION'
 };
 
 // ─────────────────────────────────────────────────────────────────────

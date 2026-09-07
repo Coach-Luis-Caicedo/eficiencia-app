@@ -36,6 +36,12 @@ eq(E.ENUMS.CONTINUITY_MODE, ['CONTINUOUS', 'BRIDGED', 'NEW_SERIES'], 'CONTINUITY
 eq(E.PARAMS.MAX_CONTINUITY_GAP, null, 'MAX_CONTINUITY_GAP sin valor (ambigüedad B)');
 eq(E.PARAMS.MAX_CONTINUITY_GAP_ESTADO, 'PENDIENTE_CALIBRACION', '...marcado PENDIENTE_CALIBRACION');
 eq(E.PARAMS.FRESHNESS_ESTADO, 'PENDIENTE_CALIBRACION', 'freshness sin fórmula (ambigüedad C), PENDIENTE_CALIBRACION');
+// REAPERTURA Fase 4 — constantes calibrables de temporal.js (Grupo 1: nombre sin número)
+eq([E.PARAMS.STABILITY_CV_STABLE, E.PARAMS.STABILITY_CV_MODERATE], [null, null], 'cortes de CV para SERIES_STABILITY null (ambig. AA)');
+eq([E.PARAMS.PATTERN_MIN_PUNTOS, E.PARAMS.PATTERN_TREND_SLOPE, E.PARAMS.PATTERN_SEASONAL], [null, null, null], 'params de TEMPORAL_PATTERN null (ambig. AB)');
+eq([E.PARAMS.MIN_HISTORIA_TRAJ, E.PARAMS.SPARSITY_MIN_DENSIDAD, E.PARAMS.TEMPORAL_WINDOW], [null, null, null], 'MIN_HISTORIA_TRAJ / SPARSITY / TEMPORAL_WINDOW null (ambig. AC/AG/AD)');
+eq(E.PARAMS.TEMPORAL_METHOD_DEFAULT, 'DELTA', 'TEMPORAL_METHOD_DEFAULT = DELTA (§11.2 no está en ningún esquema, ambig. AD)');
+eq(E.PARAMS.TEMPORAL_ESTADO, 'PENDIENTE_CALIBRACION', 'bloque temporal PENDIENTE_CALIBRACION');
 eq(E.ENUMS.AUSENCIA_KIND.indexOf('N_A'), -1, '§28: N_A NO es una categoría de valor de observación');
 
 // ═══════════════════════════════════════════════════════════════════════
