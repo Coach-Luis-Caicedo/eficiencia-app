@@ -213,6 +213,79 @@ mutaciones** (ejecutadas sobre copias reales, revertidas):
    motivo NE", "V no calculable motivo NE", "cada dimensión conserva su
    motivo").
 
+## Fase 2 — nivel poblacional por sensor §7.2 A/B/C
+
+Segundo de los tres niveles del motor (§7: "Persona, población por
+posición, configuración F–P–V"). `poblacionalSensor` opera sobre los
+`perfilPersona` de **una** posición y **un** sensor — la agrupación por
+posición es del orquestador (Fase 6).
+
+### `poblacional.js`
+- `poblacionalSensor(perfiles, sensor)` → `{ sensor, estatus, nv, nNE,
+  nNR, L, mediana, p, H, C }`.
+  - **`nᵥ`** = respuestas válidas 1–5 (§7.2 / §14 línea 851). NE y NR
+    quedan **ambos fuera** de `nᵥ`; `nNE` y `nNR` se conservan por
+    separado (§14 línea 853) — `nNE` lo usará `CE` en Fase 3; `nNR` es
+    solo trazabilidad.
+  - **`nᵥ = 0` → `estatus: 'NO_CALCULABLE'`** y `L/mediana/p/H/C = null`
+    (§14 línea 855: *"si n_valido = 0: estado_j = NO_CALCULABLE"*). Con
+    `nᵥ ≥ 1` → `DESCRIPTIVO` (§8: "existe al menos una respuesta válida").
+    El resto de la escalera (`CENSAL` / `INFERENCIAL`) es Fase 3 — necesita
+    `N_elegibles` y el diseño declarado.
+  - **`L`** = `(1/nᵥ)·Σ s(rᵢ)` (§7.2.A). **`mediana`** de la respuesta
+    **original** 1–5 (§7.2.A); `n` par → promedio de los dos centrales,
+    puede dar `x.5` (`[3,3,4,4] → 3.5`, tabla §10).
+  - **`p`** = `{ 1..5 }` con `pₖ = nₖ/nᵥ` (§7.2.B), `Σ pₖ = 1`.
+  - **`H`** = `50·Σᵢ Σₖ pᵢpₖ|i−k|` (§7.2.C), **`C` = `100 − H`**.
+- **`H` se calcula desde conteos, no desde `p`.** Sustituyendo `pᵢ =
+  nᵢ/nᵥ` en la fórmula de §7.2.C: `H = 50·(Σᵢ Σₖ nᵢ nₖ |i−k|) / nᵥ²` — la
+  **misma fórmula**, con la suma interna en aritmética entera. Así las 5
+  filas de §10 salen **exactas** (la delicada: uniforme `1,2,3,4,5` →
+  `50·40/25 = 80`, no `80.000…01`). No es una fórmula distinta.
+
+### `bandasDescriptivas(p)` — helper SEPARADO, presentación opcional
+§7.2.B: *"Para lectura rápida pueden mostrarse además tres bandas
+descriptivas: Desacuerdo = p1+p2; Neutralidad = p3; Acuerdo = p4+p5.
+Estas bandas no sustituyen la distribución completa."*
+
+**Decisión de diseño (confirmada por Luis):** las 3 bandas **no** están
+en el "contenido obligatorio" de §11.1 (`L, mediana, distribución, H, C,
+CE, n válido y NE`) ni son una de las "cuatro salidas simultáneas" de
+§7.2. Se calculan como **helper aparte** — `poblacionalSensor` devuelve
+**solo** el núcleo obligatorio, nunca las bandas. Un test estructural lo
+fija: las bandas no pueden aparecer entre las claves de la salida. El
+orquestador (Fase 6) decide si las expone.
+
+### Oráculo §10 — la tabla de estrés como batería
+Las 5 filas de §10 se reproducen **exactas** (`near` a 1e-9, aunque de
+hecho salen enteras) construyendo perfiles de una posición donde el
+sensor toma los valores de cada escenario:
+
+| Escenario | L | Mediana | H | C |
+|---|---|---|---|---|
+| `3,3,3,3,3` | 50 | 3 | 0 | 100 |
+| `1,1,5,5` | 50 | 3 | 100 | 0 |
+| `3,3,4,4` | 62.5 | 3.5 | 25 | 75 |
+| `5,5,5,5` | 100 | 5 | 0 | 100 |
+| `1,2,3,4,5` | 50 | 3 | 80 | 20 |
+
+### Batería
+`node motor-fpv/poblacional.test.js` → **55 asserts, 0 fallos** + **4
+mutaciones** (ejecutadas sobre copias reales, revertidas):
+1. `heterogeneidad`: `Math.abs(i - k)` → `(i - k)` (quitar el valor
+   absoluto) → `Σ nᵢnₖ(i−k) = 0` por simetría → **toda `H` colapsa a 0**
+   → **10 rojos**. ("H + C = 100 siempre" NO cae: `0 + 100 = 100`.)
+2. `L`: `sumaS / nv` → `sumaS` (olvidar dividir por `nᵥ`) → **9 rojos**.
+3. `mediana` `n` par: `(s[m-1] + s[m]) / 2` → `s[m]` (tomar solo el
+   central alto) → **4 rojos** (`[1,1,5,5]→5`, `[3,3,4,4]→4` y sus dos
+   filas de §10).
+4. `poblacionalSensor` agrega `bandas: bandasDescriptivas(p)` a su
+   retorno → **2 rojos** (§7.2.B es opcional, no contenido obligatorio
+   §11.1 — la salida del núcleo no las lleva).
+
+**Total motor-fpv tras Fase 2: 132 asserts** (contratos 49, persona 28,
+poblacional 55), 0 fallos.
+
 ## Ambigüedades del documento — resueltas (ver Decisiones A-I)
 
 El documento deja abierto, y se resuelve como decisión de diseño de Luis:
