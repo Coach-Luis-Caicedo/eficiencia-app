@@ -93,7 +93,7 @@ fenómeno/nodo/período*: state + cobertura/admisibilidad + temporales →
 cobertura → perfiles → export CFF/IFD → invariantes → trace → persist →
 publish.
 
-**3 diferencias explícitas construcción vs. runtime:**
+**4 diferencias explícitas construcción vs. runtime:**
 
 1. **Temporales (§12/§13) se construyen UNA vez** (Fase 4) como módulo
    compartido; el runtime lo invoca 3 veces (fenómeno, dominio, y el
@@ -106,6 +106,12 @@ publish.
    construcción los 80 invariantes son la Fase 12 (batería), y el paso
    del orquestador (Fase 11) llama a esos validadores. Cada invariante
    relevante se teje además como mutación negativa en su fase.
+4. **`preserve_original_value` antes de `validate_data_quality`** (Fase 2):
+   el pseudocódigo §29 los lista al revés (`validate_data_quality()` →
+   `preserve_original_value()`). Aquí se preserva PRIMERO. Ninguna de las
+   dos muta `value` (solo lo leen) → el orden no afecta el resultado, y
+   capturar el original antes que nada es más seguro por sí solo. Cambio
+   de orden, no de comportamiento.
 
 ### Las 14 fases
 
@@ -151,6 +157,11 @@ anotada con la misma honestidad que "dirección adversa" (IFD §21.2),
 | **O** *(Fase 1)* | §22: "cada observación y estado conserva `node_id`, `node_level` y `scope`" | Realidad: `node_level` **no aparece en ningún esquema** del documento; `scope` **solo en `EFO_STATE`** (§24) — ni `KPI_OBSERVATION`, ni `NODE_SPEC`, ni `PHENOMENON_STATE`, ni `DOMAIN_STATE`. La prosa promete algo que ningún esquema cumple completo. Decisión: `node_level` = profundidad desde la raíz (derivada de la cadena de padres); `scope` = `NODE_SPEC.scope_rules.scope ∈ SCOPE`. **`EFO_STATE.scope` ya tiene forma fijada por §24 — la derivación debe ser consistente con eso y Fase 9 NO reabre esta decisión.** |
 | **P** *(Fase 1)* | AC72 "KPI afectado no clasificable" — ¿desaparece o produce estado `N_A`? | Produce `KPI_STATE` con `pos=N_A`, `admissibility=false` + flag. Fase 1 emite `DEGRADED`/KPI; Fase 5 lo consume y fuerza `N_A`. Lectura de §30 + INV-01. |
 | **Q** *(Fase 1)* | `kpi_spec.definition_version` vs `metric_definition.definition_version` — ¿iguales, o el caso trae varias versiones? | El caso **puede** traer `md1@v1` y `md1@v2` (§7). Resolución = `metric_definition_id` coincide **y** `definition_version` == `kpi_spec.definition_version`. No encontrada → AC73 (`BLOCKING`/STATE). Decisión. |
+| **R** *(Fase 2)* | §29 `validate_data_quality()` — ¿solo chequea el `quality_status` declarado, o calcula uno efectivo? | **Calcula uno efectivo, degradación monótona**: parte de `quality_status` declarado y solo se mueve hacia INVALID (o MISSING); nunca hacia una calidad mejor. AC08 lo obliga para fuera-de-rango; se generaliza. `clasificarAusencia` (Fase 0) consume la efectiva. Pipeline secuencial, NO circular. |
+| **S** *(Fase 2)* | `boundary_behavior = RULE_DEFINED` (§7) — la regla no está en el documento | `value` fuera de rango con `RULE_DEFINED` → `INVALID` + flag `BOUNDARY_RULE_NO_OPERACIONALIZADO`. Operacionalizar esas reglas (config) se **difiere**, como la ambig. F. **Sin reapertura de Fase 0** — no se añade `boundary_rule?` al contrato hasta que exista una regla real que lo use. |
+| **T** *(Fase 2)* | `value = 0` + `quality_status` declarado `MISSING` — ¿qué gana? | `INVALID` + flag `VALOR_CALIDAD_INCONSISTENTE`. El valor presente contradice el "missing" de la fuente (§9: "missing no es cero"); ninguno se cree ciegamente, la inconsistencia se marca. Lectura de §9. |
+| **U** *(Fase 2)* | `value = null` + `quality_status` declarado `VALID`/`VWL` + con `absence_reason` (§28 lo permite) | Calidad efectiva → `MISSING` (no hay valor que pueda ser VALID); `absence_reason` preservada en flag `NULL_EXPLICADO`. §28 no crea un 5º `DATA_QUALITY_STATUS`. Lectura de §28 + §9.1. |
+| **V** *(Fase 2)* | `NOT_APPLICABLE` como resultado de `boundary_behavior` — `DATA_QUALITY_STATUS` no lo tiene | Fase 2 lo mapea a `MISSING` + flag `BOUNDARY_NOT_APPLICABLE` (no hay valor utilizable, pero no es "dato inválido" — es "la métrica no aplica en este régimen"). La distinción se preserva en el flag para Fase 5. Decisión de diseño. |
 
 ---
 
@@ -259,6 +270,47 @@ mutaciones** (sobre copias reales, revertidas):
    rojo** (la corrida debe proceder ante `BLOCKING`/STATE).
 
 **Total motor-piio tras Fase 1: 118 asserts** (contratos 76, config 42).
+
+## Fase 2 — observaciones y calidad de datos (§9 / §29)
+
+`observaciones.js` — el paso `for observation` de §29:
+`preserve_original_value()` → `validate_data_quality()` → normalización.
+**No clasifica pos/traj/pers** (Fase 5). **No recorta valores** (§9,
+INV-PIIO-04).
+
+| Función | Qué hace | AC / INV |
+|---|---|---|
+| `preservarValorOriginal(obs)` | copia `value` a `original_value` tal cual — sobrevive incluso a observaciones que terminan INVALID / fuera de rango | INV-10 |
+| `validarCalidadDato(obs, metricDef)` | → `{ data_quality: <efectivo>, flags[] }`. Degradación monótona (ambig. R). `value` fuera de `[valid_range_min, valid_range_max]` según `boundary_behavior`: `INVALID`→`INVALID`+`FUERA_DE_RANGO` (AC08) · `NOT_APPLICABLE`→`MISSING`+flag (ambig. V) · `RULE_DEFINED`→`INVALID`+flag (ambig. S). `value=null`→`MISSING` (razón en flag, ambig. U). `value` presente + declarado `MISSING`→`INVALID`+`VALOR_CALIDAD_INCONSISTENTE` (ambig. T). | AC08/09/10, INV-03/04 |
+| `ingestarObservaciones(input)` | por observación: preservar → `validarCalidadDato` → `clasificarAusencia({value, quality_status: EFECTIVA, absence_reason})` → conservar `numerator/denominator/exposure` (§9.2). Observación con `kpi_id` sin `KPI_SPEC` → `skipped` (§30). **No recibe el reporte de Fase 1** (menos acoplamiento). | §9.2, §30, INV-54/55 |
+
+Salida: `{ evals: OBSERVATION_EVAL[], skipped: [{observation_id, reason}] }`.
+`OBSERVATION_EVAL` lleva `original_value`, `value`, `data_quality`,
+`ausencia_kind`, num/den/exposure opcionales, `source_*`, `flags[]`.
+
+### Batería
+`node motor-piio/observaciones.test.js` → **39 asserts, 0 fallos** + **8
+mutaciones** (sobre copias reales, revertidas):
+1. `preservarValorOriginal` devuelve `null` para `value` fuera de rango →
+   **1 rojo** (INV-10 / §9 no clamp).
+2. quitar la rama fuera-de-rango `INVALID` → **5 rojos** (AC08).
+3. `var efectiva = declarada` → `var efectiva = 'VALID'` → **2 rojos** (la
+   calidad efectiva parte de la declarada — ambig. R).
+4. quitar la rama `declarada === MISSING` → **3 rojos** (ambig. T).
+5. `NOT_APPLICABLE` → `INVALID` en vez de `MISSING` → **1 rojo** (ambig. V).
+6. `clasificarAusencia` con la calidad **declarada** en vez de la efectiva
+   → **1 rojo** (null + razón: `NULL_CON_RAZON` en vez de `MISSING`).
+7. no saltar la observación sin spec → **2 rojos** (§30).
+8. no copiar `numerator/denominator/exposure` → **2 rojos** (§9.2 / AC11).
+
+Hallazgo: la mutación 3 original ("quitar la guarda de degradación
+monótona") daba **0 rojos** — la guarda era código muerto: `efectiva`
+parte de `declarada` y ninguna rama disminuye la severidad, así que la
+propiedad monótona es estructural. Guarda eliminada; mutación reformulada
+a "partir de `'VALID'`" (2 rojos).
+
+**Total motor-piio tras Fase 2: 157 asserts** (contratos 76, config 42,
+observaciones 39).
 
 ## Qué NO hace este módulo
 
