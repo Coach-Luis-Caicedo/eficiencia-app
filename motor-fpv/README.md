@@ -161,6 +161,58 @@ mutaciones** (ejecutadas sobre copias reales, revertidas):
 4. `validarFPVOutput` sin la lista de claves prohibidas → "`fpv_global`
    → RECHAZADA" falla (2 rojos).
 
+## Fase 1 — nivel Persona §7.1
+
+### `persona.js`
+- `sensorPersona(valor)` — §7.1: respuesta válida `1–5` → `{ valido:true,
+  r, s: s(r) }` (directo, sin promedio interno — un solo ítem por sensor).
+  `'NE'` o `'NR'` → `{ valido:false, motivo }`.
+- `perfilPersona(respuesta)` — `{ persona_id, posicion, F, P, V, completo,
+  peso }`. `completo` sii F, P y V son los tres válidos (§7.1). Una
+  dimensión NE/NR **no se completa con las otras dos** — su `s`
+  simplemente no existe. `peso` se propaga tal cual; sin peso → `null`
+  (§9: por defecto no ponderado, no se inventa un 1).
+
+### NE y NR a nivel Persona — MISMO efecto, verificado con cita
+§7.1 (línea 404) literal: *"Si una dimensión es **NE o NR**, esa dimensión
+queda **no calculable** para la Persona. **No se completa con las otras
+dos.**"* — una sola condición, un solo efecto. `sensorPersona` mapea
+ambos a `{ valido:false }`.
+
+**La distinción NE≠NR es de CLASIFICACIÓN (§6), no de tratamiento a este
+nivel.** Sí tiene efecto aguas abajo:
+- **Cobertura `CE` (§7.2.D / §14 línea 875)**: `CE = n_v / (n_v + n_NE)`
+  — NE cuenta en el denominador, NR no. (Fase 3.)
+- §14 (línea 853) conserva `n_valido / n_NE / n_NR` por separado. `n_NR`
+  **no entra en ninguna fórmula del documento** — solo trazabilidad.
+
+**Conservar el `motivo` en la salida de `sensorPersona` es una decisión
+de arquitectura, no una necesidad del documento.** §7.1 no exige que la
+distinción se propague por esta capa; Fase 3 podría volver a leer el
+valor crudo del input. Se elige pasarlo por aquí para que Fase 2/3 no
+re-clasifiquen cada respuesta — es una elección de *dónde vive la
+clasificación*.
+
+Los demás niveles tratan NE y NR idéntico: `nᵥ` = "respuestas válidas 1–5"
+(§7.2, §14 línea 851) excluye ambos; `Ncfg` (§7.3 línea 480) = "Personas
+con rF, rP y rV válidos" excluye ambos.
+
+### Batería
+`node motor-fpv/persona.test.js` → **28 asserts, 0 fallos** + **4
+mutaciones** (ejecutadas sobre copias reales, revertidas):
+1. `sensorPersona`: la rama `'NR'` devuelve `{ valido:true }` (sin `s`
+   ni `r`) → **5 rojos** ("NE/NR ambos `valido:false`", "NR → motivo NR",
+   "F=NR → no completo", "cada dimensión conserva su motivo", "las 3 en
+   NR"). (Si la mutación además pusiera `s:0` rompe 2 más — la forma
+   canónica es solo el flip de `valido`.)
+2. `perfilPersona` completa `V.s` con `(F.s+P.s)/2` cuando V es NE →
+   **1 rojo** ("V.s NO existe, no se completa con (F+P)/2").
+3. `completo` con `OR` en vez de `AND` → **3 rojos** (los 3 casos "no
+   completo" pasan a `completo`).
+4. `sensorPersona` no conserva `motivo` para NE → **3 rojos** ("NE →
+   motivo NE", "V no calculable motivo NE", "cada dimensión conserva su
+   motivo").
+
 ## Ambigüedades del documento — resueltas (ver Decisiones A-I)
 
 El documento deja abierto, y se resuelve como decisión de diseño de Luis:
