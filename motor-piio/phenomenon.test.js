@@ -180,6 +180,144 @@ ok(!('pos' in P.admisibilidadFenomeno({ pos: 'F', coverage_status: 'NONE' })),
    'INV-22: admisibilidadFenomeno NO devuelve `pos` — la cobertura insuficiente degrada admisibilidad, no convierte la posición en I');
 
 // ═══════════════════════════════════════════════════════════════════════
+//  7c — §17 lag + orquestador resolverFenomeno → PHENOMENON_STATE (§15.1)
+// ═══════════════════════════════════════════════════════════════════════
+
+// KPI_STATE mínimo dentro de un member_states
+function ks(over) {
+  return Object.assign({ kpi_id: 'k?', node_id: 'n1', period: '2026-03', pos: 'D', traj: 'STABLE', pers: 'POINT', det_run: 1, freshness: 'CURRENT', metric_definition_version: 'md@v1' }, over || {});
+}
+// grupo colapsado (Fase 6) para el orquestador
+function grpC(id, pos, members, over) {
+  return Object.assign({
+    evidence_group_id: id, phenomenon_id: 'ph1', node_id: 'n1', period: '2026-03',
+    pos: pos, evidence_proximity: 'DIRECT',
+    member_kpi_ids: (members || []).map(function (m) { return m.kpi_id; }),
+    member_states: members || [], flags: []
+  }, over || {});
+}
+function ph1(over) {
+  return Object.assign({ phenomenon_id: 'ph1', required_evidence_group_ids: ['egA'], optional_evidence_group_ids: [], proxy_allowed_as_primary: false }, over || {});
+}
+function inFen(over) {
+  return Object.assign({ phenSpec: ph1(), gruposColapsados: [], kpiSpecsPorId: {}, node_id: 'n1', period: '2026-03' }, over || {});
+}
+
+seccion('§17 — _temporalidadPermiteDivergenciaAutomatica (INV-30 / AS)');
+
+var todoCoinc = P._temporalidadPermiteDivergenciaAutomatica([{ kpi_id: 'k1', temporal_role: 'COINCIDENT' }, { kpi_id: 'k2', temporal_role: 'COINCIDENT' }]);
+eq(todoCoinc.permite, true, 'todos COINCIDENT, sin expected_lag → permite:true (§15 estricto)');
+eq(todoCoinc.flags, [], '...sin flags');
+var conLagged = P._temporalidadPermiteDivergenciaAutomatica([{ kpi_id: 'k1', temporal_role: 'COINCIDENT' }, { kpi_id: 'k2', temporal_role: 'LAGGED' }]);
+eq(conLagged.permite, false, 'un contribuyente LAGGED → permite:false (INV-30: no contemporánea)');
+ok(tieneFlag(conLagged, 'SENAL_LAGGED_EN_DIVERGENCIA'), '...+ flag SENAL_LAGGED_EN_DIVERGENCIA');
+// expected_lag presente pero COINCIDENT → SOLO flag, NO cambia permite (AS)
+var soloLagText = P._temporalidadPermiteDivergenciaAutomatica([{ kpi_id: 'k1', temporal_role: 'COINCIDENT', expected_lag: '~2 meses' }]);
+eq(soloLagText.permite, true, 'expected_lag presente + COINCIDENT → permite SIGUE true (AS: la magnitud es texto libre, no se evalúa)');
+ok(tieneFlag(soloLagText, 'LAG_NO_OPERACIONALIZADO'), '...pero SÍ emite flag LAG_NO_OPERACIONALIZADO (anotación, no comportamiento)');
+
+seccion('§17 — resolverFenomeno: F+D estricto vs suspendido por lag (AC25 / AC29)');
+
+// AC25 — F+D DIRECT, todos COINCIDENT → I (estricto §15)
+var fdEstricto = P.resolverFenomeno(inFen({
+  gruposColapsados: [grpC('egA', 'F', [ks({ kpi_id: 'kF', pos: 'F' })]), grpC('egB', 'D', [ks({ kpi_id: 'kD', pos: 'D' })])],
+  phenSpec: ph1({ required_evidence_group_ids: ['egA', 'egB'] }),
+  kpiSpecsPorId: { kF: { kpi_id: 'kF', temporal_role: 'COINCIDENT' }, kD: { kpi_id: 'kD', temporal_role: 'COINCIDENT' } }
+}));
+eq(fdEstricto.pos, 'I', 'AC25: F+D DIRECT + todos COINCIDENT → pos I (estricto §15)');
+
+// el mismo caso pero con expected_lag presente (COINCIDENT) → SIGUE I, + flag anotación (punto 2)
+var fdConLagText = P.resolverFenomeno(inFen({
+  gruposColapsados: [grpC('egA', 'F', [ks({ kpi_id: 'kF', pos: 'F' })]), grpC('egB', 'D', [ks({ kpi_id: 'kD', pos: 'D' })])],
+  phenSpec: ph1({ required_evidence_group_ids: ['egA', 'egB'] }),
+  kpiSpecsPorId: { kF: { kpi_id: 'kF', temporal_role: 'COINCIDENT' }, kD: { kpi_id: 'kD', temporal_role: 'COINCIDENT', expected_lag: '1 trimestre' } }
+}));
+eq(fdConLagText.pos, 'I', 'F+D + expected_lag presente pero COINCIDENT → pos SIGUE I (LAG_NO_OPERACIONALIZADO NO fuerza excepción)');
+ok(tieneFlag(fdConLagText, 'LAG_NO_OPERACIONALIZADO'), '...con el flag LAG_NO_OPERACIONALIZADO presente (alineado: flag ≠ comportamiento)');
+
+// AC29 — señal LAGGED → divergencia NO automática → N_A
+var fdSuspendido = P.resolverFenomeno(inFen({
+  gruposColapsados: [grpC('egA', 'F', [ks({ kpi_id: 'kF', pos: 'F' })]), grpC('egB', 'D', [ks({ kpi_id: 'kD', pos: 'D' })])],
+  phenSpec: ph1({ required_evidence_group_ids: ['egA', 'egB'] }),
+  kpiSpecsPorId: { kF: { kpi_id: 'kF', temporal_role: 'COINCIDENT' }, kD: { kpi_id: 'kD', temporal_role: 'LAGGED' } }
+}));
+eq(fdSuspendido.pos, 'N_A', 'AC29 / INV-30: F+D + contribuyente LAGGED → pos N_A (divergencia no automática)');
+ok(tieneFlag(fdSuspendido, 'DIVERGENCIA_F_D_SUSPENDIDA_POR_LAG'), '...+ flag DIVERGENCIA_F_D_SUSPENDIDA_POR_LAG');
+// una posición NO divergente no la toca el chequeo de lag
+var soloF = P.resolverFenomeno(inFen({
+  gruposColapsados: [grpC('egA', 'F', [ks({ kpi_id: 'kF', pos: 'F', traj: 'IMPROVING' })])],
+  kpiSpecsPorId: { kF: { kpi_id: 'kF', temporal_role: 'LAGGED' } }
+}));
+eq(soloF.pos, 'F', 'solo F (sin divergencia) + LAGGED → pos F intacto (§17 solo aplica a la divergencia F+D)');
+
+seccion('Ambig. J — _kpiStateGobernante: el peor member_state alineado');
+
+var grupoD = grpC('egA', 'D', [
+  ks({ kpi_id: 'kA', pos: 'D', traj: 'STABLE', pers: 'POINT', det_run: 2 }),
+  ks({ kpi_id: 'kB', pos: 'D', traj: 'DETERIORATING', pers: 'REPEATED', det_run: 3 }),
+  ks({ kpi_id: 'kC', pos: 'F', traj: 'DETERIORATING', pers: 'PERSISTENT', det_run: 9 }) // pos distinto → NO cuenta
+]);
+var gobD = P._kpiStateGobernante(grupoD);
+eq(gobD.kpi_id, 'kB', 'entre los alineados con pos=D, gana kB (traj DETERIORATING > STABLE) — kC no cuenta (pos F)');
+// order-independent
+eq(P._kpiStateGobernante(grpC('egA', 'D', [ks({ kpi_id: 'kB', pos: 'D', traj: 'DETERIORATING', pers: 'REPEATED', det_run: 3 }), ks({ kpi_id: 'kA', pos: 'D', traj: 'STABLE', pers: 'POINT', det_run: 2 })])).kpi_id, 'kB', '...mismo resultado si se invierte el orden de los miembros');
+// desempate por det_run
+eq(P._kpiStateGobernante(grpC('egA', 'D', [ks({ kpi_id: 'kX', pos: 'D', traj: 'STABLE', pers: 'POINT', det_run: 1 }), ks({ kpi_id: 'kY', pos: 'D', traj: 'STABLE', pers: 'POINT', det_run: 5 })])).kpi_id, 'kY', 'a igualdad de traj/pers → gana mayor det_run');
+eq(P._kpiStateGobernante(grpC('egA', 'D', [])), null, 'sin member_states alineados → null');
+
+seccion('propagarTemporalidadFenomeno — traj/pers según pos');
+
+var tD = P.propagarTemporalidadFenomeno('D', ks({ traj: 'DETERIORATING', pers: 'PERSISTENT', det_run: 4, det_duration: 3 }), null);
+eq([tD.traj, tD.pers, tD.det_run], ['DETERIORATING', 'PERSISTENT', 4], 'pos D → traj/pers/det_run del estado gobernante');
+var tF = P.propagarTemporalidadFenomeno('F', ks({ traj: 'IMPROVING', pers: 'PERSISTENT', det_run: 7 }), null);
+eq([tF.traj, tF.pers, tF.det_run], ['IMPROVING', 'N_A', 0], 'pos F → traj propagada, pero pers = N_A (§11: PERSISTENCE es sobre D)');
+var tI = P.propagarTemporalidadFenomeno('I', ks({ traj: 'DETERIORATING', pers: 'PERSISTENT' }), null);
+eq([tI.traj, tI.pers], ['N_A', 'N_A'], 'pos I → traj = pers = N_A (DECISIÓN: fenómeno indeterminado sin trayectoria)');
+eq(P.propagarTemporalidadFenomeno('N_A', ks({ traj: 'STABLE' }), null).traj, 'N_A', 'pos N_A → traj N_A');
+// AU — sin serie → INSUFFICIENT + flag ; con serie → primitivas de Fase 4
+var sinSerie = P.propagarTemporalidadFenomeno('D', ks({}), null);
+eq([sinSerie.temporal_pattern, sinSerie.series_stability], ['INSUFFICIENT', 'INSUFFICIENT'], 'AU: sin contextoGobernante.serie → temporal_pattern / series_stability = INSUFFICIENT');
+ok(tieneFlag(sinSerie, 'TEMPORALES_FENOMENO_SIN_SERIE'), '...+ flag TEMPORALES_FENOMENO_SIN_SERIE');
+var conSerie = P.propagarTemporalidadFenomeno('D', ks({}), { serie: [1, 2, 3, 4], periods: ['2026-01', '2026-02', '2026-03', '2026-04'], directivas: {} });
+ok(!tieneFlag(conSerie, 'TEMPORALES_FENOMENO_SIN_SERIE'), 'AU: con serie → sin flag; se corren las primitivas de Fase 4');
+eq(conSerie.regime_status, 'CONTINUOUS', '...regime_status derivado (sin directivas de cambio → CONTINUOUS)');
+
+seccion('resolverFenomeno — PHENOMENON_STATE completo (§15.1, 20 campos)');
+
+var full = P.resolverFenomeno(inFen({
+  gruposColapsados: [grpC('egA', 'D', [ks({ kpi_id: 'kA', pos: 'D', traj: 'DETERIORATING', pers: 'REPEATED', det_run: 2, metric_definition_version: 'md@v2' })], { evidence_proximity: 'DIRECT' })],
+  phenSpec: ph1({ required_evidence_group_ids: ['egA'] })
+}));
+eq(Object.keys(full).length, 20, 'el PHENOMENON_STATE tiene exactamente 20 campos (§15.1)');
+ok(P.validarPhenomenonState(full).ok, 'validarPhenomenonState → ok');
+eq([full.pos, full.traj, full.pers, full.det_run], ['D', 'DETERIORATING', 'REPEATED', 2], 'pos D → traj/pers/det_run propagados del KPI_STATE gobernante');
+eq(full.deterioration_present, true, 'pos D → deterioration_present = true');
+eq(full.metric_definition_versions, ['md@v2'], 'metric_definition_versions = distinct de los member_states');
+eq(full.evidence_group_profile.length, 1, 'evidence_group_profile: un resumen por grupo');
+
+// metric_definition_versions deduplica de verdad (2 miembros v1 + 1 miembro v2)
+var fullDedup = P.resolverFenomeno(inFen({
+  gruposColapsados: [grpC('egA', 'D', [
+    ks({ kpi_id: 'kA', pos: 'D', metric_definition_version: 'md@v1' }),
+    ks({ kpi_id: 'kB', pos: 'D', metric_definition_version: 'md@v1' }),
+    ks({ kpi_id: 'kC', pos: 'D', metric_definition_version: 'md@v2' })
+  ])],
+  phenSpec: ph1({ required_evidence_group_ids: ['egA'] })
+}));
+eq(fullDedup.metric_definition_versions.sort(), ['md@v1', 'md@v2'], 'metric_definition_versions deduplica: 2×v1 + 1×v2 → [v1, v2]');
+eq(full.coverage_status, 'COMPLETE', 'egA (requerido) cubierto con pos D → COMPLETE');
+eq(full.admissibility, 'ADMISSIBLE', 'D + COMPLETE → ADMISSIBLE');
+
+// deterioration_present cuando pos I viene de F+D
+var fullI = P.resolverFenomeno(inFen({
+  gruposColapsados: [grpC('egA', 'F', [ks({ kpi_id: 'kF', pos: 'F' })]), grpC('egB', 'D', [ks({ kpi_id: 'kD', pos: 'D' })])],
+  phenSpec: ph1({ required_evidence_group_ids: ['egA', 'egB'] }),
+  kpiSpecsPorId: { kF: { kpi_id: 'kF', temporal_role: 'COINCIDENT' }, kD: { kpi_id: 'kD', temporal_role: 'COINCIDENT' } }
+}));
+eq([fullI.pos, fullI.deterioration_present], ['I', true], 'pos I por F+D → deterioration_present = true (hubo un contribuyente D)');
+eq([fullI.traj, fullI.pers], ['N_A', 'N_A'], '...traj = pers = N_A (pos I)');
+
+// ═══════════════════════════════════════════════════════════════════════
 seccion('Mutaciones 7a — ejecutadas como paso de Bash aparte (ver cierre)');
 // ═══════════════════════════════════════════════════════════════════════
 console.log('  1. _colapsarSetDirect: `S.F && S.D → I` → `→ N_A` (regla de §14 en vez de §15)');
@@ -221,6 +359,32 @@ console.log('     (INV-23 "I + PARTIAL → ADMISSIBLE_WITH_LIMITATIONS"; el flag
 console.log('  8. admisibilidadFenomeno: la rama `pos===N_A` → ADMISSIBLE → 1 rojo ("N_A +');
 console.log('     COMPLETE → NOT_ADMISSIBLE"; el flag SIN_POSICION sigue saliendo).');
 console.log('  Conteos 7b: 2, 2, 3, 4, 2, 2, 1, 1.');
+
+// ═══════════════════════════════════════════════════════════════════════
+seccion('Mutaciones 7c — ejecutadas como paso de Bash aparte (ver cierre)');
+// ═══════════════════════════════════════════════════════════════════════
+console.log('  1. _kpiStateGobernante: `estados[0]` sin ordenar → "gana kB" y el desempate por');
+console.log('     det_run caen (ambig. J: no es el primero, es el peor por orden total).');
+console.log('  2. _kpiStateGobernante: no filtrar por `s.pos === g.pos` → kC (pos F) contamina →');
+console.log('     "kC no cuenta" cae.');
+console.log('  3. [lag, dirección estricta] _temporalidadPermiteDivergenciaAutomatica: `permite:false`');
+console.log('     también cuando hay `expected_lag` presente → "F+D + expected_lag + COINCIDENT →');
+console.log('     pos SIGUE I" y "expected_lag + COINCIDENT → permite true" caen (punto 2 de Luis).');
+console.log('  4. [lag, dirección suspensión] resolverFenomeno: se ignora `compat.permite` →');
+console.log('     "F+D + LAGGED → pos N_A" + su flag caen (AC29 / INV-30). NO enmascarada: el');
+console.log('     fixture LAGGED hace `compat.permite` genuinamente false.');
+console.log('  5. _temporalidadPermiteDivergenciaAutomatica: no emitir LAG_NO_OPERACIONALIZADO →');
+console.log('     los 2 asserts del flag caen (el flag se emite de verdad, no es decoración).');
+console.log('  6. propagarTemporalidadFenomeno: `pos===I` propaga traj en vez de N_A → 3 rojos');
+console.log('     (helper pos I, helper pos N_A, extremo a extremo pos I).');
+console.log('  7. propagarTemporalidadFenomeno: `pers` sin la guarda `pos===D` → 1 rojo');
+console.log('     ("pos F → pers N_A" — §11).');
+console.log('  8. resolverFenomeno: `deterioration_present` sin la rama `pos===I && huboD` → 1 rojo');
+console.log('     ("pos I por F+D → deterioration_present true").');
+console.log('  9. propagarTemporalidadFenomeno: sin serie → no marcar INSUFFICIENT/flag → 2 rojos (AU).');
+console.log('  10. resolverFenomeno: `metric_definition_versions` sin deduplicar → 1 rojo');
+console.log('      ("deduplica: 2×v1 + 1×v2 → [v1, v2]").');
+console.log('  Conteos 7c: 2, 1, 2, 2, 2, 3, 1, 1, 2, 1.');
 
 // ═══════════════════════════════════════════════════════════════════════
 console.log('\n' + '═'.repeat(74));

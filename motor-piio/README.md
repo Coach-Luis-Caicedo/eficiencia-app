@@ -149,7 +149,7 @@ anotada con la misma honestidad que "dirección adversa" (IFD §21.2),
 | **G** | `independence_basis` (§14) sin enum/formato | `{ kind: SEPARATE_SOURCE | SEPARATE_METHOD | SEPARATE_PROCESS | DECLARED_OTHER, detail }`. Decisión de diseño. |
 | **H** | `det_duration` vs `det_run` (§10, §11.3): §11.3 gobierna `det_run` (conteo); `det_duration` sin regla | `det_run` = nº de períodos consecutivos en D del mismo nivel; `det_duration` = span temporal opcional derivado de esos períodos. (Se cierra en Fase 5.) |
 | **I** | Suite AC (§34) es conductual, no numérica | Ver "Oráculo" arriba. |
-| **J** | Temporales a nivel fenómeno (§15.1) — ¿sobre qué serie si el fenómeno tiene varios KPI? | Sobre la serie del KPI_STATE que gobernó la posición: **se propaga `traj`/`pers` del estado gobernante, no se recomputa** a nivel fenómeno. (Se cierra en Fase 7c — el orquestador.) |
+| **J** *(cerrada Fase 7c)* | Temporales a nivel fenómeno (§15.1) — ¿sobre qué serie si el fenómeno tiene varios KPI? | El grupo gobernante (7a `governing_group_id`) trae varios `member_states`. **Regla:** entre los `member_states` con `pos === grupo.pos`, se elige EL PEOR por orden total (traj adversa → pers → `det_run` desc → `kpi_id` asc) y se propaga `traj`/`pers`/`det_run`/`det_duration` de **ese único `KPI_STATE` real** (coherentes entre sí — no re-colapso campo a campo). Para `pos ∈ {I, N_A}` → no se toca `governing_group_id`; `traj = pers = N_A`. |
 | **K** | §22 "misma lógica por nodo cuando los datos lo permiten" — ¿qué niveles por nodo? | PHENOMENON / DOMAIN / EFO llevan `node_id` → los tres por nodo. EFO organizacional = evidencia `ORGANIZATIONAL` **o** regla explícita de agregación de nodos mutuamente excluyentes. Lectura del texto. (Se cierra en Fase 10.) |
 | **L** *(cerrada Fase 7a)* | §15 "si no existe DIRECT utilizable, PROXY…" — ¿DIRECT que dio I/N_A cuenta como "utilizable"? | "Utilizable" = grupo colapsado (Fase 6) con `pos ∈ {F, D, I}` (I incluido — es una posición resuelta). Grupo DIRECT → `N_A` por insuficiencia **no** entra al set y **no** bloquea PROXY; si además trae `INTERNAL_INCONSISTENCY` (F+D interno §14), el flag **se propaga** al fenómeno (`DIRECT_GRUPO_INCONSISTENTE`) aunque el grupo no aporte posición. |
 | **M** *(Fase 1)* | "mutuamente excluyentes" para `NODE_SET` (§22, §22.1) — mencionado 3×, nunca operacionalizado | El motor **verifica** que dentro de un `aggregation_membership` declarado ningún miembro sea ancestro de otro (cadena `parent_node_id`) — sentido operativo de "sin doble conteo por contención" (INV-PIIO-48). **NO** verifica —ni puede— solapamiento real entre `NODE_SET` distintos ni entre hermanos con poblaciones que se traslapan: vive fuera de los datos. Decisión de diseño (patrón "declarado por el llamante" del FPV). |
@@ -200,8 +200,11 @@ anotada con la misma honestidad que "dirección adversa" (IFD §21.2),
 | **AP** *(Fase 6 → cerrada Fase 7a)* | `evidence_proximity` mixto (unos DIRECT, otros PROXY) en el grupo — §14 no lo menciona | Fase 6 **deriva** `evidence_proximity` (todos iguales → ese valor; mixto → `'MIXED'` + flag). **Fase 7a**: un grupo `MIXED` cuenta como **grado-DIRECT** para el set de §15 (cualquier evidencia DIRECT en el grupo lo hace grado-DIRECT; Fase 6 ya lo colapsó a una posición y no se puede separar) + flag `PROXIMIDAD_MIXTA_TRATADA_COMO_DIRECT`. |
 | **AQ** *(Fase 6)* | `EVIDENCE_GROUP.status ≠ 'ACTIVE'` | Se colapsa igual + flag `EVIDENCE_GROUP_NO_ACTIVO` — no se descarta evidencia en silencio (§30). |
 | **AR** *(Fase 6)* | ¿el colapso considera `traj`/`pers` de los miembros? | **Solo `pos`** — la tabla de §14 es puramente `pos`. `traj`/`pers` del fenómeno → Fase 7. Los KPI_STATE originales (con su traj/pers) se preservan en `member_states`. |
-| **AS** *(Fase 7 — DIFERIDA, sin reapertura)* | §17 exige "compatibilidad de lag" entre evidencia y fenómeno, pero `expected_lag` (§25.2) es **texto libre** — el motor no puede comparar lags numéricamente | Se **difiere** la comparación numérica (mismo perfil que S / shock / `boundary_rule`): Fase 7c emite flag `LAG_NO_OPERACIONALIZADO` cuando `expected_lag` está presente y no es parseable, sin bloquear. **No se reabre `PHENOMENON_SPEC`** hasta que exista una forma real de lag que lo use. |
+| **AS** *(Fase 7c — DIFERIDA, sin reapertura)* | §17 verifica "compatibilidad de lag" antes de declarar divergencia, pero `expected_lag` (§10 `KPI_SPEC`) es **texto libre** — el motor no puede comparar lags numéricamente | Se **difiere** la comparación numérica (mismo perfil que S / shock / `boundary_rule`). `expected_lag` presente → **solo** flag `LAG_NO_OPERACIONALIZADO` (anotación), **cero efecto sobre `pos`**. Lo que SÍ suspende la divergencia automática es `temporal_role === 'LAGGED'` (enum computable, §10) → `pos` N_A. **No se reabre `KPI_SPEC`.** |
 | **AT** *(Fase 7b)* | AC30 da el resultado de F+cobertura-parcial como "admisibilidad **limitada/insuficiente**" — el "/" deja dos lecturas (`ADMISSIBLE_WITH_LIMITATIONS` o `NOT_ADMISSIBLE`) | **`NOT_ADMISSIBLE`.** Espejo de §20.1 ("EFO_admissibility para F **exige** required_coverage_complete" — es un paralelismo con el nivel EFO, no una exigencia textual directa a §16, por eso es decisión). La alternativa (`ADMISSIBLE_WITH_LIMITATIONS`) invertiría el espíritu de §16: dejaría a D+PARTIAL−condiciones (que sí da `NOT_ADMISSIBLE`) *peor* que F+PARTIAL. Anclada en MUT3. |
+| **AU** *(Fase 7c)* | §29 llama `resolve_temporal_properties()` a nivel fenómeno, pero un fenómeno **no tiene serie de valor única** (tiene un historial de posiciones); `KPI_STATE` no lleva `temporal_pattern`/`series_stability`/`regime_status` | Las primitivas de Fase 4 (`patronTemporal`/`estabilidadSerie`/`regimen`) corren sobre la **serie del KPI gobernante** cuando el orquestador la recibe en `contextoGobernante` (input opcional); si no → `INSUFFICIENT` + flag `TEMPORALES_FENOMENO_SIN_SERIE`. Sin inventar. **No reabre esquemas** — `contextoGobernante` es input del orquestador, no un campo nuevo. |
+| — *(Fase 7c, DECISIÓN etiquetada)* | §17 "no se convierte automáticamente en contradicción" — el texto **no dice qué produce** en su lugar | **`N_A`** — "no existe base válida suficiente para clasificar" cuando no se puede confirmar si la divergencia es real o artefacto de lag. Consistente con §30 rectora ("perder cobertura antes que inventar posición"); no se degrada `I` a `F` ni a "el más reciente". Etiquetada como decisión en el comentario del código. |
+| — *(Fase 7c, DECISIÓN etiquetada)* | `pos ∈ {I, N_A} → traj = pers = N_A` — §11 scopea `PERSISTENCE` a "posición D" pero **no dice** "si `pos = I` entonces `traj = N_A`" | Decisión de diseño apoyada (no dictada) por "I = evidencia indeterminada, no resolutiva": un fenómeno de posición indeterminada no tiene trayectoria significativa. Etiquetada como decisión en el comentario del código, no como cita cerrada. |
 
 ---
 
@@ -541,7 +544,7 @@ para que cada pieza se revise con la misma profundidad:
 |---|---|---|
 | **7a** | resolución de posición DIRECT/PROXY (§15, AC23–28, INV-14/15/17) | `b7f56fc` |
 | **7b** | cobertura + admisibilidad del fenómeno (§16, AC30/31, INV-22/23/77) — cierra F-parcial a nivel fenómeno | **este commit** |
-| **7c** | compatibilidad temporal/lag (§17, AC29, AS) + orquestador `resolverFenomeno` → `PHENOMENON_STATE` completo (§15.1) + propagación `traj`/`pers` (J) | pendiente |
+| **7c** | compatibilidad temporal/lag (§17, AC29, AS) + orquestador `resolverFenomeno` → `PHENOMENON_STATE` completo (§15.1, 20 campos) + propagación `traj`/`pers` (J) | **este commit** |
 
 ### 7a — DIRECT/PROXY (§15)
 
@@ -665,6 +668,67 @@ nunca convierte la posición en I ni se multiplica con ella.
 **Total motor-piio tras Fase 7b: 416 asserts** (contratos 97, config 42,
 observaciones 39, referencias 31, temporal 59, kpiState 53, evidenceGroup 36,
 phenomenon 59).
+
+### 7c — §17 lag + orquestador `resolverFenomeno` → `PHENOMENON_STATE`
+
+Cierra Fase 7. `phenomenon.js` consume `temporal.js` (Fase 4) por primera
+vez. `resolverFenomeno` = `resolve_phenomenon_state` (7a + §17 + J) →
+`resolve_phenomenon_coverage_admissibility` (7b) → `resolve_temporal_properties`
+(§29). Aditivo, **sin reapertura**.
+
+| Función | Qué hace |
+|---|---|
+| `_temporalidadPermiteDivergenciaAutomatica(kpiSpecsContribuyentes)` | → `{ permite, flags }`. `permite = false` **sii** algún contribuyente tiene `temporal_role === 'LAGGED'` (§10, enum computable — INV-30 "no contemporánea") → flag `SENAL_LAGGED_EN_DIVERGENCIA`. `expected_lag` presente → **solo** flag `LAG_NO_OPERACIONALIZADO` (AS — no afecta `permite`) |
+| `_kpiStateGobernante(grupoGobernante)` | → un `KPI_STATE`. Regla J: entre `member_states` con `pos === grupo.pos`, el peor por orden total `(traj, pers, det_run desc, kpi_id asc)`. Order-independent |
+| `propagarTemporalidadFenomeno(pos, kpiStateGob, contextoGob)` | → `traj`/`pers`/`det_run`/`det_duration`/`freshness` + `temporal_pattern`/`series_stability`/`regime_status`. `pos ∈ {I,N_A}` → `traj = pers = N_A` (decisión). `pos = F` → `pers = N_A` (§11). Temporales de Fase 4 sobre `contextoGob.serie` si se provee, si no `INSUFFICIENT` + flag (AU) |
+| `resolverFenomeno(input)` | orquestador → `PHENOMENON_STATE` de **20 campos** (§15.1) |
+| `validarPhenomenonState(state)` | chequeo de forma ligero (patrón `validarFPVOutput`) |
+
+#### §17 — el reparto `temporal_role` (computable) vs `expected_lag` (texto libre)
+
+```
+res7a.pos === 'I' con flag DIRECT_F_D_DIVERGENCIA  →  verificar §17:
+  · algún contribuyente LAGGED        → pos = N_A + DIVERGENCIA_F_D_SUSPENDIDA_POR_LAG   (AC29 / INV-30)
+  · todos COINCIDENT (+/- expected_lag) → pos = I  (estricto §15 / AC25)
+  · expected_lag presente              → + flag LAG_NO_OPERACIONALIZADO  (anotación, NO cambia pos)
+```
+
+**Flag alineado con el comportamiento (anclado por MUT3 y MUT4, en direcciones
+opuestas):** `LAG_NO_OPERACIONALIZADO` nunca fuerza la excepción; lo único que
+mueve `pos` es `temporal_role`. La decisión de que "no contradicción
+automática" produzca `N_A` (no `F`, no "el más reciente") está etiquetada
+como decisión en el comentario del código.
+
+### Batería (7a + 7b + 7c)
+
+`node motor-piio/phenomenon.test.js` → **94 asserts, 0 fallos** (7a 29 +
+7b 30 + 7c 35) + **26 mutaciones** (8 + 8 + 10):
+
+**7c** — `2, 1, 2, 2, 2, 3, 1, 1, 2, 1`:
+1. `_kpiStateGobernante`: `estados[0]` sin ordenar → **2** (J: es el peor, no el primero).
+2. `_kpiStateGobernante`: no filtrar por `pos === grupo.pos` → **1** (un miembro
+   de otra `pos` contamina traj/pers).
+3. **[lag, dirección estricta]** `_temporalidadPermite…`: `permite:false` también
+   por `expected_lag` presente → **2** ("expected_lag + COINCIDENT → pos SIGUE I").
+4. **[lag, dirección suspensión]** `resolverFenomeno` ignora `compat.permite` →
+   **2** ("F+D + LAGGED → pos N_A" — NO enmascarada: el fixture LAGGED hace
+   `compat.permite` genuinamente `false`).
+5. `_temporalidadPermite…`: no emitir `LAG_NO_OPERACIONALIZADO` → **2** (el flag
+   se emite de verdad, no es decoración).
+6. `propagarTemporalidadFenomeno`: `pos ∈ {I,N_A}` propaga `traj` → **3**.
+7. `propagarTemporalidadFenomeno`: `pers` sin la guarda `pos === 'D'` → **1** (§11).
+8. `resolverFenomeno`: `deterioration_present` sin la rama `pos === 'I' && huboD`
+   → **1**.
+9. `propagarTemporalidadFenomeno`: sin serie → no marca `INSUFFICIENT`/flag →
+   **2** (AU).
+10. `resolverFenomeno`: `metric_definition_versions` sin deduplicar → **1**.
+
+**Total motor-piio tras Fase 7 (completa): 451 asserts** (contratos 97,
+config 42, observaciones 39, referencias 31, temporal 59, kpiState 53,
+evidenceGroup 36, phenomenon 94).
+
+Fase 7 cierra el motor KPI→PHENOMENON completo. Siguiente: Fase 8
+(`domain.js`, PHENOMENON→DOMAIN §18–19).
 
 ## Qué NO hace este módulo
 
