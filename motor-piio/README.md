@@ -149,9 +149,9 @@ anotada con la misma honestidad que "dirección adversa" (IFD §21.2),
 | **G** | `independence_basis` (§14) sin enum/formato | `{ kind: SEPARATE_SOURCE | SEPARATE_METHOD | SEPARATE_PROCESS | DECLARED_OTHER, detail }`. Decisión de diseño. |
 | **H** | `det_duration` vs `det_run` (§10, §11.3): §11.3 gobierna `det_run` (conteo); `det_duration` sin regla | `det_run` = nº de períodos consecutivos en D del mismo nivel; `det_duration` = span temporal opcional derivado de esos períodos. (Se cierra en Fase 5.) |
 | **I** | Suite AC (§34) es conductual, no numérica | Ver "Oráculo" arriba. |
-| **J** | Temporales a nivel fenómeno (§15.1) — ¿sobre qué serie si el fenómeno tiene varios KPI? | Sobre la serie del KPI DIRECT que gobernó la posición; a igualdad, el de mayor `evidence_proximity` / menor lag. (Se cierra en Fase 7.) |
+| **J** | Temporales a nivel fenómeno (§15.1) — ¿sobre qué serie si el fenómeno tiene varios KPI? | Sobre la serie del KPI_STATE que gobernó la posición: **se propaga `traj`/`pers` del estado gobernante, no se recomputa** a nivel fenómeno. (Se cierra en Fase 7c — el orquestador.) |
 | **K** | §22 "misma lógica por nodo cuando los datos lo permiten" — ¿qué niveles por nodo? | PHENOMENON / DOMAIN / EFO llevan `node_id` → los tres por nodo. EFO organizacional = evidencia `ORGANIZATIONAL` **o** regla explícita de agregación de nodos mutuamente excluyentes. Lectura del texto. (Se cierra en Fase 10.) |
-| **L** | §15 "si no existe DIRECT utilizable, PROXY…" — ¿DIRECT que dio I/N_A cuenta como "utilizable"? | "Utilizable" = admisible con `pos ∈ {F, D}` **o** `I` resolutivo por divergencia válida. DIRECT que da `N_A` por insuficiencia **no** bloquea PROXY. (Se cierra en Fase 7.) |
+| **L** *(cerrada Fase 7a)* | §15 "si no existe DIRECT utilizable, PROXY…" — ¿DIRECT que dio I/N_A cuenta como "utilizable"? | "Utilizable" = grupo colapsado (Fase 6) con `pos ∈ {F, D, I}` (I incluido — es una posición resuelta). Grupo DIRECT → `N_A` por insuficiencia **no** entra al set y **no** bloquea PROXY; si además trae `INTERNAL_INCONSISTENCY` (F+D interno §14), el flag **se propaga** al fenómeno (`DIRECT_GRUPO_INCONSISTENTE`) aunque el grupo no aporte posición. |
 | **M** *(Fase 1)* | "mutuamente excluyentes" para `NODE_SET` (§22, §22.1) — mencionado 3×, nunca operacionalizado | El motor **verifica** que dentro de un `aggregation_membership` declarado ningún miembro sea ancestro de otro (cadena `parent_node_id`) — sentido operativo de "sin doble conteo por contención" (INV-PIIO-48). **NO** verifica —ni puede— solapamiento real entre `NODE_SET` distintos ni entre hermanos con poblaciones que se traslapan: vive fuera de los datos. Decisión de diseño (patrón "declarado por el llamante" del FPV). |
 | **N** *(Fase 1)* | ¿Quién manda entre `phenomenon.core_or_supporting_by_domain` y `domain.{core,supporting}_phenomenon_ids`? | **Deben concordar** (chequeo bidireccional). Un desacuerdo es catálogo corrupto → `BLOCKING` global (AC70). Ninguno es autoritativo. |
 | **O** *(Fase 1)* | §22: "cada observación y estado conserva `node_id`, `node_level` y `scope`" | Realidad: `node_level` **no aparece en ningún esquema** del documento; `scope` **solo en `EFO_STATE`** (§24) — ni `KPI_OBSERVATION`, ni `NODE_SPEC`, ni `PHENOMENON_STATE`, ni `DOMAIN_STATE`. La prosa promete algo que ningún esquema cumple completo. Decisión: `node_level` = profundidad desde la raíz (derivada de la cadena de padres); `scope` = `NODE_SPEC.scope_rules.scope ∈ SCOPE`. **`EFO_STATE.scope` ya tiene forma fijada por §24 — la derivación debe ser consistente con eso y Fase 9 NO reabre esta decisión.** |
@@ -197,9 +197,10 @@ anotada con la misma honestidad que "dirección adversa" (IFD §21.2),
 | **AM** *(Fase 5)* | `OBSERVATION_EVAL` (Fase 2) NO conserva `observed_at` (§9 lo tiene) — `freshness` lo necesitaría | Fase 5 usa `period_end` como ancla — la edad de lo que el dato REPRESENTA, no de cuándo se registró (lectura correcta para "¿sigue vigente?"). `observed_at` para trazabilidad lo tiene Fase 11 desde el input crudo. **Sin reabrir Fase 2.** |
 | **AN** *(Fase 6)* | §14 da la tabla de colapso solo para **pares**; ninguna regla para ≥3 KPIs, y la reducción pairwise-asociativa **no está bien definida** (`{F,D,I}` → orden `(F+D)→N_A+IC` deja "N_A+I", que la tabla no cubre) | **Regla de conjunto**: `S` = posiciones distintas de miembros utilizables; `F∧D`→`N_A+INTERNAL_INCONSISTENCY` (domina); `D`→`D`; `F`→`F`; solo `I`→`I`; `S` vacío→`N_A`. Order-independent; cada celda de §14 sale exacta. Decisión, anotada con la nota de que pairwise NO funciona (no reintentar). |
 | **AO** *(Fase 6)* | miembros con `pos=N_A` no están en la tabla | Se descartan del colapso. **Todos** N_A → grupo `N_A` **sin** `INTERNAL_INCONSISTENCY` (ausencia de evidencia, no un choque). |
-| **AP** *(Fase 6)* | `evidence_proximity` mixto (unos DIRECT, otros PROXY) en el grupo — §14 no lo menciona | Fase 6 **deriva** `evidence_proximity` (todos iguales → ese valor; mixto → `'MIXED'` + flag). **No decide qué significa MIXED** — §15 trata DIRECT/PROXY como ramas separadas → resolución en Fase 7. |
+| **AP** *(Fase 6 → cerrada Fase 7a)* | `evidence_proximity` mixto (unos DIRECT, otros PROXY) en el grupo — §14 no lo menciona | Fase 6 **deriva** `evidence_proximity` (todos iguales → ese valor; mixto → `'MIXED'` + flag). **Fase 7a**: un grupo `MIXED` cuenta como **grado-DIRECT** para el set de §15 (cualquier evidencia DIRECT en el grupo lo hace grado-DIRECT; Fase 6 ya lo colapsó a una posición y no se puede separar) + flag `PROXIMIDAD_MIXTA_TRATADA_COMO_DIRECT`. |
 | **AQ** *(Fase 6)* | `EVIDENCE_GROUP.status ≠ 'ACTIVE'` | Se colapsa igual + flag `EVIDENCE_GROUP_NO_ACTIVO` — no se descarta evidencia en silencio (§30). |
 | **AR** *(Fase 6)* | ¿el colapso considera `traj`/`pers` de los miembros? | **Solo `pos`** — la tabla de §14 es puramente `pos`. `traj`/`pers` del fenómeno → Fase 7. Los KPI_STATE originales (con su traj/pers) se preservan en `member_states`. |
+| **AS** *(Fase 7 — DIFERIDA, sin reapertura)* | §17 exige "compatibilidad de lag" entre evidencia y fenómeno, pero `expected_lag` (§25.2) es **texto libre** — el motor no puede comparar lags numéricamente | Se **difiere** la comparación numérica (mismo perfil que S / shock / `boundary_rule`): Fase 7c emite flag `LAG_NO_OPERACIONALIZADO` cuando `expected_lag` está presente y no es parseable, sin bloquear. **No se reabre `PHENOMENON_SPEC`** hasta que exista una forma real de lag que lo use. |
 
 ---
 
@@ -529,6 +530,76 @@ rojos**. 4. `S` vacío → `I` → **2 rojos** (AO). 5. no filtrar `N_A` →
 
 **Total motor-piio tras Fase 6: 357 asserts** (contratos 97, config 42,
 observaciones 39, referencias 31, temporal 59, kpiState 53, evidenceGroup 36).
+
+## Fase 7 — `PHENOMENON_STATE` (§15–17)
+
+`phenomenon.js` — motor KPI → PHENOMENON. Se construye en **3 partes**
+para que cada pieza se revise con la misma profundidad:
+
+| Parte | Alcance (§) | Estado |
+|---|---|---|
+| **7a** | resolución de posición DIRECT/PROXY (§15, AC23–28, INV-14/15/17) | **este commit** |
+| **7b** | cobertura + admisibilidad del fenómeno (§16, AC30/31) — cierra F-parcial | pendiente |
+| **7c** | compatibilidad temporal/lag (§17, AC29, AS) + orquestador `resolverFenomeno` → `PHENOMENON_STATE` completo (§15.1) + propagación `traj`/`pers` (J) | pendiente |
+
+### 7a — DIRECT/PROXY (§15)
+
+Orden de §15: *filtrar evidencia utilizable → colapsar grupos dependientes
+(Fase 6) → resolver DIRECT (tabla §15) → evaluar PROXY*.
+
+| Función | Produce |
+|---|---|
+| `_colapsarSetDirect(grupos)` | `{ pos, resolutivo, flags }`. Regla de conjunto de **§15** (COMPLETA, 7 filas): `F∈S ∧ D∈S → I` (**INV-17**: divergencia diagnóstica, *no* mayoría, *no* `N_A` como en §14); si no `F→F`; si no `D→D`; si no `I→I`; `S` sin `{F,D,I}` → `resolutivo:false`. Propaga `INTERNAL_INCONSISTENCY` de grupos como flag (ambig. L) |
+| `particionarPorProximidad(gruposColapsados)` | `{ direct, proxy, flags }`. `DIRECT` y `MIXED` → `direct` (ambig. AP, flag para MIXED); `PROXY` → `proxy`; sin proximidad → flag `GRUPO_SIN_PROXIMIDAD` |
+| `resolverDirectYProxy(gruposColapsados, phenSpec)` | `{ pos, evidence_basis: DIRECT\|PROXY\|NONE, governing_group_id, flags }`. DIRECT resolutivo → gobierna, PROXY **no cambia** la posición (§15) + flag `PROXY_DISCREPA_DE_DIRECT` si el PROXY difiere (AC26). Sin DIRECT utilizable + `proxy_allowed_as_primary === true` → PROXY sustenta (AC27); si no → `N_A` (AC28). Sin pesos (INV-14) |
+
+### §15 — tabla DIRECT (COMPLETA, 7 filas = los 7 subconjuntos no vacíos de {F,D,I})
+
+```
+{F}→F   {D}→D   {I}→I   {F,I}→F   {D,I}→D   {F,D}→I   {F,D,I}→I
+```
+
+A diferencia de §14 (solo pares — ver AN), §15 da las **7 filas
+explícitas**. La regla de conjunto sale exacta contra las 7 y es
+order-independent.
+
+**INV-17 vive aquí (§15, "en fenómeno"), NO en §14**: F+D DIRECT a nivel
+fenómeno → `I` (divergencia). F+D dentro de UN `EVIDENCE_GROUP` (§14) →
+`N_A + INTERNAL_INCONSISTENCY` (inconsistencia técnica, AC22). Son reglas
+distintas para el mismo par, en niveles distintos de la cascada.
+
+### Batería
+
+`node motor-piio/phenomenon.test.js` → **29 asserts, 0 fallos** + **8
+mutaciones** (sobre copias reales, revertidas):
+1. `_colapsarSetDirect`: `S.F && S.D → I` → `→ N_A` (regla de §14) →
+   **3 rojos** (INV-17).
+2. `_colapsarSetDirect`: `if (S.F)` antes de `if (S.F && S.D)` → **4 rojos**
+   (F+D da F, sin flag de divergencia).
+3. `_colapsarSetDirect`: fallthrough `resolutivo: false` → `true` →
+   **8 rojos** (los de "sin DIRECT utilizable"/N_A + AC27 + AC28 +
+   SIN_EVIDENCIA_UTILIZABLE — sin crash, EXIT:1 limpio).
+4. `_colapsarSetDirect`: no propagar el flag de grupo inconsistente →
+   **1 rojo** (ambig. L).
+5. `particionarPorProximidad`: `MIXED` → `proxy` en vez de `direct` →
+   **2 rojos** (ambig. AP).
+6. `resolverDirectYProxy`: `if (direct.resolutivo)` nunca corta →
+   **5 rojos** (AC26 + "PROXY no cambia posición" + INV-17 extremo a extremo).
+7. `resolverDirectYProxy`: `proxy_allowed_as_primary === true` →
+   `!== undefined` → **2 rojos** (AC28 / INV-15).
+8. `resolverDirectYProxy`: no emitir `PROXY_DISCREPA_DE_DIRECT` → **1 rojo**
+   (AC26).
+
+Hallazgo (**patrón de guarda enmascarada, 6ª vez en PIIO**): la mutación 3
+original ("el filtro `pos ∈ {F,D,I}` en `_colapsarSetDirect` → `if (g.pos)`",
+i.e. N_A también entra al set) daba **0 rojos** — `_colapsarSetDirect` solo
+lee `S.F`/`S.D`/`S.I`, nunca `S['N_A']`, así que meter `N_A` en `S` es
+inerte. Reformulada a "el fallthrough final marca `resolutivo:true`", que sí
+ejercita "conjunto vacío de {F,D,I} → no resolutivo" (8 rojos).
+
+**Total motor-piio tras Fase 7a: 386 asserts** (contratos 97, config 42,
+observaciones 39, referencias 31, temporal 59, kpiState 53, evidenceGroup 36,
+phenomenon 29).
 
 ## Qué NO hace este módulo
 
