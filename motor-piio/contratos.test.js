@@ -42,6 +42,9 @@ eq([E.PARAMS.PATTERN_MIN_PUNTOS, E.PARAMS.PATTERN_TREND_SLOPE, E.PARAMS.PATTERN_
 eq([E.PARAMS.MIN_HISTORIA_TRAJ, E.PARAMS.SPARSITY_MIN_DENSIDAD, E.PARAMS.TEMPORAL_WINDOW], [null, null, null], 'MIN_HISTORIA_TRAJ / SPARSITY / TEMPORAL_WINDOW null (ambig. AC/AG/AD)');
 eq(E.PARAMS.TEMPORAL_METHOD_DEFAULT, 'DELTA', 'TEMPORAL_METHOD_DEFAULT = DELTA (§11.2 no está en ningún esquema, ambig. AD)');
 eq(E.PARAMS.TEMPORAL_ESTADO, 'PENDIENTE_CALIBRACION', 'bloque temporal PENDIENTE_CALIBRACION');
+// REAPERTURA Fase 5 — Grupo 1 de kpiState.js
+eq([E.PARAMS.TRAJ_STABLE_BAND, E.PARAMS.PERS_REPEATED_MIN, E.PARAMS.PERS_PERSISTENT_MIN], [null, null, null], 'TRAJ_STABLE_BAND / PERS_* null (ambig. AI/AJ)');
+eq(E.PARAMS.KPISTATE_ESTADO, 'PENDIENTE_CALIBRACION', 'bloque kpiState PENDIENTE_CALIBRACION');
 eq(E.ENUMS.AUSENCIA_KIND.indexOf('N_A'), -1, '§28: N_A NO es una categoría de valor de observación');
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -164,7 +167,7 @@ function rs(over) {
   return Object.assign({
     reference_id: 'rc1', reference_role: 'CONDITION', reference_type: 'NORMATIVE', source: 'ISO', valid_from: '2026-01-01',
     rule: 'r', comparability_assessment: 'a', traceability: 't', version: 'v1',
-    admissibility_declared: 'ADMISSIBLE'
+    admissibility_declared: 'ADMISSIBLE', threshold: 50  // reapertura Fase 5 (AH)
   }, over || {});
 }
 ok(C.validarReferenceSpec(rs()).valido, 'REFERENCE_SPEC mínimo válido');
@@ -182,6 +185,12 @@ ok(!C.validarReferenceSpec(rs({ change_mode: 'MUDANZA', supersedes: 'v0' })).val
 // REAPERTURA Fase 3 (ambigüedad Y) — bridge_rule opcional en METRIC_DEFINITION
 ok(C.validarMetricDefinition(md({ continuity_mode: 'BRIDGED', bridge_rule: 'multiplicar la serie vieja por 1.08' })).valido, 'METRIC_DEFINITION BRIDGED + bridge_rule → válido');
 ok(C.validarMetricDefinition(md({ continuity_mode: 'BRIDGED' })).valido, 'BRIDGED sin bridge_rule → VÁLIDO en el contrato (Fase 3 lo degrada a NEW_SERIES + flag, ambig. Y)');
+// REAPERTURA Fase 5 (ambigüedad AH) — threshold obligatorio si reference_role=CONDITION
+ok(!C.validarReferenceSpec(rs({ threshold: undefined })).valido, 'CONDITION sin threshold → inválido (§11 / AC01: el motor debe clasificar)');
+ok(!C.validarReferenceSpec(rs({ threshold: 'medio' })).valido, 'threshold no numérico → inválido');
+ok(C.validarReferenceSpec(rs({ reference_role: 'TEMPORAL', threshold: undefined })).valido, 'TEMPORAL sin threshold → VÁLIDO (REF_TEMP no clasifica contra un umbral fijo)');
+ok(C.validarReferenceSpec(rs({ threshold: 50, threshold_upper: 80, band: 2 })).valido, 'threshold + threshold_upper + band → válido');
+ok(!C.validarReferenceSpec(rs({ band: -1 })).valido, 'band negativa → inválido');
 
 function ns(over) {
   return Object.assign({
@@ -249,6 +258,8 @@ console.log('  7. (reapertura Fase 3) `admissibility_declared` opcional en vez d
 console.log('     → 1 rojo ("sin admissibility_declared → inválido", §8.2 / ambig. X).');
 console.log('  8. (reapertura Fase 3) validarReferenceSpec sin el chequeo change_mode⇒supersedes.');
 console.log('     → 1 rojo ("change_mode sin supersedes → inválido", §8.3).');
+console.log('  9. (reapertura Fase 5) validarReferenceSpec sin el chequeo CONDITION⇒threshold.');
+console.log('     → 2 rojos ("CONDITION sin threshold → inválido", "threshold no numérico") — AH.');
 
 // ═══════════════════════════════════════════════════════════════════════
 console.log('\n' + '═'.repeat(74));

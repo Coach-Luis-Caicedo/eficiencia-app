@@ -186,7 +186,21 @@ var PARAMS = {
   TEMPORAL_METHOD_DEFAULT: 'DELTA',
   TEMPORAL_WINDOW: null,
 
-  TEMPORAL_ESTADO: 'PENDIENTE_CALIBRACION'
+  TEMPORAL_ESTADO: 'PENDIENTE_CALIBRACION',
+
+  // ── REAPERTURA (Fase 5) — Grupo 1 de kpiState.js. §11 nombra los
+  //    conceptos sin dar número.
+
+  // §11.2 / AI — magnitud de cambio por debajo de la cual traj = STABLE.
+  // Sin calibrar: traj = N_A + flag (NO STABLE — INV-26 "insuficiente → N_A").
+  TRAJ_STABLE_BAND: null,
+
+  // §11.3 / AJ — cortes de det_run para POINT → REPEATED → PERSISTENT.
+  // Sin calibrar: det_run=1 → POINT; det_run>=2 → REPEATED + flag.
+  PERS_REPEATED_MIN: null,
+  PERS_PERSISTENT_MIN: null,
+
+  KPISTATE_ESTADO: 'PENDIENTE_CALIBRACION'
 };
 
 // ─────────────────────────────────────────────────────────────────────

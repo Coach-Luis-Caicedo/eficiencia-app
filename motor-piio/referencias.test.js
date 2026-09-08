@@ -26,7 +26,7 @@ function ref(over) {
   return Object.assign({
     reference_id: 'rc1', reference_role: 'CONDITION', reference_type: 'NORMATIVE', source: 'ISO',
     valid_from: '2026-01', rule: 'r', comparability_assessment: 'a', traceability: 't', version: 'v1',
-    admissibility_declared: 'ADMISSIBLE'
+    admissibility_declared: 'ADMISSIBLE', threshold: 50  // reapertura Fase 5 (AH)
   }, over || {});
 }
 function md(over) {

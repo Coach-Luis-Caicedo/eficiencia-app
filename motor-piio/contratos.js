@@ -327,13 +327,27 @@ var ESQUEMA_REFERENCE_SPEC = [
   // §8.3 — modo de cambio, propiedad de la versión NUEVA. `supersedes` =
   //   `version` de la referencia que reemplaza.
   { name: 'change_mode', required: false, check: enEnum('REFERENCE_CHANGE_MODE'), msg: ENUMS.REFERENCE_CHANGE_MODE.join(' | ') + ' (§8.3)' },
-  { name: 'supersedes', required: false, check: esStringNoVacio, msg: 'string no vacío — `version` de la referencia reemplazada (obligatoria de hecho si change_mode presente)' }
+  { name: 'supersedes', required: false, check: esStringNoVacio, msg: 'string no vacío — `version` de la referencia reemplazada (obligatoria de hecho si change_mode presente)' },
+  // ── REAPERTURA (Fase 5, ambigüedad AH): §11 / AC01/04-07 exigen que el
+  //    motor CLASIFIQUE value → F/I/D contra REF_COND, pero §25.3 solo da
+  //    `rule` como texto libre — "threshold"/"umbral" tiene 0 apariciones
+  //    en todo el documento. Sin un umbral estructurado el motor no puede
+  //    cumplir §11. Perfil idéntico a X. `threshold` = punto de comparación;
+  //    `threshold_upper` = límite superior (solo TARGET_RANGE); `band` =
+  //    tolerancia alrededor del umbral que clasifica como `I` (default 0).
+  { name: 'threshold', required: false, check: esNumFinito, msg: 'número — punto de comparación (obligatorio si reference_role=CONDITION, §11 / AC01)' },
+  { name: 'threshold_upper', required: false, check: esNumFinito, msg: 'número — límite superior para directionality=TARGET_RANGE (§11.1 / AC07)' },
+  { name: 'band', required: false, check: function (v) { return esNumFinito(v) && v >= 0; }, msg: 'número >= 0 — tolerancia -> I (default 0)' }
 ];
 function validarReferenceSpec(obj) {
   var r = validarObjeto(ESQUEMA_REFERENCE_SPEC, obj);
   // §8.3 — un change_mode sin decir a quién reemplaza no tiene sentido
   if (obj && typeof obj === 'object' && esStringNoVacio(obj.change_mode) && !esStringNoVacio(obj.supersedes)) {
     r = { valido: false, faltantes: r.faltantes.concat(['supersedes (change_mode presente, §8.3)']), invalidos: r.invalidos.slice() };
+  }
+  // AH — CONDITION exige threshold (§11 / AC01: el motor debe clasificar)
+  if (obj && typeof obj === 'object' && obj.reference_role === 'CONDITION' && !esNumFinito(obj.threshold)) {
+    r = { valido: false, faltantes: r.faltantes.concat(['threshold (reference_role=CONDITION, §11 / AH)']), invalidos: r.invalidos.slice() };
   }
   return r;
 }
