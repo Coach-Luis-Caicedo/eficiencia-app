@@ -2,11 +2,14 @@
  * motor-piio/phenomenon.test.js — Fase 7
  * node motor-piio/phenomenon.test.js
  *
- * Motor KPI → PHENOMENON (§15–17). 7a: resolución DIRECT/PROXY.
+ * Motor KPI → PHENOMENON (§15–17). 7a: resolución DIRECT/PROXY. 7b:
+ * cobertura + admisibilidad del fenómeno.
  * Oráculo conductual: AC23 (DIRECT solo F→F), AC24 (solo D→D), AC25
  * (F+D→I), AC26 (DIRECT F + PROXY D → DIRECT gobierna + flag), AC27 (sin
  * DIRECT + PROXY autorizado → PROXY sustenta), AC28 (sin DIRECT + PROXY
- * no autorizado → N_A). INV-14/15/17.
+ * no autorizado → N_A). AC30 (F favorable + required faltante → parcial,
+ * admisibilidad insuficiente), AC31 (D + parcial suficiente → admisible).
+ * INV-14/15/17/22/23/77.
  */
 
 'use strict';
@@ -96,7 +99,88 @@ ok(tieneFlag(P.resolverDirectYProxy([], phen()), 'SIN_EVIDENCIA_UTILIZABLE'), 's
 eq(P.resolverDirectYProxy([grp('F', 'DIRECT'), grp('D', 'DIRECT')], phen()).pos, 'I', 'F+D DIRECT extremo a extremo → I (INV-17)');
 
 // ═══════════════════════════════════════════════════════════════════════
-seccion('Mutaciones — ejecutadas como paso de Bash aparte (ver cierre)');
+//  7b — cobertura + admisibilidad del fenómeno (§16)
+// ═══════════════════════════════════════════════════════════════════════
+
+// spec de fenómeno: 2 grupos requeridos, 1 opcional
+function pspec(over) {
+  return Object.assign({
+    phenomenon_id: 'ph1',
+    required_evidence_group_ids: ['egA', 'egB'],
+    optional_evidence_group_ids: ['egO'],
+    proxy_allowed_as_primary: false
+  }, over || {});
+}
+// grupo colapsado (Fase 6) con id + pos
+function gc(id, pos) { return { evidence_group_id: id, pos: pos }; }
+
+seccion('§16 — coberturaFenomeno: COMPLETE | PARTIAL | NONE');
+
+eq(P.coberturaFenomeno(pspec(), [gc('egA', 'F'), gc('egB', 'D')]).coverage_status, 'COMPLETE', 'los 2 requeridos cubiertos → COMPLETE');
+eq(P.coberturaFenomeno(pspec(), [gc('egA', 'F')]).coverage_status, 'PARTIAL', '1 de 2 requeridos → PARTIAL');
+eq(P.coberturaFenomeno(pspec(), [gc('egO', 'F')]).coverage_status, 'NONE', '0 requeridos cubiertos (solo un opcional) → NONE');
+eq(P.coberturaFenomeno(pspec(), []).coverage_status, 'NONE', 'sin grupos → NONE');
+// un grupo que colapsó a N_A NO cubre
+eq(P.coberturaFenomeno(pspec(), [gc('egA', 'F'), gc('egB', 'N_A')]).coverage_status, 'PARTIAL', 'egB colapsó a N_A → NO cubre → PARTIAL');
+var cobDet = P.coberturaFenomeno(pspec(), [gc('egA', 'F'), gc('egB', 'N_A')]);
+eq(cobDet.required_faltantes, ['egB'], '...required_faltantes lista egB');
+eq(cobDet.optional_cubiertos, [], '...optional_cubiertos vacío');
+// fenómeno sin requeridos
+var sinReq = P.coberturaFenomeno(pspec({ required_evidence_group_ids: [] }), [gc('egO', 'D')]);
+eq(sinReq.coverage_status, 'COMPLETE', 'sin requeridos + un grupo cubre → COMPLETE');
+ok(tieneFlag(sinReq, 'FENOMENO_SIN_REQUIRED_GROUPS'), '...+ flag FENOMENO_SIN_REQUIRED_GROUPS');
+eq(P.coberturaFenomeno(pspec({ required_evidence_group_ids: [] }), []).coverage_status, 'NONE', 'sin requeridos + nada cubre → NONE');
+
+seccion('§16 — admisibilidadFenomeno: COMPLETE / NONE / N_A');
+
+eq(P.admisibilidadFenomeno({ pos: 'F', evidence_basis: 'DIRECT', coverage_status: 'COMPLETE' }).admissibility, 'ADMISSIBLE', 'F + COMPLETE → ADMISSIBLE');
+eq(P.admisibilidadFenomeno({ pos: 'D', evidence_basis: 'DIRECT', coverage_status: 'COMPLETE' }).admissibility, 'ADMISSIBLE', 'D + COMPLETE → ADMISSIBLE');
+eq(P.admisibilidadFenomeno({ pos: 'I', evidence_basis: 'DIRECT', coverage_status: 'COMPLETE' }).admissibility, 'ADMISSIBLE', 'I + COMPLETE → ADMISSIBLE (INV-23: I plenamente admisible)');
+eq(P.admisibilidadFenomeno({ pos: 'F', evidence_basis: 'DIRECT', coverage_status: 'NONE' }).admissibility, 'NOT_ADMISSIBLE', 'F + NONE → NOT_ADMISSIBLE');
+eq(P.admisibilidadFenomeno({ pos: 'D', evidence_basis: 'DIRECT', coverage_status: 'NONE' }).admissibility, 'NOT_ADMISSIBLE', 'D + NONE → NOT_ADMISSIBLE');
+eq(P.admisibilidadFenomeno({ pos: 'N_A', coverage_status: 'COMPLETE' }).admissibility, 'NOT_ADMISSIBLE', 'N_A + COMPLETE → NOT_ADMISSIBLE (sin posición)');
+ok(tieneFlag(P.admisibilidadFenomeno({ pos: 'N_A', coverage_status: 'COMPLETE' }), 'SIN_POSICION'), '...+ flag SIN_POSICION');
+
+seccion('§16 — el trato ASIMÉTRICO F vs D con coverage=PARTIAL (AC30 / AC31)');
+
+// ── dirección F: AC30 — F + required faltante → cobertura parcial, NO admisible ──
+var af = P.admisibilidadFenomeno({ pos: 'F', evidence_basis: 'DIRECT', coverage_status: 'PARTIAL' });
+eq(af.admissibility, 'NOT_ADMISSIBLE', 'AC30: F + PARTIAL → NOT_ADMISSIBLE (F exige cobertura COMPLETE — ambig. AT)');
+ok(tieneFlag(af, 'COBERTURA_REQUERIDA_INCOMPLETA_F'), '...+ flag COBERTURA_REQUERIDA_INCOMPLETA_F');
+
+// ── dirección D: AC31 — D + parcial + unidad autorizada + sin contradicción → admisible con limitaciones ──
+var ad = P.admisibilidadFenomeno({ pos: 'D', evidence_basis: 'DIRECT', coverage_status: 'PARTIAL', flags: [] });
+eq(ad.admissibility, 'ADMISSIBLE_WITH_LIMITATIONS', 'AC31: D + PARTIAL + DIRECT + sin contradicción → ADMISSIBLE_WITH_LIMITATIONS');
+ok(tieneFlag(ad, 'COBERTURA_PARCIAL_D_SUFICIENTE'), '...+ flag COBERTURA_PARCIAL_D_SUFICIENTE');
+// D sostenido por PROXY autorizado también cuenta como "unidad autorizada"
+eq(P.admisibilidadFenomeno({ pos: 'D', evidence_basis: 'PROXY', coverage_status: 'PARTIAL', flags: [] }).admissibility, 'ADMISSIBLE_WITH_LIMITATIONS', 'D + PARTIAL + PROXY autorizado → ADMISSIBLE_WITH_LIMITATIONS');
+
+// mismo coverage=PARTIAL, mismas condiciones favorables → F cae, D no. La asimetría existe.
+ok(af.admissibility === 'NOT_ADMISSIBLE' && ad.admissibility === 'ADMISSIBLE_WITH_LIMITATIONS',
+   'ASIMETRÍA: con coverage=PARTIAL idéntico, F → NOT_ADMISSIBLE y D → ADMISSIBLE_WITH_LIMITATIONS');
+
+seccion('§16 — D + PARTIAL: las dos condiciones que pueden faltar');
+
+// falta unidad autorizada (evidence_basis NONE)
+var dSinAut = P.admisibilidadFenomeno({ pos: 'D', evidence_basis: 'NONE', coverage_status: 'PARTIAL', flags: [] });
+eq(dSinAut.admissibility, 'NOT_ADMISSIBLE', 'D + PARTIAL + sin unidad autorizada → NOT_ADMISSIBLE');
+ok(tieneFlag(dSinAut, 'D_PARCIAL_SIN_UNIDAD_AUTORIZADA'), '...+ flag D_PARCIAL_SIN_UNIDAD_AUTORIZADA');
+// hay contradicción DIRECT F sin resolver (flag de 7a)
+var dContra = P.admisibilidadFenomeno({ pos: 'D', evidence_basis: 'DIRECT', coverage_status: 'PARTIAL', flags: ['DIRECT_GRUPO_INCONSISTENTE:egX'] });
+eq(dContra.admissibility, 'NOT_ADMISSIBLE', 'D + PARTIAL + contradicción DIRECT F sin resolver → NOT_ADMISSIBLE (§16)');
+ok(tieneFlag(dContra, 'CONTRADICCION_DIRECT_F_SIN_RESOLVER'), '...+ flag CONTRADICCION_DIRECT_F_SIN_RESOLVER');
+
+seccion('§16 — I + PARTIAL (INV-23) ; INV-22 estructural');
+
+var ai = P.admisibilidadFenomeno({ pos: 'I', evidence_basis: 'DIRECT', coverage_status: 'PARTIAL' });
+eq(ai.admissibility, 'ADMISSIBLE_WITH_LIMITATIONS', 'I + PARTIAL → ADMISSIBLE_WITH_LIMITATIONS (INV-23: no se degrada a NOT_ADMISSIBLE por cobertura parcial sola)');
+ok(tieneFlag(ai, 'COBERTURA_PARCIAL'), '...+ flag COBERTURA_PARCIAL');
+// INV-22 / INV-77: admisibilidadFenomeno nunca emite pos ni la deriva de la cobertura
+ok(!('pos' in P.admisibilidadFenomeno({ pos: 'F', coverage_status: 'NONE' })),
+   'INV-22: admisibilidadFenomeno NO devuelve `pos` — la cobertura insuficiente degrada admisibilidad, no convierte la posición en I');
+
+// ═══════════════════════════════════════════════════════════════════════
+seccion('Mutaciones 7a — ejecutadas como paso de Bash aparte (ver cierre)');
 // ═══════════════════════════════════════════════════════════════════════
 console.log('  1. _colapsarSetDirect: `S.F && S.D → I` → `→ N_A` (regla de §14 en vez de §15)');
 console.log('     → 3 rojos ("{F,D}→I", "{F,D,I}→I", extremo a extremo — INV-17).');
@@ -112,6 +196,31 @@ console.log('     5 rojos (AC26 pos/basis/gov, "PROXY no cambia posición", extr
 console.log('  7. resolverDirectYProxy: `proxy_allowed_as_primary === true` → `!== undefined`');
 console.log('     → 2 rojos ("PROXY no autorizado → N_A" — AC28 / INV-15).');
 console.log('  8. resolverDirectYProxy: no emitir PROXY_DISCREPA_DE_DIRECT → 1 rojo (AC26).');
+console.log('  Conteos 7a: 3, 4, 8, 1, 2, 5, 2, 1.');
+
+// ═══════════════════════════════════════════════════════════════════════
+seccion('Mutaciones 7b — ejecutadas como paso de Bash aparte (ver cierre)');
+// ═══════════════════════════════════════════════════════════════════════
+console.log('  1. coberturaFenomeno: un grupo con pos=N_A cuenta como cubierto');
+console.log('     (`_POS_UTILIZABLE[g.pos]` → `g.pos != null`) → "egB colapsó a N_A → PARTIAL"');
+console.log('     y "required_faltantes lista egB" caen.');
+console.log('  2. coberturaFenomeno: 0 requeridos cubiertos → PARTIAL en vez de NONE →');
+console.log('     "0 requeridos → NONE" y "sin grupos → NONE" caen.');
+console.log('  3. [ASIMETRÍA, dirección F] admisibilidadFenomeno: se quita la rama');
+console.log('     `pos===F` (cae al tratamiento genérico D/PROXY) → AC30 "F + PARTIAL →');
+console.log('     NOT_ADMISSIBLE" y su flag caen (F pasa a ADMISSIBLE_WITH_LIMITATIONS).');
+console.log('  4. [ASIMETRÍA, dirección D] admisibilidadFenomeno: `if (autorizada && !contradiccionF)`');
+console.log('     → `if (false)` (D + PARTIAL usa la regla de F, siempre NOT_ADMISSIBLE) → AC31');
+console.log('     "D + PARTIAL + DIRECT → ADMISSIBLE_WITH_LIMITATIONS" (×2: DIRECT y PROXY) + flag caen.');
+console.log('  5. admisibilidadFenomeno: `contradiccionF` fijo a `false` (se ignora el flag de 7a)');
+console.log('     → 2 rojos ("D + PARTIAL + contradicción DIRECT F → NOT_ADMISSIBLE" + su flag).');
+console.log('  6. admisibilidadFenomeno: la rama `coverage===NONE` → ADMISSIBLE → 2 rojos');
+console.log('     ("F+NONE", "D+NONE"). El assert INV-22 sigue verde: la mutación no añade `pos`.');
+console.log('  7. admisibilidadFenomeno: la rama `pos===I` con PARTIAL → NOT_ADMISSIBLE → 1 rojo');
+console.log('     (INV-23 "I + PARTIAL → ADMISSIBLE_WITH_LIMITATIONS"; el flag sigue saliendo).');
+console.log('  8. admisibilidadFenomeno: la rama `pos===N_A` → ADMISSIBLE → 1 rojo ("N_A +');
+console.log('     COMPLETE → NOT_ADMISSIBLE"; el flag SIN_POSICION sigue saliendo).');
+console.log('  Conteos 7b: 2, 2, 3, 4, 2, 2, 1, 1.');
 
 // ═══════════════════════════════════════════════════════════════════════
 console.log('\n' + '═'.repeat(74));

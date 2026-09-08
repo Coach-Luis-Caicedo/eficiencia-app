@@ -145,7 +145,7 @@ anotada con la misma honestidad que "dirección adversa" (IFD §21.2),
 | **C** | `freshness_spec` (§10) — §13 da solo el enum, no la fórmula | Forma `{ max_age_current, max_age_aging }` relativa a `calculation_frequency`; `PARAMS.FRESHNESS_*` calibrables. |
 | **D** | TARGET_RANGE (§11.1) exige "reglas explícitas por debajo y por encima" — §7 no lista un campo | `METRIC_DEFINITION.target_range_rules = { below, above }`, obligatorio **sii** `directionality = TARGET_RANGE`. Extensión de contrato. |
 | **E** | `continuity_mode` (§7) sin valores enumerados | Reusa `DEFINITION_CONTINUITY` `CONTINUOUS | BRIDGED | NEW_SERIES` (concepto contiguo). |
-| **F** | "cobertura suficiente" / "parcial suficiente" (§16, §19, §20.1) sin umbral | **F**: todos los `required_evidence_group_ids` en COMPLETE. **D**: ≥1 CORE D válido sin CORE F contradictorio (§19 lo da). Lo demás → umbral declarado por SPEC. Mezcla lectura + decisión (se cierra en Fases 7–9). |
+| **F** *(parte fenómeno cerrada Fase 7b)* | "cobertura suficiente" / "parcial suficiente" (§16, §19, §20.1) sin umbral | **A nivel fenómeno (§16): CERRADA.** `PHENOMENON_SPEC` no tiene campo de umbral → la regla de 3 valores `COMPLETE/PARTIAL/NONE` sobre `required_evidence_group_ids` es toda la historia. "Suficiente" para F = `COMPLETE`; para D = `PARTIAL` + (unidad autorizada ∧ sin contradicción DIRECT F). A nivel dominio/EFO (§19/§20.1) — "cobertura suficiente" con posible umbral declarado por SPEC — sigue en Fases 8/9. |
 | **G** | `independence_basis` (§14) sin enum/formato | `{ kind: SEPARATE_SOURCE | SEPARATE_METHOD | SEPARATE_PROCESS | DECLARED_OTHER, detail }`. Decisión de diseño. |
 | **H** | `det_duration` vs `det_run` (§10, §11.3): §11.3 gobierna `det_run` (conteo); `det_duration` sin regla | `det_run` = nº de períodos consecutivos en D del mismo nivel; `det_duration` = span temporal opcional derivado de esos períodos. (Se cierra en Fase 5.) |
 | **I** | Suite AC (§34) es conductual, no numérica | Ver "Oráculo" arriba. |
@@ -201,6 +201,7 @@ anotada con la misma honestidad que "dirección adversa" (IFD §21.2),
 | **AQ** *(Fase 6)* | `EVIDENCE_GROUP.status ≠ 'ACTIVE'` | Se colapsa igual + flag `EVIDENCE_GROUP_NO_ACTIVO` — no se descarta evidencia en silencio (§30). |
 | **AR** *(Fase 6)* | ¿el colapso considera `traj`/`pers` de los miembros? | **Solo `pos`** — la tabla de §14 es puramente `pos`. `traj`/`pers` del fenómeno → Fase 7. Los KPI_STATE originales (con su traj/pers) se preservan en `member_states`. |
 | **AS** *(Fase 7 — DIFERIDA, sin reapertura)* | §17 exige "compatibilidad de lag" entre evidencia y fenómeno, pero `expected_lag` (§25.2) es **texto libre** — el motor no puede comparar lags numéricamente | Se **difiere** la comparación numérica (mismo perfil que S / shock / `boundary_rule`): Fase 7c emite flag `LAG_NO_OPERACIONALIZADO` cuando `expected_lag` está presente y no es parseable, sin bloquear. **No se reabre `PHENOMENON_SPEC`** hasta que exista una forma real de lag que lo use. |
+| **AT** *(Fase 7b)* | AC30 da el resultado de F+cobertura-parcial como "admisibilidad **limitada/insuficiente**" — el "/" deja dos lecturas (`ADMISSIBLE_WITH_LIMITATIONS` o `NOT_ADMISSIBLE`) | **`NOT_ADMISSIBLE`.** Espejo de §20.1 ("EFO_admissibility para F **exige** required_coverage_complete" — es un paralelismo con el nivel EFO, no una exigencia textual directa a §16, por eso es decisión). La alternativa (`ADMISSIBLE_WITH_LIMITATIONS`) invertiría el espíritu de §16: dejaría a D+PARTIAL−condiciones (que sí da `NOT_ADMISSIBLE`) *peor* que F+PARTIAL. Anclada en MUT3. |
 
 ---
 
@@ -538,8 +539,8 @@ para que cada pieza se revise con la misma profundidad:
 
 | Parte | Alcance (§) | Estado |
 |---|---|---|
-| **7a** | resolución de posición DIRECT/PROXY (§15, AC23–28, INV-14/15/17) | **este commit** |
-| **7b** | cobertura + admisibilidad del fenómeno (§16, AC30/31) — cierra F-parcial | pendiente |
+| **7a** | resolución de posición DIRECT/PROXY (§15, AC23–28, INV-14/15/17) | `b7f56fc` |
+| **7b** | cobertura + admisibilidad del fenómeno (§16, AC30/31, INV-22/23/77) — cierra F-parcial a nivel fenómeno | **este commit** |
 | **7c** | compatibilidad temporal/lag (§17, AC29, AS) + orquestador `resolverFenomeno` → `PHENOMENON_STATE` completo (§15.1) + propagación `traj`/`pers` (J) | pendiente |
 
 ### 7a — DIRECT/PROXY (§15)
@@ -600,6 +601,70 @@ ejercita "conjunto vacío de {F,D,I} → no resolutivo" (8 rojos).
 **Total motor-piio tras Fase 7a: 386 asserts** (contratos 97, config 42,
 observaciones 39, referencias 31, temporal 59, kpiState 53, evidenceGroup 36,
 phenomenon 29).
+
+### 7b — cobertura + admisibilidad (§16)
+
+`coberturaFenomeno` y `admisibilidadFenomeno` consumen la salida de Fase 6
+(grupos colapsados) y de 7a (`resolverDirectYProxy`). **No tocan `pos`** —
+solo producen `coverage_status` + `admissibility` del `PHENOMENON_STATE`
+(§15.1). Aditivo, sin reapertura.
+
+| Función | Produce |
+|---|---|
+| `coberturaFenomeno(phenSpec, gruposColapsados)` | `{ coverage_status: COMPLETE\|PARTIAL\|NONE, required_cubiertos[], required_faltantes[], optional_cubiertos[], flags }`. Un grupo "cubre" sii está presente con `pos ∈ {F,D,I}` (colapsó a `N_A` → **no** cubre). Todos los requeridos cubiertos → `COMPLETE`; ≥1 cubierto + ≥1 faltante → `PARTIAL`; 0 → `NONE`. Sin requeridos declarados → `COMPLETE` si algún grupo cubre, si no `NONE` + flag |
+| `admisibilidadFenomeno({ pos, evidence_basis, flags, coverage_status })` | `{ admissibility: EVIDENCE_ADMISSIBILITY, flags }` |
+
+#### El trato ASIMÉTRICO F vs D (§16 / AC30 / AC31 / AC78 / AC79)
+
+| `pos` | `coverage_status` | → `admissibility` | por |
+|---|---|---|---|
+| `N_A` | cualquiera | `NOT_ADMISSIBLE` | sin posición |
+| F / D / I | `NONE` | `NOT_ADMISSIBLE` | ningún requerido cubierto |
+| F / D / I | `COMPLETE` | `ADMISSIBLE` | — |
+| **F** | **`PARTIAL`** | **`NOT_ADMISSIBLE`** + `COBERTURA_REQUERIDA_INCOMPLETA_F` | **AC30 / AC78 — "demostrar favorabilidad completa" exige cobertura `COMPLETE`** (ambig. AT) |
+| **D** | **`PARTIAL`** + unidad autorizada (`evidence_basis ∈ {DIRECT,PROXY}`) + sin flag `DIRECT_GRUPO_INCONSISTENTE` | **`ADMISSIBLE_WITH_LIMITATIONS`** + `COBERTURA_PARCIAL_D_SUFICIENTE` | **AC31 / AC79** |
+| **D** | `PARTIAL` sin unidad autorizada **o** con `DIRECT_GRUPO_INCONSISTENTE` | `NOT_ADMISSIBLE` + `D_PARCIAL_SIN_UNIDAD_AUTORIZADA` / `CONTRADICCION_DIRECT_F_SIN_RESOLVER` | §16: "si una unidad autorizada establece deterioro **y** no existe contradicción DIRECT F sin resolver" |
+| `I` | `PARTIAL` | `ADMISSIBLE_WITH_LIMITATIONS` + `COBERTURA_PARCIAL` | **INV-23** — I no se degrada a `NOT_ADMISSIBLE` por cobertura parcial sola |
+
+**La asimetría en una línea:** con `coverage_status = PARTIAL` idéntico y las
+mismas condiciones favorables, **F → `NOT_ADMISSIBLE`** mientras
+**D → `ADMISSIBLE_WITH_LIMITATIONS`**. Ramas de código distintas, mutación
+distinta para cada dirección (MUT3 y MUT4).
+
+**INV-22 / INV-77 (estructural):** `admisibilidadFenomeno` no tiene ninguna
+rama que lea `coverage_status` para decidir `pos` — devuelve `{ admissibility,
+flags }`, sin campo `pos`. La cobertura insuficiente degrada admisibilidad,
+nunca convierte la posición en I ni se multiplica con ella.
+
+**Fuera de alcance de 7b:** "F + OPTIONAL D bloquea F" es regla de §20.1
+(nivel EFO) — Fase 9. §16 no la enuncia a nivel fenómeno.
+
+### Batería (7a + 7b)
+
+`node motor-piio/phenomenon.test.js` → **59 asserts, 0 fallos** (7a 29 +
+7b 30) + **16 mutaciones** (8 + 8, sobre copias reales, revertidas):
+
+**7a** — `3, 4, 8, 1, 2, 5, 2, 1` (ver Fase 7a arriba).
+
+**7b** — `2, 2, 3, 4, 2, 2, 1, 1`:
+1. `coberturaFenomeno`: grupo con `pos=N_A` cuenta como cubierto → **2 rojos**.
+2. `coberturaFenomeno`: 0 requeridos cubiertos → `PARTIAL` en vez de `NONE` →
+   **2 rojos**.
+3. **[asimetría, dirección F]** quitar la rama `pos==='F'` → **3 rojos**
+   (AC30 valor + flag + el assert de la asimetría; F cae a
+   `ADMISSIBLE_WITH_LIMITATIONS`).
+4. **[asimetría, dirección D]** `if (autorizada && !contradiccionF)` → `if (false)`
+   (D usa la regla de F) → **4 rojos** (AC31 DIRECT + PROXY + flag + el assert
+   de la asimetría).
+5. `admisibilidadFenomeno`: ignorar el flag `DIRECT_GRUPO_INCONSISTENTE` de 7a
+   → **2 rojos** (D + PARTIAL + contradicción → debía ser `NOT_ADMISSIBLE`).
+6. rama `coverage===NONE` → `ADMISSIBLE` → **2 rojos** (F+NONE, D+NONE).
+7. rama `pos==='I'` + PARTIAL → `NOT_ADMISSIBLE` → **1 rojo** (INV-23).
+8. rama `pos==='N_A'` → `ADMISSIBLE` → **1 rojo**.
+
+**Total motor-piio tras Fase 7b: 416 asserts** (contratos 97, config 42,
+observaciones 39, referencias 31, temporal 59, kpiState 53, evidenceGroup 36,
+phenomenon 59).
 
 ## Qué NO hace este módulo
 

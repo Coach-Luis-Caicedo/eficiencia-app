@@ -7,7 +7,7 @@
  *
  * Se construye en 3 partes:
  *   7a  resolución de posición DIRECT/PROXY (§15, AC23–28)     ← este archivo
- *   7b  cobertura + admisibilidad del fenómeno (§16, AC30/31)
+ *   7b  cobertura + admisibilidad del fenómeno (§16, AC30/31)  ← este archivo
  *   7c  compatibilidad temporal / lag (§17, AC29) + orquestador
  *       resolverFenomeno → PHENOMENON_STATE (§15.1)
  *
@@ -145,8 +145,149 @@ function resolverDirectYProxy(gruposColapsados, phenSpec) {
   };
 }
 
+/* ═══════════════════════════════════════════════════════════════════════
+ * 7b — cobertura + admisibilidad del fenómeno (§16)
+ *
+ * §16: "Cada fenómeno declara grupos requeridos y opcionales.
+ *  COVERAGE_STATUS = COMPLETE | PARTIAL | NONE en el nivel fenómeno. La
+ *  cobertura no se usa como peso." / "Puede existir F observable con
+ *  cobertura parcial y admisibilidad insuficiente; D puede ser admisible
+ *  con cobertura parcial si una unidad autorizada establece deterioro y
+ *  no existe contradicción DIRECT F sin resolver." / "Detectar deterioro
+ *  y demostrar favorabilidad completa no exigen necesariamente la misma
+ *  cobertura."
+ *
+ * ── El trato ASIMÉTRICO (§16 / AC30 / AC31 / AC78 / AC79) ────────────
+ *
+ *   pos=F + coverage=PARTIAL  → NOT_ADMISSIBLE  (F "demostrar favorabilidad
+ *                               completa" exige cobertura COMPLETE — ambig. AT,
+ *                               espejo de §20.1 "EFO_admissibility para F exige
+ *                               required_coverage_complete")
+ *   pos=D + coverage=PARTIAL  → ADMISSIBLE_WITH_LIMITATIONS  SII
+ *                               (a) unidad autorizada establece el deterioro
+ *                                   (evidence_basis ∈ {DIRECT, PROXY}) Y
+ *                               (b) no hay contradicción DIRECT F sin resolver
+ *                                   (sin flag DIRECT_GRUPO_INCONSISTENTE de 7a);
+ *                               si no → NOT_ADMISSIBLE
+ *   pos=I + coverage=PARTIAL  → ADMISSIBLE_WITH_LIMITATIONS  (INV-23: I no se
+ *                               degrada a NOT_ADMISSIBLE por cobertura parcial sola)
+ *
+ * ── INV-22 / INV-77 ────────────────────────────────────────────────
+ *
+ * `admisibilidadFenomeno` NO tiene ninguna rama que lea `coverage_status`
+ * para decidir `pos` — la cobertura insuficiente degrada admisibilidad,
+ * nunca convierte la posición en I (INV-22) ni se multiplica con ella
+ * (INV-77). La función devuelve `{ admissibility, flags }` — sin campo `pos`.
+ *
+ * ── Fuera de alcance de 7b ─────────────────────────────────────────
+ *
+ * "F + OPTIONAL D bloquea F" es regla de §20.1 (nivel EFO) — Fase 9. §16
+ * NO la enuncia a nivel fenómeno. 7b no la aplica.
+ * ═══════════════════════════════════════════════════════════════════════ */
+
+var _POS_UTILIZABLE = { F: true, D: true, I: true };
+
+/**
+ * coberturaFenomeno(phenSpec, gruposColapsados) → {
+ *   coverage_status,                       // COMPLETE | PARTIAL | NONE
+ *   required_cubiertos[], required_faltantes[], optional_cubiertos[],
+ *   flags
+ * }
+ *
+ * `gruposColapsados` = salidas de colapsarGrupo (Fase 6) de este
+ * fenómeno/nodo/período. Un grupo "cubre" sii está presente con
+ * `pos ∈ {F, D, I}` — un grupo que colapsó a `N_A` NO cubre.
+ */
+function coberturaFenomeno(phenSpec, gruposColapsados) {
+  var spec = phenSpec || {};
+  var req = (spec.required_evidence_group_ids || []).slice();
+  var opt = (spec.optional_evidence_group_ids || []).slice();
+  var flags = [];
+
+  var cubre = {};
+  (gruposColapsados || []).forEach(function (g) {
+    if (g && g.evidence_group_id && _POS_UTILIZABLE[g.pos]) cubre[g.evidence_group_id] = true;
+  });
+
+  var reqCub = req.filter(function (id) { return cubre[id]; });
+  var reqFalt = req.filter(function (id) { return !cubre[id]; });
+  var optCub = opt.filter(function (id) { return cubre[id]; });
+
+  var coverage_status;
+  if (req.length === 0) {
+    flags.push('FENOMENO_SIN_REQUIRED_GROUPS');
+    coverage_status = Object.keys(cubre).length > 0 ? 'COMPLETE' : 'NONE';
+  } else if (reqCub.length === req.length) {
+    coverage_status = 'COMPLETE';
+  } else if (reqCub.length > 0) {
+    coverage_status = 'PARTIAL';
+  } else {
+    coverage_status = 'NONE';
+  }
+
+  return {
+    coverage_status: coverage_status,
+    required_cubiertos: reqCub,
+    required_faltantes: reqFalt,
+    optional_cubiertos: optCub,
+    flags: flags
+  };
+}
+
+/**
+ * admisibilidadFenomeno({ pos, evidence_basis, flags, coverage_status }) → {
+ *   admissibility,                 // EVIDENCE_ADMISSIBILITY
+ *   flags
+ * }
+ *
+ * §16 / AC30 / AC31 / INV-22/23/77. `pos`/`evidence_basis`/`flags` vienen
+ * de 7a (`resolverDirectYProxy`); `coverage_status` de `coberturaFenomeno`.
+ */
+function admisibilidadFenomeno(args) {
+  var a = args || {};
+  var pos = a.pos;
+  var cov = a.coverage_status;
+  var basis = a.evidence_basis;
+
+  if (pos === 'N_A' || pos == null) {
+    return { admissibility: 'NOT_ADMISSIBLE', flags: ['SIN_POSICION'] };
+  }
+  if (cov === 'NONE') {
+    return { admissibility: 'NOT_ADMISSIBLE', flags: ['COBERTURA_NULA'] };
+  }
+  if (cov === 'COMPLETE') {
+    return { admissibility: 'ADMISSIBLE', flags: [] };
+  }
+
+  // cobertura PARTIAL (o desconocida → se trata como PARTIAL + flag).
+  var flags = [];
+  if (cov !== 'PARTIAL') flags.push('COVERAGE_STATUS_DESCONOCIDO:' + String(cov));
+
+  if (pos === 'F') {
+    // Ambig. AT: F + PARTIAL nunca alcanza ADMISSIBLE (AC30 / AC78).
+    return { admissibility: 'NOT_ADMISSIBLE', flags: flags.concat(['COBERTURA_REQUERIDA_INCOMPLETA_F']) };
+  }
+  if (pos === 'I') {
+    // INV-23: I no se degrada a NOT_ADMISSIBLE por cobertura parcial sola.
+    return { admissibility: 'ADMISSIBLE_WITH_LIMITATIONS', flags: flags.concat(['COBERTURA_PARCIAL']) };
+  }
+
+  // pos === 'D' — §16: admisible con parcial SII unidad autorizada + sin contradicción DIRECT F.
+  var autorizada = basis === 'DIRECT' || basis === 'PROXY';
+  var contradiccionF = _tieneFlag(a, 'DIRECT_GRUPO_INCONSISTENTE');
+  if (autorizada && !contradiccionF) {
+    return { admissibility: 'ADMISSIBLE_WITH_LIMITATIONS', flags: flags.concat(['COBERTURA_PARCIAL_D_SUFICIENTE']) }; // AC31 / AC79
+  }
+  return {
+    admissibility: 'NOT_ADMISSIBLE',
+    flags: flags.concat([contradiccionF ? 'CONTRADICCION_DIRECT_F_SIN_RESOLVER' : 'D_PARCIAL_SIN_UNIDAD_AUTORIZADA'])
+  };
+}
+
 module.exports = {
   particionarPorProximidad: particionarPorProximidad,
   resolverDirectYProxy: resolverDirectYProxy,
-  _colapsarSetDirect: _colapsarSetDirect
+  _colapsarSetDirect: _colapsarSetDirect,
+  coberturaFenomeno: coberturaFenomeno,
+  admisibilidadFenomeno: admisibilidadFenomeno
 };
