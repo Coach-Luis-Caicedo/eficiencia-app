@@ -145,7 +145,7 @@ anotada con la misma honestidad que "dirección adversa" (IFD §21.2),
 | **C** | `freshness_spec` (§10) — §13 da solo el enum, no la fórmula | Forma `{ max_age_current, max_age_aging }` relativa a `calculation_frequency`; `PARAMS.FRESHNESS_*` calibrables. |
 | **D** | TARGET_RANGE (§11.1) exige "reglas explícitas por debajo y por encima" — §7 no lista un campo | `METRIC_DEFINITION.target_range_rules = { below, above }`, obligatorio **sii** `directionality = TARGET_RANGE`. Extensión de contrato. |
 | **E** | `continuity_mode` (§7) sin valores enumerados | Reusa `DEFINITION_CONTINUITY` `CONTINUOUS | BRIDGED | NEW_SERIES` (concepto contiguo). |
-| **F** *(parte fenómeno cerrada Fase 7b)* | "cobertura suficiente" / "parcial suficiente" (§16, §19, §20.1) sin umbral | **A nivel fenómeno (§16): CERRADA.** `PHENOMENON_SPEC` no tiene campo de umbral → la regla de 3 valores `COMPLETE/PARTIAL/NONE` sobre `required_evidence_group_ids` es toda la historia. "Suficiente" para F = `COMPLETE`; para D = `PARTIAL` + (unidad autorizada ∧ sin contradicción DIRECT F). A nivel dominio/EFO (§19/§20.1) — "cobertura suficiente" con posible umbral declarado por SPEC — sigue en Fases 8/9. |
+| **F** *(fenómeno cerrada 7b · dominio cerrada 8)* | "cobertura suficiente" / "parcial suficiente" (§16, §19, §20.1) sin umbral | **Fenómeno (§16) y dominio (§19): CERRADA.** Ni `PHENOMENON_SPEC` ni `DOMAIN_SPEC` tienen campo de umbral → la regla de 3 valores `COMPLETE/PARTIAL/NONE` (sobre `required_evidence_group_ids` / `core_phenomenon_ids`) es toda la historia. "Suficiente" para F = `COMPLETE`; para D = evidencia D válida sin requisito de cobertura (§16: unidad autorizada ∧ sin contradicción DIRECT F · §19: ≥1 CORE D válido). Solo EFO (§20.1) sigue en Fase 9. |
 | **G** | `independence_basis` (§14) sin enum/formato | `{ kind: SEPARATE_SOURCE | SEPARATE_METHOD | SEPARATE_PROCESS | DECLARED_OTHER, detail }`. Decisión de diseño. |
 | **H** | `det_duration` vs `det_run` (§10, §11.3): §11.3 gobierna `det_run` (conteo); `det_duration` sin regla | `det_run` = nº de períodos consecutivos en D del mismo nivel; `det_duration` = span temporal opcional derivado de esos períodos. (Se cierra en Fase 5.) |
 | **I** | Suite AC (§34) es conductual, no numérica | Ver "Oráculo" arriba. |
@@ -204,7 +204,8 @@ anotada con la misma honestidad que "dirección adversa" (IFD §21.2),
 | **AT** *(Fase 7b)* | AC30 da el resultado de F+cobertura-parcial como "admisibilidad **limitada/insuficiente**" — el "/" deja dos lecturas (`ADMISSIBLE_WITH_LIMITATIONS` o `NOT_ADMISSIBLE`) | **`NOT_ADMISSIBLE`.** Espejo de §20.1 ("EFO_admissibility para F **exige** required_coverage_complete" — es un paralelismo con el nivel EFO, no una exigencia textual directa a §16, por eso es decisión). La alternativa (`ADMISSIBLE_WITH_LIMITATIONS`) invertiría el espíritu de §16: dejaría a D+PARTIAL−condiciones (que sí da `NOT_ADMISSIBLE`) *peor* que F+PARTIAL. Anclada en MUT3. |
 | **AU** *(Fase 7c)* | §29 llama `resolve_temporal_properties()` a nivel fenómeno, pero un fenómeno **no tiene serie de valor única** (tiene un historial de posiciones); `KPI_STATE` no lleva `temporal_pattern`/`series_stability`/`regime_status` | Las primitivas de Fase 4 (`patronTemporal`/`estabilidadSerie`/`regimen`) corren sobre la **serie del KPI gobernante** cuando el orquestador la recibe en `contextoGobernante` (input opcional); si no → `INSUFFICIENT` + flag `TEMPORALES_FENOMENO_SIN_SERIE`. Sin inventar. **No reabre esquemas** — `contextoGobernante` es input del orquestador, no un campo nuevo. |
 | — *(Fase 7c, DECISIÓN etiquetada)* | §17 "no se convierte automáticamente en contradicción" — el texto **no dice qué produce** en su lugar | **`N_A`** — "no existe base válida suficiente para clasificar" cuando no se puede confirmar si la divergencia es real o artefacto de lag. Consistente con §30 rectora ("perder cobertura antes que inventar posición"); no se degrada `I` a `F` ni a "el más reciente". Etiquetada como decisión en el comentario del código. |
-| — *(Fase 7c, DECISIÓN etiquetada)* | `pos ∈ {I, N_A} → traj = pers = N_A` — §11 scopea `PERSISTENCE` a "posición D" pero **no dice** "si `pos = I` entonces `traj = N_A`" | Decisión de diseño apoyada (no dictada) por "I = evidencia indeterminada, no resolutiva": un fenómeno de posición indeterminada no tiene trayectoria significativa. Etiquetada como decisión en el comentario del código, no como cita cerrada. |
+| — *(Fase 7c, DECISIÓN etiquetada)* | `pos ∈ {I, N_A} → traj = pers = N_A` — §11 scopea `PERSISTENCE` a "posición D" pero **no dice** "si `pos = I` entonces `traj = N_A`" | Decisión de diseño apoyada (no dictada) por "I = evidencia indeterminada, no resolutiva": un fenómeno de posición indeterminada no tiene trayectoria significativa. Etiquetada como decisión en el comentario del código, no como cita cerrada. (Fase 8 aplica la misma decisión a `DOMAIN_STATE`.) |
+| **AV** *(Fase 8)* | `DOMAIN_SPEC.applicability_by_context = { <context>: APPLICABILITY }` (§25.2), pero **ningún esquema formaliza un campo `context`**; §294 solo dice "para la Organización o nodo" | Patrón "declarado por el llamante" (como M): el orquestador recibe `contexto` (string); se busca en el mapa con fallback a la clave `'DEFAULT'`; ausente → `NOT_APPLICABLE` + flag `CONTEXTO_NO_RESUELTO` (línea 1731: sin posición inventada). Fase 10/11 lo cablea desde atributos de nodo/organización. **Sin reapertura.** |
 
 ---
 
@@ -727,8 +728,91 @@ como decisión en el comentario del código.
 config 42, observaciones 39, referencias 31, temporal 59, kpiState 53,
 evidenceGroup 36, phenomenon 94).
 
-Fase 7 cierra el motor KPI→PHENOMENON completo. Siguiente: Fase 8
-(`domain.js`, PHENOMENON→DOMAIN §18–19).
+Fase 7 cierra el motor KPI→PHENOMENON completo.
+
+## Fase 8 — `domain.js` (§18–19), motor PHENOMENON→DOMAIN
+
+`domain.js` agrupa los `PHENOMENON_STATE` de Fase 7 por dominio canónico
+según **CORE / SUPPORTING**. **Un solo commit**, aditivo, sin reapertura.
+
+### §18 — tabla CORE/SUPPORTING (COMPLETA: 8 filas, como §15)
+
+```
+CORE utilizable | SUPP D | DOMAIN_pos       Regla de conjunto (S = pos de CORE utilizables):
+────────────────┼────────┼───────────        S = ∅           → N_A          (INV-19)
+ninguno         | *      | N_A               F ∈ S ∧ D ∈ S   → I            (AC35)
+solo F          | no     | F                 D ∈ S           → D            (AC34 — sin mirar SUPP, INV-20)
+solo F          | sí     | I                 F ∈ S           → I si ∃ SUPP utilizable D (AC33/INV-21)
+F + I           | no     | F                                   si no F
+F + I           | sí     | I                 solo I          → I
+solo I          | *      | I
+D sin F         | *      | D
+F + D           | *      | I
+```
+
+8 filas = ∅ + los 7 subconjuntos no vacíos de {F,I,D} — partición completa
+sin solapamiento. Verificado fila por fila. Order-independent.
+
+**SUPPORTING solo mueve F → I** (INV-21); nunca resuelve (N_A→X, INV-19) ni
+mejora (D→F / I→F, INV-20). "CORE/SUPPORTING no son pesos" (INV-18): un
+fenómeno cuenta como utilizable (`pos ∈ {F,D,I}` ∧ `admissibility ≠
+NOT_ADMISSIBLE`) o no, sin ponderación.
+
+### §19 — admisibilidad del dominio (misma asimetría F/D que §16)
+
+| `pos` | → `admissibility` |
+|---|---|
+| N_A | `NOT_ADMISSIBLE` |
+| I | `ADMISSIBLE` (AC36 — "I puede ser altamente admisible") |
+| **F** | `COMPLETE` → `ADMISSIBLE` · si no → `NOT_ADMISSIBLE` (F exige cobertura suficiente; "sin SUPPORTING D" ya lo garantiza el colapso) |
+| **D** | ≥1 CORE D válido: `COMPLETE` → `ADMISSIBLE` · `PARTIAL`/`NONE` → `ADMISSIBLE_WITH_LIMITATIONS` (D **no** exige cobertura). Sin CORE D válido → `NOT_ADMISSIBLE` |
+
+### Funciones
+
+| Función | Produce |
+|---|---|
+| `_colapsarDominio(coreUtil, suppUtil)` | `{ pos, flags }` — regla §18 |
+| `resolverAplicabilidad(domainSpec, contexto)` | `{ applicability, flags }` — ambig. AV; `applicability_by_context[contexto]` con fallback `'DEFAULT'`; ausente → `NOT_APPLICABLE` + flag |
+| `coberturaDominio(domainSpec, phenStates)` | `{ coverage_status, core_cubiertos[], core_faltantes[], flags }` — 3-valores sobre `core_phenomenon_ids` |
+| `admisibilidadDominio({ pos, coverage_status, coreUtil, suppUtil })` | `{ admissibility, flags }` — §19 |
+| `_phenStateGobernante(alineados)` | un `PHENOMENON_STATE` — regla J (orden total: traj → pers → det_run desc → phenomenon_id asc) |
+| `propagarTemporalidadDominio(pos, phenStateGob)` | `{ traj, pers, det_run, det_duration, freshness, flags }`. `pos ∈ {I,N_A}` → `traj = pers = N_A` (decisión, igual que 7c); `pos = F` → `pers = N_A` (§11). **Sin** `temporal_pattern`/`series_stability`/`regime_status` — `DOMAIN_STATE` no los lleva |
+| `resolverDominio(input)` | orquestador → `DOMAIN_STATE` de **17 campos** (§18.1). `NOT_APPLICABLE` → corta con `pos = N_A`, sin colapsar (línea 1731: "no posición inventada") |
+| `validarDomainState(state)` | chequeo de forma ligero |
+
+### Batería
+
+`node motor-piio/domain.test.js` → **65 asserts, 0 fallos** + **12
+mutaciones** (sobre copias reales, revertidas) — `2, 3, 2, 4, 1, 2, 1, 3, 2, 2, 2, 1`:
+1. `_colapsarDominio`: `S` vacío → `F` → **2** (AC32 / INV-19).
+2. `_colapsarDominio`: `S.F && S.D → I` → `D` → **3** (AC35).
+3. **[INV-20]** `_colapsarDominio`: el chequeo `suppD` ANTES de `if (S.D)` (el
+   flip aplica también al núcleo D) → **2** ("CORE D + SUPP D → D", fila 7).
+4. **[INV-21]** `_colapsarDominio`: quitar el chequeo `suppD` → **4** (filas 3/5,
+   `solo F + SUPP D` da F).
+5. **[INV-19/20, dirección opuesta]** `_colapsarDominio`: SUPPORTING `F` también
+   dispara el flip → **1** (el flip es específico a `D`).
+6. `resolverDominio`: `NOT_APPLICABLE` no corta → **2** (línea 1731).
+7. `coberturaDominio`: CORE con `pos = N_A` cuenta como cubierto → **1**.
+8. **[asimetría F]** `admisibilidadDominio`: F + PARTIAL → `ADMISSIBLE` → **3**
+   (§19 "F exige cobertura suficiente" + el assert de la asimetría).
+9. **[asimetría D]** `admisibilidadDominio`: D + PARTIAL usa la regla de F → **2**
+   (§19 "D solo exige ≥1 CORE D" + el assert de la asimetría).
+10. `_phenStateGobernante`: `[0]` sin ordenar → **2** (J).
+11. `propagarTemporalidadDominio`: `pos ∈ {I,N_A}` propaga `traj` → **2**.
+12. `resolverDominio`: `deterioration_present` sin la rama `pos === 'I' && huboCoreD`
+    → **1**.
+
+Una formulación estrecha de MUT3 quedaba enmascarada con el fixture original
+(que solo probaba CORE D + SUPPORTING **F**); se añadieron `col(['D'],['D'])`
+y `col(['D','I'],['D'])` → MUT3 = 2 sobre el archivo final.
+
+**Total motor-piio tras Fase 8: 516 asserts** (contratos 97, config 42,
+observaciones 39, referencias 31, temporal 59, kpiState 53, evidenceGroup 36,
+phenomenon 94, domain 65).
+
+Siguiente: Fase 9 (`efo.js`, DOMAIN→EFO §20–21/§24 — la regla determinista
+de 5 ramas §20.1).
 
 ## Qué NO hace este módulo
 
