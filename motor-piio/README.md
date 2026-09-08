@@ -167,6 +167,29 @@ anotada con la misma honestidad que "dirección adversa" (IFD §21.2),
 | **Y** *(Fase 3, reapertura)* | §8.4 `BRIDGED exige regla de transformación validada` — `METRIC_DEFINITION` no tiene `bridge_rule` | Reapertura: `bridge_rule?` en `METRIC_DEFINITION` (opcional en el contrato). `continuidadDefinicion` trata `BRIDGED` sin `bridge_rule` como `NEW_SERIES` + flag (AC15 / INV-29). |
 | **Z** *(Fase 3)* | §8.3 no dice qué pasa con los estados históricos ya calculados al hacer `REBASE_HISTORY` | Fase 3 solo emite la directiva `REBASE_HISTORY`; la re-versión de `KPI_STATE`/... históricos es **Fase 11** (§31: "produce nuevas versiones de estados históricos; no sobrescribe"). Se cierra en Fase 11. |
 
+### Ambigüedades de Fase 4 (§11.2/§11.3/§12/§13) — dos grupos
+
+**Grupo 1 — el texto nombra el concepto sin darle número** → `PARAMS.* = null` + `PENDIENTE_CALIBRACION` (`8051890`). Sin decisión de diseño. Mientras no estén calibrados, las funciones devuelven `INSUFFICIENT` / `N_A` + flag `*_NO_CALIBRADO` — nunca una lectura favorable inventada (§30).
+
+| # | Concepto | Constante |
+|---|---|---|
+| **B** | gap de continuidad | `MAX_CONTINUITY_GAP` (Fase 0) |
+| **C** | ventanas de freshness | `FRESHNESS_MAX_AGE_CURRENT` / `_AGING` |
+| **AA** | cortes de CV para `SERIES_STABILITY` | `STABILITY_CV_STABLE` / `_MODERATE` |
+| **AB** | umbral de tendencia / estacionalidad / long. mínima para `TEMPORAL_PATTERN` | `PATTERN_MIN_PUNTOS` / `_TREND_SLOPE` / `_SEASONAL` |
+| **AC** | long. mínima de historia para traj ≠ `N_A` | `MIN_HISTORIA_TRAJ` (fallback = 2) |
+| **AG** | densidad que cuenta como "sparse" | `SPARSITY_MIN_DENSIDAD` |
+
+**Grupo 2 — el texto no dice qué mecanismo usar** → decisión de diseño, anotada.
+
+| # | Hueco | Lectura adoptada |
+|---|---|---|
+| **H** *(Fase 4)* | §11.3 gobierna `det_run` (conteo); `det_duration` sin regla | `det_run` = nº períodos consecutivos en `D`; `det_duration` = span calendario del run actual (`period[último D] − period[primer D]`). |
+| **AD** *(Fase 4)* | `TEMPORAL_METHOD` (§11.2) no está en ningún esquema | `PARAMS.TEMPORAL_METHOD_DEFAULT = 'DELTA'` (comparar con el período anterior). Override por-KPI → diferido (patrón S). |
+| **AE** *(Fase 4)* | `SHOCK_STATUS`/`SHOCK_TREATMENT` (§12, §27) no están en **NINGÚN** esquema, ni de entrada ni de estado | **NO se reabre `PIIO_INPUT`.** `registrarShock` es una utilidad pura (valida una declaración ad-hoc contra los enums, no la guarda). El efecto de `EXCLUDE_FROM_STRUCTURAL_CALIBRATION` se difiere (no hay calibración en motor-piio). AC57/INV-59: un shock confirmado nunca se elimina automáticamente. Perfil idéntico a S / `node_level`. |
+| **AF** *(Fase 4)* | regla exacta `CONTINUOUS` vs `NEW_REGIME` (§12) | **DERIVACIÓN de Fase 3, no decisión nueva**: `NEW_REGIME` sii Fase 3 emitió `START_NEW_REGIME` para la referencia **o** `continuidadDefinicion` dio `NEW_SERIES`. |
+| **AG-m** *(Fase 4)* | §12/INV-58: "sparsity NO es temporal_pattern" — no dice qué SÍ produce | serie sparse → `TEMPORAL_PATTERN = INSUFFICIENT` **y** `SERIES_STABILITY = INSUFFICIENT` + flag `SERIE_SPARSE`. |
+
 ---
 
 ## Reaperturas de código ya comiteado
@@ -178,7 +201,7 @@ de la fase que lo motivó).
 | Qué se reabrió | Desde | Por qué | Commit |
 |---|---|---|---|
 | `contratos.js` — `ESQUEMA_REFERENCE_SPEC` (+`admissibility_declared` obligatorio, `critical_failure?`, `change_mode?`/`supersedes?`) y `ESQUEMA_METRIC_DEFINITION` (+`bridge_rule?`) | Fase 3 | §8.2 exige un veredicto de admisibilidad por referencia (ambig. X) y §8.4 exige una regla de bridge validada (ambig. Y) — ninguno tenía dónde vivir en §25.3 / §7 | `fa0a467` |
-| `enums.js` — `PARAMS` (+7 constantes calibrables de `temporal.js`: `STABILITY_CV_*`, `PATTERN_*`, `MIN_HISTORIA_TRAJ`, `SPARSITY_MIN_DENSIDAD`, `TEMPORAL_METHOD_DEFAULT`, `TEMPORAL_WINDOW`) | Fase 4 | §11.2/§12 nombran los conceptos sin dar número — Grupo 1 (`PENDIENTE_CALIBRACION`); aditivo, no rompe nada | *este commit* |
+| `enums.js` — `PARAMS` (+7 constantes calibrables de `temporal.js`: `STABILITY_CV_*`, `PATTERN_*`, `MIN_HISTORIA_TRAJ`, `SPARSITY_MIN_DENSIDAD`, `TEMPORAL_METHOD_DEFAULT`, `TEMPORAL_WINDOW`) | Fase 4 | §11.2/§12 nombran los conceptos sin dar número — Grupo 1 (`PENDIENTE_CALIBRACION`); aditivo, no rompe nada | `8051890` |
 
 ---
 
@@ -360,6 +383,44 @@ añadir los accesores tolerantes `refVer`/`refRol` — mismo patrón que
 
 **Total motor-piio tras Fase 3: 197 asserts** (contratos 85, config 42,
 observaciones 39, referencias 31).
+
+## Fase 4 — propiedades temporales (§11.2 / §11.3 / §12 / §13)
+
+`temporal.js` — **módulo compartido**, lo invocan Fases 5/7/8/9. Produce
+PRIMITIVAS de serie; la clasificación a `traj` es Fase 5 (mismo patrón
+cálculo-vs-clasificación que Fase 2). **2 commits**: A extiende `PARAMS`
+(`8051890`), B es `temporal.js`.
+
+| Función | § | Produce |
+|---|---|---|
+| `edadEnPeriodos(desde, hasta)` | — | nº de meses (`'YYYY-MM'`) o días (ISO completo), o `null` |
+| `freshness(age, freshness_spec)` | §13 | `FRESHNESS_STATUS`. Sin ventanas calibradas → `'N_A'` (no se inventa). Nunca `INVALID` (INV-62) |
+| `continuidadRun(secuenciaPos, periods, opciones?)` | §11.3 | `{ det_run, det_duration, runs[], flags }`. `N_A` transparente (no incrementa ni cierra, INV-25). `F`/`I` cierran el run. `opciones.maxGap` overridea `MAX_CONTINUITY_GAP`; gap > maxGap → run nuevo (AC19); con `null` se puentea + flag (§30: ausencia ≠ recuperación) |
+| `estabilidadSerie(valores)` | §12 | `{ valor: SERIES_STABILITY, flags, cv? }`. CV con cortes calibrables; sin calibrar → `INSUFFICIENT` + flag |
+| `patronTemporal(valores, periods)` | §12 | `{ valor: TEMPORAL_PATTERN, flags }`. Siempre ∈ `TEMPORAL_PATTERN` — nunca "VOLATILE"/shock/régimen (INV-57/58) |
+| `regimen(directivas)` | §12 | `REGIME_STATUS` — **derivación** de las salidas de Fase 3 (AF) |
+| `registrarShock(declaracion)` | §12 | `{ shock_status, shock_treatment, flags }` — utilidad pura, sin contrato (AE). No auto-excluye (AC57/INV-59); `EXCLUDE` → flag `EXCLUSION_DIFERIDA` |
+| `magnitudCambio(valores, metodo?, opciones?)` | §11.2 | escalar (DELTA/SLOPE/ROLLING_COMPARE) — primitiva; Fase 5 la clasifica. Método no reconocido → cae al default `DELTA` |
+| `historiaSuficiente(valores)` | §11.2 | boolean (INV-26: insuficiente → traj `N_A`); sin `MIN_HISTORIA_TRAJ` → mínimo absoluto 2 |
+
+### Batería
+`node motor-piio/temporal.test.js` → **59 asserts, 0 fallos** + **9
+mutaciones** (sobre copias reales, revertidas):
+1. `freshness` no calibrado → `CURRENT` en vez de `N_A` → **1 rojo** (§30).
+2. `continuidadRun`: `N_A` cierra el run → **2 rojos** (INV-25).
+3. `continuidadRun`: `d > gap` → `d < gap` (split invertido) → **4 rojos**
+   (los 4 asserts de AC19).
+4. `estabilidadSerie` no calibrada → `STABLE` en vez de `INSUFFICIENT`
+   → **2 rojos** (Grupo 1 / §30).
+5. `regimen`: `REBASE_HISTORY` → `NEW_REGIME` → **1 rojo** (AF).
+6. `registrarShock`: declaración inválida → status crudo → **1 rojo**.
+7. `registrarShock`: `EXCLUDE` sin flag `EXCLUSION_DIFERIDA` → **1 rojo**
+   (INV-59).
+8. `magnitudCambio`: sin fallback al default → **3 rojos**.
+9. `historiaSuficiente`: `>= minimo` → `>= 1` → **1 rojo** (INV-26).
+
+**Total motor-piio tras Fase 4: 261 asserts** (contratos 90, config 42,
+observaciones 39, referencias 31, temporal 59).
 
 ## Qué NO hace este módulo
 
