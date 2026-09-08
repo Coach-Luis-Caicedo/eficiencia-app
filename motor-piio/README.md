@@ -195,6 +195,11 @@ anotada con la misma honestidad que "dirección adversa" (IFD §21.2),
 | **AK** *(Fase 5)* | `PIIO_INPUT` no tiene "ahora"/`as_of` para `freshness` | `args.as_of?` opcional; sin él → `max(period_end)` de las observaciones. Sin reapertura. |
 | **AL** *(Fase 5)* | §10 `KPI_STATE.admissibility` sin tipo | `EVIDENCE_ADMISSIBILITY` (consistente con §8.2/§27). |
 | **AM** *(Fase 5)* | `OBSERVATION_EVAL` (Fase 2) NO conserva `observed_at` (§9 lo tiene) — `freshness` lo necesitaría | Fase 5 usa `period_end` como ancla — la edad de lo que el dato REPRESENTA, no de cuándo se registró (lectura correcta para "¿sigue vigente?"). `observed_at` para trazabilidad lo tiene Fase 11 desde el input crudo. **Sin reabrir Fase 2.** |
+| **AN** *(Fase 6)* | §14 da la tabla de colapso solo para **pares**; ninguna regla para ≥3 KPIs, y la reducción pairwise-asociativa **no está bien definida** (`{F,D,I}` → orden `(F+D)→N_A+IC` deja "N_A+I", que la tabla no cubre) | **Regla de conjunto**: `S` = posiciones distintas de miembros utilizables; `F∧D`→`N_A+INTERNAL_INCONSISTENCY` (domina); `D`→`D`; `F`→`F`; solo `I`→`I`; `S` vacío→`N_A`. Order-independent; cada celda de §14 sale exacta. Decisión, anotada con la nota de que pairwise NO funciona (no reintentar). |
+| **AO** *(Fase 6)* | miembros con `pos=N_A` no están en la tabla | Se descartan del colapso. **Todos** N_A → grupo `N_A` **sin** `INTERNAL_INCONSISTENCY` (ausencia de evidencia, no un choque). |
+| **AP** *(Fase 6)* | `evidence_proximity` mixto (unos DIRECT, otros PROXY) en el grupo — §14 no lo menciona | Fase 6 **deriva** `evidence_proximity` (todos iguales → ese valor; mixto → `'MIXED'` + flag). **No decide qué significa MIXED** — §15 trata DIRECT/PROXY como ramas separadas → resolución en Fase 7. |
+| **AQ** *(Fase 6)* | `EVIDENCE_GROUP.status ≠ 'ACTIVE'` | Se colapsa igual + flag `EVIDENCE_GROUP_NO_ACTIVO` — no se descarta evidencia en silencio (§30). |
+| **AR** *(Fase 6)* | ¿el colapso considera `traj`/`pers` de los miembros? | **Solo `pos`** — la tabla de §14 es puramente `pos`. `traj`/`pers` del fenómeno → Fase 7. Los KPI_STATE originales (con su traj/pers) se preservan en `member_states`. |
 
 ---
 
@@ -483,6 +488,47 @@ calibrar TODO da `N_A`. Se testean por el **flag** (`NEW_REGIME` vs
 
 **Total motor-piio tras Fase 5: 321 asserts** (contratos 97, config 42,
 observaciones 39, referencias 31, temporal 59, kpiState 53).
+
+## Fase 6 — `EVIDENCE_GROUP`: colapso de KPI dependientes (§14)
+
+`evidenceGroup.js` — primera fase que **combina más de un `KPI_STATE`**.
+§15: "primero se filtra evidencia utilizable; después se colapsan grupos
+dependientes". Colapsa **`pos` únicamente** (AR).
+
+| Función | Produce |
+|---|---|
+| `filtrarUtilizables(kpiStates)` | descarta `admissibility='NOT_ADMISSIBLE'` (INV-01) y `pos='N_A'` |
+| `colapsarGrupo(kpiStatesDelGrupo, egSpec, proximidadPorKpi?)` | `{ evidence_group_id, phenomenon_id, node_id, period, pos, evidence_proximity, member_kpi_ids, member_states, resolution_rule_version, status, flags }`. `pos` por la **regla de conjunto** (AN); `F∧D` → flag `INTERNAL_INCONSISTENCY` (§14 literal / AC22); **`member_states` preserva los KPI_STATE originales** (§14) |
+| `agruparPorEvidenceGroup(kpiStates, egSpecs, kpiSpecs)` | agrupa por `(evidence_group_id, node_id, period)`; chequea consistencia bidireccional `kpi_spec.evidence_group_id ⟺ eg.member_kpi_ids` |
+
+### Regla de conjunto (§14 / AN) — la tabla de pares generalizada
+
+```
+S = { posiciones distintas de miembros utilizables }   (pos ∈ {F,I,D})
+F ∈ S ∧ D ∈ S  → N_A + INTERNAL_INCONSISTENCY    D ∈ S → D    F ∈ S → F
+solo I → I                                        S vacío → N_A (AO, sin IC)
+```
+
+Las 6 celdas de §14 salen exactas. **La reducción pairwise-asociativa NO
+funciona** — `{F,D,I}` por orden `(F+D)→N_A+IC` deja "N_A+I", indefinido en
+la tabla. No reintentar pairwise.
+
+**INV-17 NO es de aquí**: "F+D DIRECT comparable **en fenómeno** produce I"
+es §15 (Fase 7). A nivel EVIDENCE_GROUP el F+D da `N_A+INTERNAL_INCONSISTENCY`.
+
+### Batería
+`node motor-piio/evidenceGroup.test.js` → **36 asserts, 0 fallos** + **10
+mutaciones** (sobre copias reales, revertidas):
+1. `S.F && S.D` → `S.F || S.D` → **12 rojos**. 2. quitar la rama `F∧D` →
+**6 rojos** (INV-16). 3. `if (S.D)` antes de `if (S.F && S.D)` → **6
+rojos**. 4. `S` vacío → `I` → **2 rojos** (AO). 5. no filtrar `N_A` →
+**1 rojo**. 6. no filtrar `NOT_ADMISSIBLE` → **3 rojos** (INV-01). 7.
+`member_states: []` → **2 rojos** (§14). 8. `F∧D` sin flag → **2 rojos**
+(AC22). 9. proximidad mixta → `pk[0]` en vez de `MIXED` → **2 rojos**
+(AP). 10. quitar el chequeo de consistencia → **2 rojos**.
+
+**Total motor-piio tras Fase 6: 357 asserts** (contratos 97, config 42,
+observaciones 39, referencias 31, temporal 59, kpiState 53, evidenceGroup 36).
 
 ## Qué NO hace este módulo
 
