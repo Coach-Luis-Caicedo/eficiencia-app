@@ -206,6 +206,8 @@ anotada con la misma honestidad que "dirección adversa" (IFD §21.2),
 | — *(Fase 7c, DECISIÓN etiquetada)* | §17 "no se convierte automáticamente en contradicción" — el texto **no dice qué produce** en su lugar | **`N_A`** — "no existe base válida suficiente para clasificar" cuando no se puede confirmar si la divergencia es real o artefacto de lag. Consistente con §30 rectora ("perder cobertura antes que inventar posición"); no se degrada `I` a `F` ni a "el más reciente". Etiquetada como decisión en el comentario del código. |
 | — *(Fase 7c, DECISIÓN etiquetada)* | `pos ∈ {I, N_A} → traj = pers = N_A` — §11 scopea `PERSISTENCE` a "posición D" pero **no dice** "si `pos = I` entonces `traj = N_A`" | Decisión de diseño apoyada (no dictada) por "I = evidencia indeterminada, no resolutiva": un fenómeno de posición indeterminada no tiene trayectoria significativa. Etiquetada como decisión en el comentario del código, no como cita cerrada. (Fase 8 aplica la misma decisión a `DOMAIN_STATE`.) |
 | **AV** *(Fase 8)* | `DOMAIN_SPEC.applicability_by_context = { <context>: APPLICABILITY }` (§25.2), pero **ningún esquema formaliza un campo `context`**; §294 solo dice "para la Organización o nodo" | Patrón "declarado por el llamante" (como M): el orquestador recibe `contexto` (string); se busca en el mapa con fallback a la clave `'DEFAULT'`; ausente → `NOT_APPLICABLE` + flag `CONTEXTO_NO_RESUELTO` (línea 1731: sin posición inventada). Fase 10/11 lo cablea desde atributos de nodo/organización. **Sin reapertura.** |
+| **AW** *(Fase 9a)* | `COVERAGE_STATUS_EFO = FULL \| PARTIAL \| LIMITED \| INSUFFICIENT` (§27, 4 valores) — §20 **no da tabla** de cómo mapean | **FULL** = todos los REQUIRED clasificables · **PARTIAL** = algunos · **LIMITED** = 0 REQUIRED pero ∃ OPTIONAL clasificable · **INSUFFICIENT** = nada. `required_coverage_complete` (§24, boolean separado) = (FULL). Decisión. |
+| — *(Fase 9a, DECISIÓN etiquetada)* | §20.1 trae **una sola oración** sobre admisibilidad de `I`; no distingue por rama de origen | La I de la rama 3 (divergencia real en REQUIRED) → `ADMISSIBLE`; la I de la rama 4 (indeterminación forzada por OPTIONAL D sobre un núcleo F) → `ADMISSIBLE_WITH_LIMITATIONS` + flag. Origen epistémico distinto; el texto no lo dicta. Etiquetada en el comentario del código. |
 
 ---
 
@@ -811,8 +813,83 @@ y `col(['D','I'],['D'])` → MUT3 = 2 sobre el archivo final.
 observaciones 39, referencias 31, temporal 59, kpiState 53, evidenceGroup 36,
 phenomenon 94, domain 65).
 
-Siguiente: Fase 9 (`efo.js`, DOMAIN→EFO §20–21/§24 — la regla determinista
-de 5 ramas §20.1).
+## Fase 9 — `efo.js` (§20–21/§24), motor DOMAIN→EFO
+
+Produce el `EFO_STATE` final — el output de toda la cascada, lo que PIIO
+exporta a CFF/IFD y a AIE. Se construye en **2 partes** (como Fase 7): 9a
+§20 (determinista), 9b §21 (conductual) + orquestador.
+
+### 9a — §20: posición + deterioración + cobertura + admisibilidad
+
+#### §20.1 — regla determinista de **5 ramas** (COMPLETA, función total)
+
+```
+R = REQUIRED clasificables (pos ∈ {F,I,D} ∧ admissibility ≠ NOT_ADMISSIBLE)
+O_D = ∃ OPTIONAL clasificable con pos D
+
+1. R = ∅                       → N_A
+2. ∃ r ∈ R con pos D           → D          ← gana de plano (AC76 "sin votación", INV-33)
+3. (¬D en R) ∧ (∃ I en R)      → I
+4. (todo R es F) ∧ O_D         → I  (+ deterioration_present)
+5. (todo R es F) ∧ ¬O_D        → F
+```
+
+Partición de `S_R ⊆ {F,I,D}` (R≠∅): `D∈S_R`→2 · `D∉S_R ∧ I∈S_R`→3 ·
+`S_R={F}`→4/5. Cada caso cae en **exactamente una** rama.
+
+**DIFERENCIA con §15/§18 — la cascada cambia de regla aquí:** rama 2 es
+"**cualquier** REQUIRED D → EFO D", **NO** "F+D → I". `{F,D}` REQUIRED → EFO
+**D**. Confirmado por **AC76** ("Mayoría de dominios F con REQUIRED D → EFO
+D; sin votación") e INV-33/75/76. Contrasta con `_colapsarDominio` (Fase 8,
+CORE F+D → I) y `_colapsarSetDirect` (Fase 7, §15). Anclado por **MUT2**
+(rama 2 → I como §18 → 6 rojos).
+
+#### `deterioration_present` ≠ `EFO_pos` (§20 / INV-38)
+
+`deterioration_present = (∃ REQUIRED clasificable D) ∨ (∃ OPTIONAL
+clasificable D)`. **AC42**: puede ser `true` con `EFO_pos = N_A` (INV-34).
+
+#### `coverage_status` (`COVERAGE_STATUS_EFO`, 4 valores — ambig. AW)
+
+§20 no da tabla. Decisión: **FULL** = todos los REQUIRED clasificables ·
+**PARTIAL** = algunos · **LIMITED** = 0 REQUIRED pero ∃ OPTIONAL
+clasificable · **INSUFFICIENT** = nada. `required_coverage_complete` (§24,
+boolean separado) = (FULL).
+
+#### admisibilidad (§20.1 líneas 1193–1197) — asimetría F/D (espejo §16/§19)
+
+| `pos` | → |
+|---|---|
+| N_A | `NOT_ADMISSIBLE` |
+| **F** | `ADMISSIBLE` solo si `required_coverage_complete` (INV-37); si no `NOT_ADMISSIBLE` |
+| **D** | ∃ REQUIRED D válido: `FULL` → `ADMISSIBLE` · parcial → `ADMISSIBLE_WITH_LIMITATIONS` (D **no** exige cobertura). Sin REQUIRED D válido → `NOT_ADMISSIBLE` |
+| **I** | rama 3 (divergencia real en REQUIRED) → `ADMISSIBLE` · rama 4 (I forzada por OPTIONAL D sobre núcleo F) → `ADMISSIBLE_WITH_LIMITATIONS` + flag — **DECISIÓN etiquetada** (§20.1 trae una sola oración sobre "I"; el origen epistémico distinto justifica la distinción, el texto no la dicta) |
+
+### Funciones 9a
+
+`_particionarDominios` · `posicionEFO` · `deterioracionEFO` ·
+`coberturaEFO` · `admisibilidadEFO`.
+
+### Batería 9a
+
+`node motor-piio/efo.test.js` → **44 asserts, 0 fallos** + **11
+mutaciones** — `4, 6, 3, 1, 4, 2, 1, 1, 3, 2, 2`:
+1. `posicionEFO`: rama 1 → `F` → **4** (los 3 de "→N_A" + AC42 pos).
+2. **[EFO ≠ §18]** rama 2 `D → I` (mezcla como §18) → **6** — la mutación que
+   prueba que EFO no sigue §15/§18.
+3. rama 2 exige que TODOS los REQUIRED sean D → **3** ({F,D}→F, {F,I,D}→I, AC76→F).
+4. rama 3 antes de rama 2 → **1** ({F,I,D}→D).
+5. rama 4 no mira OPTIONAL D → **4** (pos/flag + admisibilidad de esa I).
+6. `deterioracionEFO` sin la parte OPTIONAL → **2** (AC39, AC42).
+7. `coberturaEFO`: LIMITED colapsa a INSUFFICIENT → **1**.
+8. `coberturaEFO`: `required_coverage_complete = (reqCla.length > 0)` → **1**.
+9. **[asimetría F]** F sin el chequeo `required_coverage_complete` → **3** (INV-37).
+10. **[asimetría D]** D exige `FULL` (usa la regla de F) → **2**.
+11. `admisibilidadEFO`: las dos I colapsan → **2** (I rama 4).
+
+**Total motor-piio tras Fase 9a: 560 asserts** (… phenomenon 94, domain 65,
+efo 44). Siguiente: **9b** — §21 traj/pers + scope + orquestador
+`resolverEFO` → `EFO_STATE` (§24, 23 campos).
 
 ## Qué NO hace este módulo
 
