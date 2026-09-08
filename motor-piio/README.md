@@ -189,6 +189,12 @@ anotada con la misma honestidad que "dirección adversa" (IFD §21.2),
 | **AE** *(Fase 4)* | `SHOCK_STATUS`/`SHOCK_TREATMENT` (§12, §27) no están en **NINGÚN** esquema, ni de entrada ni de estado | **NO se reabre `PIIO_INPUT`.** `registrarShock` es una utilidad pura (valida una declaración ad-hoc contra los enums, no la guarda). El efecto de `EXCLUDE_FROM_STRUCTURAL_CALIBRATION` se difiere (no hay calibración en motor-piio). AC57/INV-59: un shock confirmado nunca se elimina automáticamente. Perfil idéntico a S / `node_level`. |
 | **AF** *(Fase 4)* | regla exacta `CONTINUOUS` vs `NEW_REGIME` (§12) | **DERIVACIÓN de Fase 3, no decisión nueva**: `NEW_REGIME` sii Fase 3 emitió `START_NEW_REGIME` para la referencia **o** `continuidadDefinicion` dio `NEW_SERIES`. |
 | **AG-m** *(Fase 4)* | §12/INV-58: "sparsity NO es temporal_pattern" — no dice qué SÍ produce | serie sparse → `TEMPORAL_PATTERN = INSUFFICIENT` **y** `SERIES_STABILITY = INSUFFICIENT` + flag `SERIE_SPARSE`. |
+| **AH** *(Fase 5, reapertura)* | `REFERENCE_SPEC.rule` es **texto libre** (§25.3) — el motor no puede clasificar `value` → F/I/D contra él. "threshold"/"umbral" tiene **0 apariciones** en todo el documento; §11/AC01/04–07 exigen que el motor SÍ clasifique | Reapertura (`cc24b3a`): `threshold` (número, obligatorio si `reference_role=CONDITION`), `threshold_upper?` (TARGET_RANGE), `band?` (tolerancia → `I`, default 0). Es el núcleo de PIIO, no periférico como shock. |
+| **AI** *(Fase 5, Grupo 1)* | magnitud de cambio por debajo de la cual `traj = STABLE` — sin número | `PARAMS.TRAJ_STABLE_BAND = null`. Sin calibrar → `traj = N_A` + flag (**NO** `STABLE` — INV-26). |
+| **AJ** *(Fase 5, Grupo 1)* | cortes de `det_run` para POINT→REPEATED→PERSISTENT — sin número | `PARAMS.PERS_REPEATED_MIN` / `_PERSISTENT_MIN` = null. Sin calibrar → `det_run=1`→POINT, `≥2`→REPEATED + flag. |
+| **AK** *(Fase 5)* | `PIIO_INPUT` no tiene "ahora"/`as_of` para `freshness` | `args.as_of?` opcional; sin él → `max(period_end)` de las observaciones. Sin reapertura. |
+| **AL** *(Fase 5)* | §10 `KPI_STATE.admissibility` sin tipo | `EVIDENCE_ADMISSIBILITY` (consistente con §8.2/§27). |
+| **AM** *(Fase 5)* | `OBSERVATION_EVAL` (Fase 2) NO conserva `observed_at` (§9 lo tiene) — `freshness` lo necesitaría | Fase 5 usa `period_end` como ancla — la edad de lo que el dato REPRESENTA, no de cuándo se registró (lectura correcta para "¿sigue vigente?"). `observed_at` para trazabilidad lo tiene Fase 11 desde el input crudo. **Sin reabrir Fase 2.** |
 
 ---
 
@@ -202,7 +208,7 @@ de la fase que lo motivó).
 |---|---|---|---|
 | `contratos.js` — `ESQUEMA_REFERENCE_SPEC` (+`admissibility_declared` obligatorio, `critical_failure?`, `change_mode?`/`supersedes?`) y `ESQUEMA_METRIC_DEFINITION` (+`bridge_rule?`) | Fase 3 | §8.2 exige un veredicto de admisibilidad por referencia (ambig. X) y §8.4 exige una regla de bridge validada (ambig. Y) — ninguno tenía dónde vivir en §25.3 / §7 | `fa0a467` |
 | `enums.js` — `PARAMS` (+7 constantes calibrables de `temporal.js`: `STABILITY_CV_*`, `PATTERN_*`, `MIN_HISTORIA_TRAJ`, `SPARSITY_MIN_DENSIDAD`, `TEMPORAL_METHOD_DEFAULT`, `TEMPORAL_WINDOW`) | Fase 4 | §11.2/§12 nombran los conceptos sin dar número — Grupo 1 (`PENDIENTE_CALIBRACION`); aditivo, no rompe nada | `8051890` |
-| `contratos.js` — `ESQUEMA_REFERENCE_SPEC` (+`threshold` obligatorio si `reference_role=CONDITION`, `threshold_upper?`, `band?`); `enums.js` `PARAMS` (+`TRAJ_STABLE_BAND`, `PERS_REPEATED_MIN`, `PERS_PERSISTENT_MIN`) | Fase 5 | §11/AC01/04–07 exigen que el motor clasifique `value` → F/I/D contra `REF_COND`, pero §25.3 solo da `rule` como texto libre ("threshold" tiene **0 apariciones** en el documento) — ambig. AH; + Grupo 1 de `kpiState.js` (AI/AJ) | *este commit* |
+| `contratos.js` — `ESQUEMA_REFERENCE_SPEC` (+`threshold` obligatorio si `reference_role=CONDITION`, `threshold_upper?`, `band?`); `enums.js` `PARAMS` (+`TRAJ_STABLE_BAND`, `PERS_REPEATED_MIN`, `PERS_PERSISTENT_MIN`) | Fase 5 | §11/AC01/04–07 exigen que el motor clasifique `value` → F/I/D contra `REF_COND`, pero §25.3 solo da `rule` como texto libre ("threshold" tiene **0 apariciones** en el documento) — ambig. AH; + Grupo 1 de `kpiState.js` (AI/AJ) | `cc24b3a` |
 
 ---
 
@@ -422,6 +428,61 @@ mutaciones** (sobre copias reales, revertidas):
 
 **Total motor-piio tras Fase 4: 261 asserts** (contratos 90, config 42,
 observaciones 39, referencias 31, temporal 59).
+
+## Fase 5 — `KPI_STATE` (§10 / §11)
+
+`kpiState.js` — **primer nivel de la cascada que produce un STATE**.
+Integra Fase 2 (`OBSERVATION_EVAL`), Fase 3 (referencia vigente +
+directivas) y Fase 4 (primitivas temporales) — §29 `resolve_kpi_state`.
+**2 commits**: A reabre `contratos.js`/`PARAMS` (`cc24b3a`, ambig. AH/AI/AJ),
+B es `kpiState.js`.
+
+### Contrato de interfaz — campos consumidos con su nombre de origen
+
+| `kpiState.js` lee | de | campo | → |
+|---|---|---|---|
+| `eval.original_value` / `.value` / `.data_quality` / `.node_id` / `.period_start/end` / `.flags` | Fase 2 `OBSERVATION_EVAL` | idénticos | `KPI_STATE.*` / clasificación |
+| `resolverReferenciaVigente(...).ref` / `.admissibility` / `.flags` | Fase 3 | idénticos | resolución de REF_COND / REF_TEMP |
+| `.ref.version` | Fase 3 → `REFERENCE_SPEC` | `version` | `KPI_STATE.{condition,temporal}_reference_version` |
+| `evaluarCambioReferencia().tipo` + `continuidadDefinicion().modo` / `.puede_unir_serie` | Fase 3 | idénticos | `regimen(...)` de Fase 4; `traj=N_A` si no une (INV-29) |
+| `freshness` / `continuidadRun` / `regimen` / `magnitudCambio` / `historiaSuficiente` / `edadEnPeriodos` | Fase 4 | — | traj / pers / det_run / freshness |
+| `metricDef.definition_version` | Fase 0 `METRIC_DEFINITION` | `definition_version` | **`KPI_STATE.metric_definition_version`** — RENOMBRE de esquema (§7 vs §10), no un campo inventado |
+
+Los únicos dos cruces de nombre: `original_value` (Fase 2 y §10 coinciden) y
+`definition_version` → `metric_definition_version` (los propios esquemas del
+documento lo nombran distinto). Ningún otro campo se renombra ni reinterpreta.
+
+### Funciones
+
+| Función | Produce |
+|---|---|
+| `clasificarPosicion(value, refCond, directionality)` | `{ pos, flags }`. `N_A` si sin `refCond` (AC02), value no numérico, o TARGET_RANGE sin `threshold_upper`. `HIGHER/LOWER_IS_WORSE`: contra `threshold ± band` (band→`I`). `TARGET_RANGE`: fuera de `[threshold, threshold_upper]` → `D` + flag |
+| `resolverTrayectoria(serie, refTempRes, directivas, directionality, refCond)` | `{ traj, flags }`. `N_A` si: historia insuficiente (INV-26), REF_TEMP no admisible, `NEW_REGIME` (INV-28), serie no une (INV-29), o `TRAJ_STABLE_BAND` sin calibrar (AI). Si no: `magnitudCambio` contra la banda |
+| `clasificarPersistencia(pos, secuenciaPos, periods, opciones)` | `{ pers, det_run, det_duration, flags }`. `pos≠D` → `N_A` (§28 literal). Si no: `continuidadRun` → `det_run` → clasifica (AJ sin calibrar → REPEATED + flag) |
+| `resolverAdmisibilidad(dataQuality, refCondRes, freshnessStatus)` | `EVIDENCE_ADMISSIBILITY` (AL). `NOT_ADMISSIBLE` si data MISSING/INVALID, REF_COND no admisible, o freshness STALE (AC18) |
+| `resolverKpiState({ evals, kpiSpec, metricDef, referencias, directivas, reporteFase1?, as_of?, opciones? })` | `{ estados: KPI_STATE[], bloqueado, flags }` — encadena sobre la SERIE completa. KPI degradado en Fase 1 → `pos=N_A` (P); bloqueado → `{ estados:[], bloqueado:true }` (AC73) |
+
+### Batería
+`node motor-piio/kpiState.test.js` → **53 asserts, 0 fallos** + **11
+mutaciones** (sobre copias reales, revertidas):
+1. `clasificarPosicion` sin `band` → **1 rojo**. 2. sin `refCond` → `F` →
+**1 rojo** (AC02). 3. `TRAJ_STABLE_BAND` null → `STABLE` en vez de `N_A` →
+**2 rojos** (AI / INV-26). 4. quitar rama `NEW_REGIME` → **1 rojo** (el
+FLAG distingue la causa — con `band` null todo da `N_A`). 5. `SERIE_NO_UNE`
+→ `STABLE` → **2 rojos** (INV-29). 5b. quitar `!historiaSuficiente` →
+**1 rojo** (AC03). 6. quitar `pos≠D` → **1 rojo** (§28). 7. `det_run≥2` →
+`PERSISTENT` → **1 rojo** (AJ). 8. quitar `STALE` → **1 rojo** (AC18).
+9. `metricDef.definition_version` → `.version` → **1 rojo** (**contrato de
+interfaz**). 10. `if (degradado)` de pos → `if (false)` → **1 rojo** (P).
+
+Hallazgo (**patrón de guarda enmascarada, 4ª vez en PIIO**): las ramas
+`NEW_REGIME` / `SERIE_NO_UNE` de `resolverTrayectoria` quedan enmascaradas
+por el chequeo `TRAJ_STABLE_BAND == null` que va después — con la banda sin
+calibrar TODO da `N_A`. Se testean por el **flag** (`NEW_REGIME` vs
+`TRAJ_BAND_NO_CALIBRADO`), no solo por el valor de `traj`.
+
+**Total motor-piio tras Fase 5: 321 asserts** (contratos 97, config 42,
+observaciones 39, referencias 31, temporal 59, kpiState 53).
 
 ## Qué NO hace este módulo
 
