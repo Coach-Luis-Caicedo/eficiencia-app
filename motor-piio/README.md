@@ -210,6 +210,8 @@ anotada con la misma honestidad que "dirección adversa" (IFD §21.2),
 | — *(Fase 9a, DECISIÓN etiquetada)* | §20.1 trae **una sola oración** sobre admisibilidad de `I`; no distingue por rama de origen | La I de la rama 3 (divergencia real en REQUIRED) → `ADMISSIBLE`; la I de la rama 4 (indeterminación forzada por OPTIONAL D sobre un núcleo F) → `ADMISSIBLE_WITH_LIMITATIONS` + flag. Origen epistémico distinto; el texto no lo dicta. Etiquetada en el comentario del código. |
 | **AX** *(Fase 9b)* | §21 "F→I/D o I→D: DETERIORATING **si el cambio refleja operación real**" — no hay mecanismo evaluable de "refleja operación real" | Default `DETERIORATING` + flag `CAMBIO_OPERACIONAL_NO_CONFIRMADO` (resultado que el texto enuncia; una señal de deterioro no se oculta — perfil INV-34); `opciones.cambioOperacionalReal === false` → `N_A` + flag. Etiquetada en el código. |
 | — *(Fase 9b, DECISIONES etiquetadas)* | §21 varios "puede ser"; §24 campos sin fuente natural a nivel EFO | `trayectoriaEFO`: mejora + pérdida de evidencia → `N_A` (AC46 da el negativo; el relleno positivo es decisión). D→D "puede IMPROVING/DETERIORATING" → se trata como determinista **sólo si el llamante provee los conteos de dominios D** ("puede X" ⟹ "es X dada la condición nombrada"), ausentes → `STABLE` + flag. `resolverEFO`: `freshness` = la peor entre REQUIRED clasificables · `regime_status` default `CONTINUOUS` + flag · `node_profile` mononodo + flag (Fase 10 extiende). Todas en el comentario del código. |
+| **AY** *(Fase 10)* | §23 exige "definir agregador operacional válido" / "método válido" para `DURATION`/`INDEX`/`BINARY`, pero **ningún campo de `METRIC_DEFINITION` lo declara**; `QUANTITY`/`OTHER_VALIDATED` (enum §27) no están en la tabla de §23 | Perfil de S (RULE_DEFINED) / shock / lag: **diferido** → `agregable: false` + flag `AGREGADOR_NO_DEFINIDO`, sin reabrir el contrato. `QUANTITY` → se trata como `COUNT` (suma). |
+| — *(Fase 10, DECISIÓN etiquetada)* | §22 permite "regla explícita de agregación de nodos" pero el documento **nunca da una regla para agregar `EFO_STATE`s** (pos/traj/pers) entre nodos | PIIO calcula la EFO organizacional **solo desde evidencia `ORGANIZATIONAL`**; la agregación de nodos hijos ocurre a nivel de observación (§23), antes de la cascada. `nodosParaEFOOrganizacional` filtra por alcance, no mezcla estados. Consistente con INV-47 y con la ausencia total de una regla de agregación de posiciones (distinto de AW, que sí tenía el esqueleto de una regla). |
 
 ---
 
@@ -964,7 +966,74 @@ evidenceGroup 36, phenomenon 94, domain 65, efo 94).
 
 Fase 9 cierra el motor DOMAIN→EFO. La cascada de 6 niveles está completa
 (OBSERVACIÓN → KPI_STATE → EVIDENCE_GROUP → PHENOMENON → DOMAIN → EFO).
-Siguiente: **Fase 10** (`nodos.js`, §22–23).
+
+## Fase 10 — `nodos.js` (§22–23), nodos, alcance y agregación
+
+`nodos.js` **no produce un estado de la cascada** — da las utilidades para
+(a) agregar observaciones entre nodos por tipo de métrica (§23) y (b)
+construir el `node_profile[]` y decidir qué evidencia eleva la EFO
+organizacional (§22). **Un solo commit**, aditivo, sin reapertura.
+
+### §23 — agregación por tipo de métrica
+
+| Métrica | Regla | Implementación |
+|---|---|---|
+| `COUNT` / `QUANTITY` | suma (solo mutuamente excluyentes) | `SUMA` — `Σvalue` |
+| `RATE` / `RATIO` | recomputar desde num/den; **NUNCA promedio simple** | `RECOMPUTAR_COMPONENTES` — `Σnum / Σden` si num y den en TODOS; si no → `NO_AGREGABLE` + flag (**no** se cae a `mean(tasas)` — INV-49/50/AC51) |
+| `DURATION` / `INDEX` / `BINARY` / `OTHER_VALIDATED` | agregador declarado / método válido | `AGREGADOR_DECLARADO` → `NO_AGREGABLE` + flag `AGREGADOR_NO_DEFINIDO` (**ambig. AY**) |
+
+**Contraste con el PIIO viejo:** `INVENTARIO_PIIO_ANTIGUO.md` documentó que
+el panel anterior hacía roll-up = `avg(valor)` uniforme para las 3 tasas —
+justo lo que INV-49/50/AC51 prohíben. **MUT1** reintroduce literalmente
+`mean(tasas)` para `RATE` → 2 rojos. Queda simbólicamente cerrado.
+
+`agregarObservacionesNodos` además: valida exclusividad mutua de los nodos
+fuente (INV-48/AC49 — no padre+hijo); exige `aggregation_frequency`
+compatible (INV-51/52 — mensual ≠ anual); **NO anualiza** aunque haya
+`annualization_rule` (INV-53/AC53); mantiene `Σexposure` **separada** de
+`value` (INV-55). `lecturaDual` preserva `{ tasa, eventos_absolutos,
+exposicion_total }` por separado (INV-56/AC54/55).
+
+### §22 — alcance y `node_profile[]`
+
+- `nodeLevel` = profundidad desde la raíz (raíz = 0; ambig. O).
+- `validarExclusividadNodos` (INV-48/AC49) — para agregación ad-hoc;
+  distinto del chequeo de `aggregation_membership` declarado de Fase 1.
+- `construirNodeProfile` → `[{ node_id, node_level, scope, pos, traj, pers,
+  deterioration_present, admissibility, coverage_status }]` por nodo.
+  **Superconjunto estricto** del elemento mínimo de 4 campos de Fase 9b
+  (`node_id`/`scope`/`pos`/`deterioration_present`) — `efo.js` **no se
+  toca**, los 94 asserts de `efo.test.js` intactos. **NO**
+  concentration/polarization (INV-46/AC48 — `contieneModificadorAIE` lo
+  detecta).
+- `nodosParaEFOOrganizacional` — **FILTRA** por `scope`: `ORGANIZATIONAL` →
+  roll-up; `SEGMENT_ONLY` → `node_profile` solo + flag (INV-47/AC47).
+
+**DECISIÓN etiquetada:** el documento **nunca** da una regla para agregar
+`EFO_STATE`s (pos/traj/pers) entre nodos — solo §23 para valores de
+observación (antes de la cascada). PIIO calcula la EFO organizacional
+**solo desde evidencia `ORGANIZATIONAL`**; `nodosParaEFOOrganizacional`
+filtra, no mezcla estados.
+
+### Batería
+
+`node motor-piio/nodos.test.js` → **55 asserts, 0 fallos** + **12
+mutaciones** — `2, 2, 2, 2, 3, 7, 1, 6, 4, 2, 4, 4`:
+1. **[contraste PIIO viejo]** `RATE` → `mean(tasas)` → **2** (AC51/INV-49/50).
+2. `RATE` sin componentes → promedio simple → **2**.
+3. `COUNT` no chequea exclusividad → **2** (AC49).
+4. no chequea períodos compatibles → **2** (AC52).
+5. exposición dentro de `value` → **3** (INV-55).
+6. `_reglaAgregacion`: `DURATION` → `SUMA` → **7** (AY).
+7. `lecturaDual` no recompone `eventos_absolutos` → **1** (AC54/55).
+8. `validarExclusividadNodos` no recorre ancestros → **6** (INV-48/AC49).
+9. `nodeLevel` cuenta desde 1 → **4**.
+10. `construirNodeProfile` emite `polarization` → **2** (INV-46).
+11. `nodosParaEFOOrganizacional`: `SEGMENT_ONLY` entra a organizacionales → **4** (AC47/INV-47).
+12. `RATE` mensual × 12 (anualiza) → **4** (AC53).
+
+**Total motor-piio tras Fase 10: 665 asserts** (… efo 94, nodos 55).
+Siguiente: **Fase 11** (`runPIIO.js`, orquestador §29).
 
 ## Qué NO hace este módulo
 
