@@ -1033,7 +1033,73 @@ mutaciones** — `2, 2, 2, 2, 3, 7, 1, 6, 4, 2, 4, 4`:
 12. `RATE` mensual × 12 (anualiza) → **4** (AC53).
 
 **Total motor-piio tras Fase 10: 665 asserts** (… efo 94, nodos 55).
-Siguiente: **Fase 11** (`runPIIO.js`, orquestador §29).
+
+## Fase 11 — `runPIIO.js`, orquestador §29
+
+Se construye en **2 partes**:
+- **11a** — encadenado de la cascada (§29 pasos 1–11) + propagación de
+  errores §30/§30.1.
+- **11b** — `build_operational_export_for_CFF_IFD` (§26) + `build_trace_paths`
+  (§32) + `persist_immutable_run` → `PIIO_RUN` (§31) + `publish` +
+  `OUTPUT_STATUS` (INV-63) + `PIIO_RESULT` + determinismo (INV-67/AC68).
+
+### 11a — el encadenado
+
+`runPIIO(input) → { kpi_states, evidence_groups, phenomenon_states,
+domain_states, efo_states, node_profile, findings, run_status }`. Aditivo,
+**sin reapertura**.
+
+#### `_CONTRATO_INTERFAZ` — las 10 fronteras
+
+El comentario de cabecera de `runPIIO.js` lista cada frontera (A–K) con el
+nombre del campo en origen = en destino. Cruces anclados por test:
+
+| Cruce | Dato | Fronteras |
+|---|---|---|
+| #1 | `OBSERVATION_EVAL.period_start/end` → `KPI_STATE.period` | F2→F5 (F5 lo deriva) |
+| #2 | `metricDef.definition_version` → `KPI_STATE.metric_definition_version` → `PHENOMENON_STATE.metric_definition_versions[]` → `EFO_STATE.…[]` → `PIIO_RUN.…[]` / `EXPORT.metric_definition_version` | **4 fronteras** |
+| #5 | `contexto` (ambig. AV) cableado desde `NODE_SPEC.scope_rules.context ‖ node_type ‖ org` | F7→F8 (1ª vez que se resuelve) |
+
+#### §30 / §30.1 — propagación de errores
+
+El orquestador **no inventa severidades** — consume las de cada fase:
+
+| Origen | Efecto en el orquestador |
+|---|---|
+| `BLOCKING`+`GLOBAL` (F1 `!ok`) | aborta, `run_status = BLOCKED`, 0 estados (AC70/71) |
+| `BLOCKING`+`STATE` (F5, o md-version ausente) | ese estado no se publica; **el resto de la cascada continúa** (AC73 / §30.1) |
+| `DEGRADED`+`KPI` (F1 → F5 `pos=N_A`) | 11b: `output_status ≤ VALID_WITH_LIMITATIONS` |
+| `WARNING` (flags) | se conserva en `findings`, no degrada |
+| throw inesperado | try/catch por unidad (KPI / fenómeno·nodo·período / …) → `finding` `BLOCKING/STATE`, la unidad no produce estado (AC69) |
+
+**Decisiones etiquetadas (11a):** `run_status ∈ {COMPLETED, PARTIAL,
+BLOCKED}` (el doc no da enum — perfil de `PIIO_INPUT`/ambig. A) ·
+`phenSpec.status === 'PIIO_COMPATIBLE_PROVISIONAL'` → excluido de la cascada
+EFO (AC63/INV-69; `PHENOMENON_SPEC` no tiene campo `status` en Fase 0 — se
+lee sin validar) · `efoPrevio`/historia EFO = `null` en 11a (11b la aporta).
+
+#### Batería
+
+`node motor-piio/runPIIO.test.js` → **45 asserts, 0 fallos** + **12
+mutaciones** — `7, 5, 4, 2, 1, 1, 2, 3, 3, 3, 3, 5`:
+1. **[frontera C]** la línea del lookup `evals: evalsPorKpi[kpiSpec.kpi_id] || []` → `evals: ing.evals` (cada KPI recibe todas las evals) → **7**.
+2. **[frontera G]** se pasa `ing.evals` (no `kpi_states`) a F6 → **5**.
+3. **[frontera H]** `grupos` sin filtrar `node_id` → la F de n-a entra al fenómeno de n-root → **4**.
+4. **[frontera I]** `phenStates` sin filtrar `period` → dominio mezcla períodos (D+F → I) → **2**.
+5. **[frontera J]** `domain_states` sin filtrar `period` → EFO mezcla períodos → **1**.
+6. **[§30]** `!cfg.ok` no aborta → se publican estados sobre catálogo corrupto → **1**.
+7. **[§30]** no se emite el `finding` de KPI bloqueado → **2** (AC73).
+8. **[§30.1]** `_clasificarRun`: `BLOCKING` (cualquier scope) → `BLOCKED` → **3**.
+9. **[provisional]** no se saltan los `PIIO_COMPATIBLE_PROVISIONAL` → **3** (AC63).
+10. **[frontera I / AV]** `_ctxNodo` devuelve constante → **3**.
+11. **[cruce #2]** `_resolverMetricDef` ignora `definition_version` → **3** (ambig. Q).
+12. `_clasificarRun` → siempre `COMPLETED` → **5**.
+
+**Total motor-piio tras Fase 11a: 710 asserts.**
+
+**PENDIENTE para 11b:** confirmar línea a línea los 3 conteos de campos
+antes de ensamblar — `PIIO_RUN` (§31), `TRACE_PATH` (§32),
+`PIIO_OPERATIONAL_EXPORT` (§26).
 
 ## Qué NO hace este módulo
 
