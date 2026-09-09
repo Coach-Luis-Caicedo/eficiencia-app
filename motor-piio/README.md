@@ -208,6 +208,8 @@ anotada con la misma honestidad que "dirección adversa" (IFD §21.2),
 | **AV** *(Fase 8)* | `DOMAIN_SPEC.applicability_by_context = { <context>: APPLICABILITY }` (§25.2), pero **ningún esquema formaliza un campo `context`**; §294 solo dice "para la Organización o nodo" | Patrón "declarado por el llamante" (como M): el orquestador recibe `contexto` (string); se busca en el mapa con fallback a la clave `'DEFAULT'`; ausente → `NOT_APPLICABLE` + flag `CONTEXTO_NO_RESUELTO` (línea 1731: sin posición inventada). Fase 10/11 lo cablea desde atributos de nodo/organización. **Sin reapertura.** |
 | **AW** *(Fase 9a)* | `COVERAGE_STATUS_EFO = FULL \| PARTIAL \| LIMITED \| INSUFFICIENT` (§27, 4 valores) — §20 **no da tabla** de cómo mapean | **FULL** = todos los REQUIRED clasificables · **PARTIAL** = algunos · **LIMITED** = 0 REQUIRED pero ∃ OPTIONAL clasificable · **INSUFFICIENT** = nada. `required_coverage_complete` (§24, boolean separado) = (FULL). Decisión. |
 | — *(Fase 9a, DECISIÓN etiquetada)* | §20.1 trae **una sola oración** sobre admisibilidad de `I`; no distingue por rama de origen | La I de la rama 3 (divergencia real en REQUIRED) → `ADMISSIBLE`; la I de la rama 4 (indeterminación forzada por OPTIONAL D sobre un núcleo F) → `ADMISSIBLE_WITH_LIMITATIONS` + flag. Origen epistémico distinto; el texto no lo dicta. Etiquetada en el comentario del código. |
+| **AX** *(Fase 9b)* | §21 "F→I/D o I→D: DETERIORATING **si el cambio refleja operación real**" — no hay mecanismo evaluable de "refleja operación real" | Default `DETERIORATING` + flag `CAMBIO_OPERACIONAL_NO_CONFIRMADO` (resultado que el texto enuncia; una señal de deterioro no se oculta — perfil INV-34); `opciones.cambioOperacionalReal === false` → `N_A` + flag. Etiquetada en el código. |
+| — *(Fase 9b, DECISIONES etiquetadas)* | §21 varios "puede ser"; §24 campos sin fuente natural a nivel EFO | `trayectoriaEFO`: mejora + pérdida de evidencia → `N_A` (AC46 da el negativo; el relleno positivo es decisión). D→D "puede IMPROVING/DETERIORATING" → se trata como determinista **sólo si el llamante provee los conteos de dominios D** ("puede X" ⟹ "es X dada la condición nombrada"), ausentes → `STABLE` + flag. `resolverEFO`: `freshness` = la peor entre REQUIRED clasificables · `regime_status` default `CONTINUOUS` + flag · `node_profile` mononodo + flag (Fase 10 extiende). Todas en el comentario del código. |
 
 ---
 
@@ -887,9 +889,82 @@ mutaciones** — `4, 6, 3, 1, 4, 2, 1, 1, 3, 2, 2`:
 10. **[asimetría D]** D exige `FULL` (usa la regla de F) → **2**.
 11. `admisibilidadEFO`: las dos I colapsan → **2** (I rama 4).
 
-**Total motor-piio tras Fase 9a: 560 asserts** (… phenomenon 94, domain 65,
-efo 44). Siguiente: **9b** — §21 traj/pers + scope + orquestador
-`resolverEFO` → `EFO_STATE` (§24, 23 campos).
+**Total motor-piio tras Fase 9a: 560 asserts.**
+
+### 9b — §21 traj/pers + scope + orquestador → `EFO_STATE`
+
+Ensambla el `EFO_STATE` final. `efo.js` consume `temporal.js` (`continuidadRun`)
+y `contratos.js` (`validarEFOStateLigero`) por primera vez. Aditivo, sin
+reapertura.
+
+#### §21 — cómo se tratan los "puede ser" (postura interpretativa explícita)
+
+| Regla §21 | ¿Condición operacionalizable? | `trayectoriaEFO` |
+|---|---|---|
+| D→{I,F} / I→F → IMPROVING | **Sí** (AC46 da el negativo: "pérdida de evidencia → no IMPROVING") | `porPerdidaEvidencia` → `N_A` + flag (relleno positivo = DECISIÓN); si no → `IMPROVING` |
+| F→{I,D} / I→D → DETERIORATING "si refleja operación real" | **No** — sin mecanismo evaluable | **AX**: default `DETERIORATING` + flag `CAMBIO_OPERACIONAL_NO_CONFIRMADO` (no ocultar deterioro); `cambioOperacionalReal === false` → `N_A` + flag |
+| D→D, menos/más dominios D → puede IMPROVING/DETERIORATING (AC44/45) | **Parcial** — nombra la condición cualitativa, pero **sigue diciendo "puede", no "es"** | postura: "puede X" ⟹ "**es** X, dada la condición nombrada" **sólo si el llamante provee los conteos** (`dDominios*`/`nuevosDeterioros`); ausentes → `STABLE` + flag. NO es que el texto operacionalice AC44/45 del todo |
+| sin comparación temporal admisible → N_A | **Sí** | directo |
+
+**INV-41** ("salir de D ≠ alcanzar F"): `trayectoriaEFO` sólo produce `traj`;
+la `pos` la fijó la regla de 5 ramas y no se toca. Anclado por MUT4.
+
+#### §21 persistencia — INV-39
+
+`EFO_det_run` vía `continuidadRun` sobre la historia de **EFO_pos** (no
+heredada de dominios). `pos ≠ D` → `pers = N_A` (§11). `PERS_*` sin
+calibrar (Grupo 1) → `det_run ≥ 2` → `REPEATED` + flag. AC43 (locus
+variable) → flag `LOCUS_DETERIORO_VARIABLE`; `pers` sigue la regla de
+`det_run`.
+
+#### `EFO_STATE` (§24, 23 campos) — fuente de cada uno
+
+9a: `pos`, `deterioration_present`, `coverage_status`,
+`required_coverage_complete`, `admissibility`. 9b: `traj`, `pers`,
+`det_run`, `det_duration`, `scope`. **Derivaciones nuevas (DECISIÓN
+etiquetada):** `freshness` = la peor entre los `DOMAIN_STATE` REQUIRED
+clasificables · `regime_status` = input o `'CONTINUOUS'` + flag
+`REGIME_STATUS_EFO_POR_DEFECTO` · `node_profile` = mononodo + flag
+`NODE_PROFILE_MONONODO` (Fase 10 extiende). `temporal_pattern?`/
+`series_stability?` → `null` (opcionales en §24). `piio_run_id`/
+`ruleset_version` → input o `null` + flag `RUN_METADATA_PENDIENTE`
+(Fase 11). Test comprueba que **ningún campo queda `undefined`**.
+
+### Funciones 9b
+
+`trayectoriaEFO` · `persistenciaEFO` · `resolverScope` (ambig. O
+materializada — default `SEGMENT_ONLY` + flag, INV-47) · `_freshnessEFO` ·
+`resolverEFO` · `validarEFOState`.
+
+### Batería (9a + 9b)
+
+`node motor-piio/efo.test.js` → **94 asserts, 0 fallos** (9a 44 + 9b 50) +
+**24 mutaciones** (11 + 13).
+
+**9b** — `2, 2, 2, 11, 1, 1, 2, 1, 1, 1, 1, 1, 1`:
+1. `trayectoriaEFO`: sin `posPrevio` → no `N_A` → **2**.
+2. mejora sin la guarda `porPerdidaEvidencia` → **2** (AC46).
+3. **[AX]** deterioro ignora `cambioOperacionalReal === false` → **2**.
+4. `_MEJORA` / `_DETERIORO` intercambiados → **11** (toda la tabla de
+   transiciones + INV-41 + el extremo a extremo).
+5. D→D menos dominios D no da IMPROVING → **1** (AC44).
+6. D→D nuevos dominios D no da DETERIORATING → **1** (AC45).
+7. `return STABLE` del bloque D→D → `IMPROVING` → **2** (no se inventa dirección).
+8. `persistenciaEFO`: `pos ≠ D` no fuerza `pers = N_A` → **1** (§11).
+9. **[INV-39]** `persistenciaEFO` cuenta `D` crudos (no `continuidadRun`) →
+   **1** (`D,D,F,D → det_run 1` vs 3).
+10. `resolverScope`: default `ORGANIZATIONAL` → **1** (INV-47).
+11. `regime_status` default sin el flag → **1**.
+12. `freshness` fijo a `CURRENT` (no la peor) → **1**.
+13. `validarEFOState` no encadena `validarEFOStateLigero` → **1** (AC75).
+
+**Total motor-piio tras Fase 9 (completa): 610 asserts** (contratos 97,
+config 42, observaciones 39, referencias 31, temporal 59, kpiState 53,
+evidenceGroup 36, phenomenon 94, domain 65, efo 94).
+
+Fase 9 cierra el motor DOMAIN→EFO. La cascada de 6 niveles está completa
+(OBSERVACIÓN → KPI_STATE → EVIDENCE_GROUP → PHENOMENON → DOMAIN → EFO).
+Siguiente: **Fase 10** (`nodos.js`, §22–23).
 
 ## Qué NO hace este módulo
 
