@@ -129,7 +129,7 @@ publish.
 | **9** | `efo.js` | Motor DOMAIN→EFO (§20–21, §24): la regla determinista de 5 ramas (§20.1); `deterioration_present` separado; EFO_traj/pers sobre historia EFO; **sin votación/promedio/score**. **AC37–46, AC75/76, INV-32–41/74/75/76** |
 | **10** | `nodos.js` | Nodos y agregación (§22–23): ORGANIZATIONAL vs SEGMENT_ONLY, padre/hijos no simultáneos, agregación por tipo de métrica, exposición ≠ incidencia, `node_profile[]`. **NO** NODE_CONCENTRATION/POLARIZATION (es AIE). **AC47–55, INV-46–56** |
 | **11** | `runPIIO.js` | Orquestador (§29): encadenar en orden runtime; `PIIO_RESULT`; `PIIO_RUN` + versionamiento (§31); `PIIO_OPERATIONAL_EXPORT` (§26); fallos y propagación (§30); `TRACE_PATH` (§32). **AC61–69, AC72–74, AC80, INV-63–72/79/80** |
-| **12** | `invariantes.test.js`, `aceptacion.test.js` | Los **80 invariantes** como validadores/asserts + la suite **AC01–80** como oráculo conductual. Acceptance gate §35. Probablemente 3 commits (12a INV, 12b AC01–40, 12c AC41–80) |
+| **12** | `invariantes_aceptacion.test.js` + arnés aparte | Los **80 invariantes** + la suite **AC01–80** como oráculo conductual, contra `runPIIOCompleto`. 3 clases: 12a assembly pass + cierres simples (**COMPLETA**), 12b cierres con matiz (interno), 12c arnés real CFF/IFD |
 | **13** | cierre | Verificación posterior §35: no score 0–100, no ruta PIIO→dinero, no PIIO→Estado EFICIENCIA sin AIE, reproducibilidad; tabla de reaperturas si las hubo |
 
 ## Ambigüedades del documento (traídas antes de fijar nada)
@@ -227,6 +227,7 @@ de la fase que lo motivó).
 | `enums.js` — `PARAMS` (+7 constantes calibrables de `temporal.js`: `STABILITY_CV_*`, `PATTERN_*`, `MIN_HISTORIA_TRAJ`, `SPARSITY_MIN_DENSIDAD`, `TEMPORAL_METHOD_DEFAULT`, `TEMPORAL_WINDOW`) | Fase 4 | §11.2/§12 nombran los conceptos sin dar número — Grupo 1 (`PENDIENTE_CALIBRACION`); aditivo, no rompe nada | `8051890` |
 | `contratos.js` — `ESQUEMA_REFERENCE_SPEC` (+`threshold` obligatorio si `reference_role=CONDITION`, `threshold_upper?`, `band?`); `enums.js` `PARAMS` (+`TRAJ_STABLE_BAND`, `PERS_REPEATED_MIN`, `PERS_PERSISTENT_MIN`) | Fase 5 | §11/AC01/04–07 exigen que el motor clasifique `value` → F/I/D contra `REF_COND`, pero §25.3 solo da `rule` como texto libre ("threshold" tiene **0 apariciones** en el documento) — ambig. AH; + Grupo 1 de `kpiState.js` (AI/AJ) | `cc24b3a` |
 | `runPIIO.js` — `rebasarHistoria(inputHistorico, referenciaRebaseada, corridaPrevia)`: ejecuta la directiva `REBASE_HISTORY` que Fase 3 solo emitía (reusa `runPIIOCompleto` completa, cierra la ventana de vigencia de la versión superada, engancha `parent_calculation_version`/`update_reason` ya existentes) | Fase 12 (auditoría de cobertura INV/AC) | `INV-66` ("historial no se sobrescribe", §33) y §31 ("`REBASE_HISTORY` produce nuevas versiones... no sobrescribe") no tenían ninguna función que los ejecutara — Fase 11 (`5130055`) solo dejaba la directiva de Fase 3 sin consumir | `a8f66b1` |
+| `enums.js`/`temporal.js` — `estabilidadSerie` gana un piso de calibración GENÉRICA (`STABILITY_CV_*_GENERICO`) con precedencia propia/global/genérica; `phenomenon.js`/`runPIIO.js` — `resolverFenomeno` deriva `contextoGobernante` automáticamente desde `evalsPorKpi` (ya no depende de que el orquestador lo arme a mano) | Fase 12 (decisión de negocio de Luis + auditoría de cobertura) | `estabilidadSerie` nunca clasificaba nada (Grupo 1 sin calibrar, por diseño) — Luis decide un genérico de respaldo; y se descubrió que `contextoGobernante` (ambig. AU) NUNCA se cableaba desde `runPIIO.js`, así que la función entera era código muerto en producción | `928a1a0` |
 
 ---
 
@@ -1255,8 +1256,104 @@ más; se marca cubierto en su mitad computable.
 config 42, observaciones 39, referencias 31, temporal 59, kpiState 53,
 evidenceGroup 36, phenomenon 94, domain 65, efo 94, nodos 55, runPIIO 95).
 
-**`motor-piio` queda completo pendiente solo de Fase 12 (los 80
-invariantes + 80 AC como batería final) y Fase 13 (cierre §35).**
+## Fase 12 — 80 invariantes + 80 AC contra `runPIIOCompleto`
+
+Plan en 3 clases (para no mezclar volumen con matiz):
+**12a** assembly pass + cierres simples (COMPLETA) · **12b** cierres con
+matiz, alcance interno (`AC59`, `INV-60`/`INV-79`, `AC66`/`INV-71`) ·
+**12c** arnés real contra `motor-cff`/`motor-ifd` (`AC61/62/64/65`,
+`INV-68/70/72`) — ambas pendientes.
+
+### 12a — assembly pass + cierres simples (`invariantes_aceptacion.test.js`)
+
+CERO código de producción nuevo. Re-verifica contra `runPIIOCompleto` de
+punta a punta, con cita explícita, un subconjunto representativo de los
+AC/INV ya anclados en su fase de origen (`AC01-15/21-23/27/31/33/34/37/
+40/47/48`; `INV-01/02/03/04/10/14/17/18/19/20/21/26/28/31/33/46`) — no
+repite 11a/11b, que ya corrían contra el motor ensamblado. Cierres
+simples: **AC77** (muchos KPI F dependientes vs. un D en grupos separados
+→ I igual, la regla de conjunto de §15 nunca cuenta miembros), **INV-05**
+(pos/traj independientes — demostrado con `traj=N_A` compartido en ambos
+casos, `TRAJ_STABLE_BAND` sin calibrar, sin fabricar un `STABLE`
+inventado), **INV-11** (ruta primaria singular por esquema).
+
+**32 asserts, 3 mutaciones "prueba de vida"** (conteos reales, no
+estimados — el diseño original estimaba 2/1/1): 1) intercambiar cuerpos
+`HIGHER_IS_WORSE`/`LOWER_IS_WORSE` en `kpiState.js` → **13** (contamina
+casi todos los fixtures del archivo); 2) quitar `SUPPORTING_D_IMPIDE_
+F_PLENA` en `domain.js` → **1**; 3) **guarda enmascarada (9ª del
+proyecto)** — `nodosParaEFOOrganizacional` sin filtrar por scope → **0**:
+`construirNodeProfile` deriva `scope` de forma independiente vía
+`_scopeDeNodo()`; reformulada sobre esa función → **1** real.
+
+**Total tras 12a: 792 asserts.** Commit `ec0194e`.
+
+### REAPERTURA (Fase 4/9/11) — `estabilidadSerie` genérico + `contextoGobernante` automático
+
+Encontrada durante la auditoría de cobertura previa a 12b (ver tabla de
+Reaperturas). Dos piezas resueltas juntas, porque la segunda es lo que
+hace que la primera deje de ser código muerto:
+
+**Commit A** — `estabilidadSerie(valores, umbralesOrg)` (`enums.js`,
+`temporal.js`): **decisión de negocio de Luis, NO dictada por el
+documento**. Antes, sin `STABILITY_CV_STABLE`/`_MODERATE` calibrados
+(Grupo 1), la función SIEMPRE devolvía `INSUFFICIENT` — nunca
+clasificaba. Ahora arranca con una convención estadística GENÉRICA de
+respaldo (`PARAMS.STABILITY_CV_*_GENERICO` — explícitamente **NO**
+derivada de datos de EFICIENCIA), precedencia `CALIBRACION_PROPIA`
+(`umbralesOrg`, por organización) `> CALIBRACION_GLOBAL` (`PARAMS` sin
+sufijo, sigue `null`) `> CALIBRACION_GENERICA` (el piso). `cv` siempre
+visible (antes se descartaba). `PHENOMENON_STATE` crece de 20 a **22
+campos** (aditivo — `series_stability_cv`, `series_stability_origen`;
+`validarPhenomenonState` sigue exigiendo solo los 20 oficiales).
+
+**Commit B** — `resolverFenomeno` deriva `contextoGobernante`
+automáticamente (`phenomenon.js`, `runPIIO.js`): hallazgo real durante el
+diseño de Commit A — `runPIIO.js` **nunca** pasaba `contextoGobernante`
+en ninguna de sus 2 llamadas a `resolverFenomeno`, así que
+`estabilidadSerie`/`patronTemporal` eran código muerto en **cualquier**
+corrida real de `runPIIOCompleto` (ambig. AU: "input opcional del
+orquestador", nunca cableado desde Fase 11). `_construirContextoGobernante`
+deriva la serie del KPI gobernante desde `evalsPorKpi` (que `runPIIO()`
+ya construye) — trunca por período (sin fuga de futuro) y filtra por
+calidad/numérico (mismo criterio que `kpiState.js`). Precedencia: override
+manual explícito > derivación automática > comportamiento previo sin
+cambios. Asimetría documentada: la llamada de fenómenos provisionales en
+`construirExport` no lleva `directivasPorKpi` (duplicaría lógica de Fase
+3 para fenómenos que de todos modos no alimentan la cascada EFO, AC63).
+
+**Consecuencia para 12b**: el tratamiento de `AC59` planeado originalmente
+("HIGHLY_VARIABLE es irreproducible, se prueba solo el comportamiento
+diferido") queda **obsoleto** — con el genérico de respaldo, una serie
+genuinamente volátil SÍ puede clasificar `HIGHLY_VARIABLE` hoy (con
+`series_stability_origen: CALIBRACION_GENERICA` explícito, nunca
+presentado como propio de EFICIENCIA). 12b tiene que reescribir ese punto
+como un caso positivo real, no como "pendiente de calibración".
+
+**12 mutaciones, 3 hallazgos reales encontrados y corregidos en el
+camino** (no reportados a ciegas):
+- Commit A, mutación 1: reconteo completo obligatorio tras seguir
+  tocando los tests de Commit B — el primer reporte quedó stale (regla
+  ya anotada, violada y corregida en la misma tarea).
+- Commit B, mutación "`directivasPorKpi` no guardado": **guarda
+  enmascarada real** — `regimen({})` y `regimen(directivas sin cambio
+  real)` dan el mismo `CONTINUOUS`; corregida con un fixture
+  `START_NEW_REGIME` que sí distingue los casos.
+- Commit B, mutación "precedencia manual pierde": **guarda enmascarada
+  real** — serie manual `cv=0` y auto-derivada `cv≈0.074` caen en el
+  mismo balde `STABLE` bajo el genérico; corregida comparando
+  `series_stability_cv` exacto en vez del balde cualitativo.
+
+Conteos finales (temporal/phenomenon/runPIIO): **Commit A = 7,3,1,2,7,2**.
+**Commit B = 1,4,2,1,1,crash** (la mutación 6 — deriva contexto sin KPI
+gobernante real — no da un rojo limpio: el script crashea con
+`TypeError: Cannot read properties of null (reading 'kpi_id')`, porque el
+fixture llama a `resolverFenomeno` directo, sin el try/catch de
+`runPIIO.js`; detectada igual, solo que como crash).
+
+**Total tras esta reapertura: 814 asserts.** Commit `928a1a0`.
+
+**`motor-piio` sigue completo pendiente de 12b/12c y Fase 13 (cierre §35).**
 
 ## Qué NO hace este módulo
 
