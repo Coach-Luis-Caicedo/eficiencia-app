@@ -658,6 +658,75 @@ function runPIIOCompleto(input, opciones) {
   return result;
 }
 
+/* ═══════════════════════════════════════════════════════════════════════
+ * REAPERTURA Fase 11 — rebasarHistoria (§8.3 / §31 / AC12 / AC13 / INV-66)
+ *
+ * Hallazgo de Fase 12 (auditoría de cobertura INV/AC): §31 dice que
+ * `REBASE_HISTORY` "produce nuevas versiones de estados históricos; no
+ * sobrescribe versiones anteriores" — Fase 3 (`evaluarCambioReferencia`)
+ * ya emitía la DIRECTIVA, pero nada la ejecutaba. Este es exactamente el
+ * perfil de reapertura de Fase 0 (fa0a467/8051890/cc24b3a): una fase
+ * posterior encuentra un hueco real en código ya comiteado.
+ *
+ * INV-66 se prueba en el alcance de lo que `motor-piio` construye: PUREZA
+ * del recálculo, nunca mutación del resultado previo. La persistencia de
+ * múltiples versiones históricas direccionables es responsabilidad de la
+ * capa de almacenamiento externa — fuera de alcance de un módulo de
+ * cálculo puro (mismo patrón que AE/S/AY). `rebasarHistoria` NO se marca
+ * como "INV-66 cerrado" sin más; cierra su mitad computable.
+ *
+ * Reusa `runPIIOCompleto` entera — CERO lógica de cascada duplicada.
+ * "Rebasar historia" = volver a correr el motor sobre el mismo input
+ * histórico, con la referencia nueva AGREGADA (nunca reemplazada) a
+ * `input.references`; `resolverReferenciaVigente` (Fase 3, sin tocar)
+ * decide por vigencia cuál referencia aplica a cada período — §8.3
+ * "legítimamente aplicable a la historia" sale gratis de ese mecanismo
+ * existente, sin validación nueva. `parent_calculation_version` /
+ * `update_reason` (ya construidos en 11b, §31) son el enganche de
+ * versionamiento — no se inventa un campo nuevo.
+ *
+ * HALLAZGO DE SMOKE-TEST (antes de mostrarlo): la versión superada casi
+ * siempre queda declarada con `valid_to` abierto (nadie sabe de antemano
+ * que la van a rebasar) — "agregar y dejar que Fase 3 decida por vigencia"
+ * entonces CHOCA con la ambigüedad W (ventanas solapadas → NOT_ADMISSIBLE,
+ * no "la más nueva gana"), y el período rebasado queda N_A en vez de
+ * clasificar con la referencia nueva. `rebasarHistoria` por eso SÍ cierra
+ * la ventana de la versión que `supersedes` señala (nunca la elimina —
+ * sigue en el array, solo con `valid_to` acotado un período antes del
+ * `valid_from` de la nueva) — sin eso, la función no cumple §8.3 en el
+ * caso común. `_periodoAnterior` es aritmética de calendario local, NO
+ * reabre `REFERENCE_SPEC` (Fase 0) — ningún campo nuevo.
+ * ═══════════════════════════════════════════════════════════════════════ */
+function _periodoAnterior(period) {
+  var partes = String(period).split('-');
+  var y = parseInt(partes[0], 10), m = parseInt(partes[1], 10) - 1;
+  if (m < 1) { m = 12; y -= 1; }
+  return y + '-' + (m < 10 ? '0' + m : '' + m);
+}
+function rebasarHistoria(inputHistorico, referenciaRebaseada, corridaPrevia) {
+  var directiva = referencias.evaluarCambioReferencia(referenciaRebaseada);
+  if (directiva.tipo !== 'REBASE_HISTORY') {
+    // Fase 5 no confía ciegamente en que el llamante ya validó el modo —
+    // esta función tampoco (mismo principio que la validación de forma).
+    return { rechazado: true, motivo: 'REFERENCIA_NO_ES_REBASE_HISTORY:' + directiva.tipo };
+  }
+  var rb = referenciaRebaseada;
+  var references = _arr(inputHistorico && inputHistorico.references).map(function (r) {
+    // cierra la ventana de la versión superada (§8.3) — nunca la quita del array (§31: no sobrescribe)
+    var esLaSuperada = r && rb.supersedes && r.reference_id === rb.reference_id &&
+      r.reference_role === rb.reference_role && r.version === rb.supersedes;
+    if (esLaSuperada && (!r.valid_to || r.valid_to >= rb.valid_from)) {
+      return Object.assign({}, r, { valid_to: _periodoAnterior(rb.valid_from) });
+    }
+    return r;
+  }).concat([rb]);
+  var inputRebaseado = Object.assign({}, inputHistorico || {}, { references: references });
+  var parentCalcVer = (corridaPrevia && corridaPrevia.piio_run) ? corridaPrevia.piio_run.calculation_version : null;
+  var resultado = runPIIOCompleto(inputRebaseado, { parentCalculationVersion: parentCalcVer, updateReason: 'REBASE_HISTORY' });
+  resultado.change_mode = 'REBASE_HISTORY';
+  return resultado;
+}
+
 module.exports = {
   runPIIO: runPIIO,
   runPIIOCompleto: runPIIOCompleto,
@@ -666,11 +735,13 @@ module.exports = {
   construirTracePaths: construirTracePaths,
   publicar: publicar,
   validarPIIOResult: validarPIIOResult,
+  rebasarHistoria: rebasarHistoria,
   _resolverMetricDef: _resolverMetricDef,
   _directivaCambio: _directivaCambio,
   _ctxNodo: _ctxNodo,
   _clasificarRun: _clasificarRun,
   _calculationVersion: _calculationVersion,
   _piioRunId: _piioRunId,
-  _outputStatus: _outputStatus
+  _outputStatus: _outputStatus,
+  _periodoAnterior: _periodoAnterior
 };

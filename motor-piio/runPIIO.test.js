@@ -313,6 +313,58 @@ eq([bloq.operational_export.length, bloq.trace_paths.length, bloq.efo_states.len
 eq(Object.keys(bloq.piio_run).length, 15, '...pero el PIIO_RUN se emite igual (registra el intento, §31)');
 
 // ═══════════════════════════════════════════════════════════════════════
+seccion('REAPERTURA Fase 11 — rebasarHistoria (§8.3/§31/AC12/AC13/INV-66)');
+// ═══════════════════════════════════════════════════════════════════════
+
+// fixture propia: 1 nodo, 1 KPI, rc1 SIN valid_to (caso realista — nadie
+// declara de antemano que la van a rebasar) — value=80 en ambos períodos.
+var inputRebase = input({
+  node_hierarchy: [ns()],
+  kpi_specs: [ks()],
+  evidence_groups: [eg()],
+  references: [rs(), rs({ reference_id: 'rt1', reference_role: 'TEMPORAL', threshold: undefined })],
+  observations: [
+    obs({ value: 80, numerator: 80 }),
+    obs({ observation_id: 'o1b', period_start: '2026-02', period_end: '2026-02', value: 80, numerator: 80 })
+  ]
+});
+var previa = R.runPIIOCompleto(inputRebase);
+eq(previa.kpi_states.map(function (s) { return s.pos; }), ['D', 'D'], 'antes del rebase: ambos períodos D bajo rc1@v1 (threshold 50, HIGHER_IS_WORSE, value=80)');
+var previaSnapshot = JSON.stringify(previa);
+
+var refRebaseada = rs({ version: 'v2', valid_from: '2026-02', threshold: 100, change_mode: 'REBASE_HISTORY', supersedes: 'v1' });
+var rebasado = R.rebasarHistoria(inputRebase, refRebaseada, previa);
+eq(rebasado.kpi_states.map(function (s) { return s.pos; }), ['D', 'F'], 'AC12: 2026-01 sigue D (histórico protegido por vigencia); 2026-02 pasa a F bajo rc1@v2 (threshold 100)');
+eq(rebasado.change_mode, 'REBASE_HISTORY', 'el resultado queda etiquetado change_mode=REBASE_HISTORY');
+eq(rebasado.piio_run.parent_calculation_version, previa.piio_run.calculation_version, '§31: parent_calculation_version enlaza con la corrida previa (campo ya existente, no uno nuevo)');
+eq(JSON.stringify(previa), previaSnapshot, 'AC12 / INV-66 (mitad computable): "original intacta" — corridaPrevia sin NINGÚN campo tocado (snapshot completo antes/después)');
+
+// §8.3 — guarda de entrada: rebasarHistoria valida change_mode, no confía en el llamante
+eq(R.rebasarHistoria(inputRebase, rs({ version: 'v2', change_mode: 'START_NEW_REGIME' }), previa).rechazado, true, 'change_mode=START_NEW_REGIME pasado por error → rechazado, NO procesado como rebase');
+eq(R.rebasarHistoria(inputRebase, rs({ version: 'v2' }), previa).rechazado, true, 'sin change_mode → rechazado');
+
+eq(R._periodoAnterior('2026-02'), '2026-01', '_periodoAnterior: mes anterior, mismo año');
+eq(R._periodoAnterior('2026-01'), '2025-12', '_periodoAnterior: cruza el límite de año');
+
+// ═══════════════════════════════════════════════════════════════════════
+seccion('Mutaciones REAPERTURA (rebasarHistoria) — ejecutadas como paso de Bash aparte');
+// ═══════════════════════════════════════════════════════════════════════
+console.log('  1. la guarda `if (directiva.tipo !== \'REBASE_HISTORY\')` → `if (false)` (nunca rechaza) →');
+console.log('     2 rojos: los dos asserts de rechazo (START_NEW_REGIME y sin change_mode) ahora procesan.');
+console.log('  2. `.concat([rb])` → `.concat([])` (la referencia nueva nunca se agrega) → 1 rojo:');
+console.log('     2026-02 queda N_A (v1 quedó cerrada en la fase de clip, pero rb nunca entra) en vez de F.');
+console.log('  3. se agrega una línea que muta `corridaPrevia` (`corridaPrevia.tocado_por_rebase = true`) →');
+console.log('     1 rojo: el snapshot JSON.stringify(previa) antes/después ya no coincide (INV-66).');
+console.log('  4. `parentCalcVer` fijo en `null` (ignora `corridaPrevia.piio_run.calculation_version`) →');
+console.log('     1 rojo: el enlace parent_calculation_version con la corrida previa se pierde.');
+console.log('  5. se quita `resultado.change_mode = \'REBASE_HISTORY\';` → 1 rojo: el resultado no queda');
+console.log('     etiquetado.');
+console.log('  6. [el hallazgo del smoke-test] se quita el cierre de ventana de la versión superada →');
+console.log('     1 rojo: 2026-02 vuelve a caer en REFERENCIA_VERSIONES_SOLAPADAS → N_A en vez de F');
+console.log('     (exactamente el bug real que el smoke-test encontró antes de mostrar el diseño).');
+console.log('  Conteos: 2, 1, 1, 1, 1, 1.');
+
+// ═══════════════════════════════════════════════════════════════════════
 seccion('Mutaciones 11a — ejecutadas como paso de Bash aparte (ver cierre)');
 // ═══════════════════════════════════════════════════════════════════════
 console.log('  1. [frontera C] la línea del lookup en el bucle de KPI:');
