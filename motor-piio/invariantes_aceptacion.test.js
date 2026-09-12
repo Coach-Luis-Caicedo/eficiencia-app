@@ -248,7 +248,7 @@ var r22 = R.runPIIOCompleto(baseInput({ observations: [obs({ value: 20, numerato
 eq(r22.efo_states[0].pos, 'F', 'AC40: todos REQUIRED F, sin OPTIONAL D, cobertura suficiente → EFO F');
 
 // ═══════════════════════════════════════════════════════════════════════
-seccion('§22-23 — nodos y agregación (AC47/AC49, INV-46/47/48)');
+seccion('§22-23 — nodos y agregación (AC47/AC49, INV-46/47/48/73)');
 // ═══════════════════════════════════════════════════════════════════════
 
 // n-root (ORGANIZATIONAL): k1 = F (value 20). n-a (SEGMENT_ONLY, hijo): k2 = D
@@ -263,7 +263,7 @@ var r23 = R.runPIIOCompleto(baseInput({
 var efoRootR23 = r23.efo_states.filter(function (e) { return e.node_id === 'n-root'; })[0];
 var perfilNaR23 = r23.node_profile.filter(function (p) { return p.node_id === 'n-a'; })[0];
 eq(efoRootR23.pos, 'F', 'AC47: EFO organizacional (n-root) sigue F — la D de n-a (SEGMENT_ONLY) NO la eleva');
-ok(perfilNaR23 && perfilNaR23.pos === 'D' && perfilNaR23.scope === 'SEGMENT_ONLY', '...pero el perfil de n-a (D, SEGMENT_ONLY) SÍ se preserva — no se descarta silenciosamente');
+ok(perfilNaR23 && perfilNaR23.pos === 'D' && perfilNaR23.scope === 'SEGMENT_ONLY', 'AC47/INV-73: pero el perfil de n-a (D, SEGMENT_ONLY) SÍ se preserva aunque no cambie la EFO_pos organizacional — no se descarta silenciosamente');
 ok(!r23.node_profile.some(function (p) { return 'polarization' in p || 'concentration' in p; }), 'AC48/INV-46: node_profile nunca lleva polarization/concentration — eso es de AIE');
 
 // ═══════════════════════════════════════════════════════════════════════
