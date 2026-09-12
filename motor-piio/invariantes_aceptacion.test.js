@@ -1,10 +1,13 @@
 /**
- * motor-piio/invariantes_aceptacion.test.js — Fase 12a
+ * motor-piio/invariantes_aceptacion.test.js — Fase 12a + 12b
  * node motor-piio/invariantes_aceptacion.test.js
  *
- * Assembly pass (Clase 1) + cierres simples (Clase 2) del plan de Fase 12.
+ * Assembly pass (Clase 1) + cierres simples (Clase 2) + cierres con matiz,
+ * alcance interno (Clase 3a) del plan de Fase 12. El arnés real contra
+ * motor-cff/motor-ifd (Clase 3b, AC61/62/64/65/INV-68/70/72) va en un
+ * archivo aparte (12c) — eso sí requiere módulos externos reales.
  *
- * Clase 1 — NO introduce lógica nueva: cada assert re-verifica, contra
+ * Clase 1 (12a) — NO introduce lógica nueva: cada assert re-verifica, contra
  * `runPIIOCompleto` de punta a punta, un AC/INV que YA tiene ancla y
  * mutación en su fase de origen (contratos/config/observaciones/
  * referencias/temporal/kpiState/evidenceGroup/phenomenon/domain/efo/nodos/
@@ -15,18 +18,29 @@
  * vida" (ver cierre) que confirman que estos asserts NO son tautológicos
  * — que si el ensamblaje realmente se rompiera, este archivo lo vería.
  *
- * Clase 2 — cierres simples reales, con su propia lógica de assert (no
- * mutación nueva porque no hay código nuevo: AC77/INV-05/INV-11 son
+ * Clase 2 (12a) — cierres simples reales, con su propia lógica de assert
+ * (no mutación nueva porque no hay código nuevo: AC77/INV-05/INV-11 son
  * verdaderos por construcción del esquema/algoritmo ya comiteado).
  *
- * Los AC/INV de la Clase 3 (AC59, AC66, INV-60/71/79, cluster de interop)
- * y el arnés real contra motor-cff/motor-ifd van en archivos aparte
- * (12b/12c) — no se mezclan aquí.
+ * Clase 3a (12b) — cierres con matiz, alcance interno, sin código nuevo:
+ *   · AC59 — REESCRITO tras la reapertura de estabilidadSerie/
+ *     contextoGobernante (ver README): ya NO es comportamiento diferido,
+ *     es un caso positivo real (HIGHLY_VARIABLE / CALIBRACION_GENERICA).
+ *   · INV-60 — estructural (grep del código fuente) + conductual (evento
+ *     raro clasifica normal, sin inventar "riesgo futuro").
+ *   · INV-79 — precisión numérica alta + cobertura insuficiente sigue
+ *     NOT_ADMISSIBLE.
+ *   · AC66/INV-71 — estructural (cero acoplamiento a nada con forma de
+ *     AIE) + ausencia de canal de reescritura (objetos distintos entre
+ *     corridas) — diferido a integración real cuando exista motor-aie.
  */
 
 'use strict';
 
 var R = require('./runPIIO');
+var E = require('./enums');
+var fs = require('fs');
+var path = require('path');
 
 var _ok = 0, _fallos = 0;
 function seccion(n) { console.log('\n── ' + n + ' ' + '─'.repeat(Math.max(0, 66 - n.length))); }
@@ -307,6 +321,94 @@ ok(typeof ks().primary_phenomenon_id === 'string', '...mismo para primary_phenom
 eq(R.runPIIOCompleto(baseInput()).kpi_states.filter(function (s) { return s.kpi_id === 'k1'; }).length, 1, '...y resolverKpiState produce UN solo KPI_STATE por (kpi_id, período) — una ruta, no varias resueltas en paralelo');
 
 // ═══════════════════════════════════════════════════════════════════════
+seccion('FASE 12b — AC59: serie genuinamente volátil → HIGHLY_VARIABLE (reescrito tras la reapertura)');
+// ═══════════════════════════════════════════════════════════════════════
+
+// Antes de la reapertura de estabilidadSerie/contextoGobernante, AC59 solo
+// podía probarse como comportamiento DIFERIDO (INSUFFICIENT, nunca
+// HIGHLY_VARIABLE) porque (a) STABILITY_CV_* seguían sin calibrar y (b)
+// contextoGobernante nunca llegaba desde runPIIO(). Ambas causas ya se
+// cerraron — este es ahora un caso POSITIVO real, verificado de punta a
+// punta contra runPIIOCompleto, no una promesa de calibración futura.
+var r27 = R.runPIIOCompleto(baseInput({
+  periods: ['2026-01', '2026-02'],
+  observations: [obs({ value: 80, numerator: 80 }), obs({ observation_id: 'o1b', period_start: '2026-02', period_end: '2026-02', value: 20, numerator: 20 })]
+}));
+var ps27 = r27.phenomenon_states.filter(function (p) { return p.period === '2026-02'; })[0];
+eq(ps27.series_stability, 'HIGHLY_VARIABLE', 'AC59: serie [80,20] (CV≈0.60) → SERIES_STABILITY=HIGHLY_VARIABLE, resultado real, no diferido');
+eq(ps27.series_stability_origen, 'CALIBRACION_GENERICA', '...con origen explícito CALIBRACION_GENERICA — nunca presentado como propio de EFICIENCIA (condición de Luis)');
+ok(E.ENUMS.TEMPORAL_PATTERN.indexOf('VOLATILE') === -1, 'AC59 (segunda mitad, ya cubierta en temporal.test.js): "pattern no VOLATILE" — el enum entero nunca tiene ese valor');
+
+// ═══════════════════════════════════════════════════════════════════════
+seccion('FASE 12b — INV-60: zero rare events no prueba riesgo futuro cero');
+// ═══════════════════════════════════════════════════════════════════════
+
+// (a) estructural: ningún archivo de PRODUCCIÓN de motor-piio produce un
+// campo con nombre de riesgo/probabilidad futura — grep sobre el código
+// fuente real, no sobre datos de una corrida.
+var _archivosProduccion = ['contratos', 'config', 'observaciones', 'referencias', 'temporal',
+  'kpiState', 'evidenceGroup', 'phenomenon', 'domain', 'efo', 'nodos', 'runPIIO', 'enums'];
+var _patronRiesgo = /riesgo_futuro|probability|forecast_risk|riesgo_proyectado|prob_futura/i;
+var _hallazgosRiesgo = [];
+_archivosProduccion.forEach(function (nombre) {
+  var contenido = fs.readFileSync(path.join(__dirname, nombre + '.js'), 'utf8');
+  if (_patronRiesgo.test(contenido)) _hallazgosRiesgo.push(nombre);
+});
+eq(_hallazgosRiesgo, [], 'INV-60 (estructural): ningún archivo de producción de motor-piio define un campo de riesgo/probabilidad futura');
+
+// (b) conductual: evento raro (histórico de ceros, un valor reciente
+// distinto) sigue clasificando por las reglas normales F/I/D — sin rama
+// que calcule "probabilidad de que vuelva a pasar".
+var r28 = R.runPIIOCompleto(baseInput({
+  periods: ['2026-01', '2026-02', '2026-03'],
+  observations: [
+    obs({ value: 0, numerator: 0 }),
+    obs({ observation_id: 'o1b', period_start: '2026-02', period_end: '2026-02', value: 0, numerator: 0 }),
+    obs({ observation_id: 'o1c', period_start: '2026-03', period_end: '2026-03', value: 80, numerator: 80 })
+  ]
+}));
+var k1r28 = r28.kpi_states.filter(function (s) { return s.period === '2026-03'; })[0];
+eq(k1r28.pos, 'D', 'INV-60: evento raro (0,0,80 con threshold 50, HIGHER_IS_WORSE) → clasifica D por la regla normal — ningún campo de "riesgo futuro" interviene ni existe en la salida');
+ok(!('riesgo_futuro' in k1r28) && !('probability' in k1r28), '...KPI_STATE no lleva ningún campo de proyección de riesgo');
+
+// ═══════════════════════════════════════════════════════════════════════
+seccion('FASE 12b — INV-79: la precisión de cálculo no sustituye suficiencia inferencial');
+// ═══════════════════════════════════════════════════════════════════════
+
+// Un valor con MUCHOS decimales de precisión, pero evidencia insuficiente
+// (fenómeno con required_evidence_group_ids apuntando a un grupo que NUNCA
+// llega) sigue dando cobertura NONE / admisibilidad NOT_ADMISSIBLE — la
+// precisión numérica del dato no compra suficiencia inferencial.
+var r29 = R.runPIIOCompleto(baseInput({
+  phenomenon_catalog: [ph({ required_evidence_group_ids: ['eg-inexistente'], optional_evidence_group_ids: ['eg1'] })],
+  observations: [obs({ value: 79.999999999, numerator: 79.999999999 })]
+}));
+eq(r29.phenomenon_states[0].coverage_status, 'NONE', 'INV-79: value con 9 decimales de precisión, pero 0 de los required cubiertos → coverage_status=NONE (la precisión no sustituye la cobertura)');
+eq(r29.phenomenon_states[0].admissibility, 'NOT_ADMISSIBLE', '...admissibility=NOT_ADMISSIBLE pese a la alta precisión del dato');
+
+// ═══════════════════════════════════════════════════════════════════════
+seccion('FASE 12b — AC66 / INV-71: estructural, sin motor-aie (diferido a integración real)');
+// ═══════════════════════════════════════════════════════════════════════
+
+// (a) cero acoplamiento de código: ningún archivo de motor-piio importa
+///requiere nada con forma de AIE.
+var _hallazgosAIE = [];
+_archivosProduccion.forEach(function (nombre) {
+  var contenido = fs.readFileSync(path.join(__dirname, nombre + '.js'), 'utf8');
+  var requiereAIE = /require\(['"][^'"]*aie[^'"]*['"]\)/i.test(contenido);
+  if (requiereAIE) _hallazgosAIE.push(nombre);
+});
+eq(_hallazgosAIE, [], 'AC66/INV-71 (estructural): ningún archivo de motor-piio requiere un módulo con forma de AIE');
+
+// (b) no hay canal de reescritura: dos corridas separadas con el mismo
+// input producen efo_states que son objetos DISTINTOS en memoria — nada
+// mutable compartido entre corridas que un tercero pudiera reescribir.
+var runA = R.runPIIOCompleto(baseInput());
+var runB = R.runPIIOCompleto(baseInput());
+ok(runA.efo_states[0] !== runB.efo_states[0], 'AC66/INV-71: dos corridas separadas producen efo_states como objetos distintos en memoria — sin estado compartido mutable que AIE (o cualquier otro) pudiera reescribir');
+ok(runA !== runB && JSON.stringify(runA.efo_states) === JSON.stringify(runB.efo_states), '...pero con el mismo contenido (determinismo ya probado en 11b) — diferido a integración real cuando exista motor-aie, ver README');
+
+// ═══════════════════════════════════════════════════════════════════════
 seccion('Mutaciones "prueba de vida" — confirman que el assembly pass no es tautológico');
 // ═══════════════════════════════════════════════════════════════════════
 console.log('  Este archivo no trae mutaciones por AC/INV individual: introduce CERO código');
@@ -330,6 +432,26 @@ console.log('     decide nodo por nodo en el propio runPIIO, antes de este paso)
 console.log('     _scopeDeNodo() → siempre \'ORGANIZATIONAL\' (ignora scope_rules.scope) → 1 rojo');
 console.log('     real (el perfil de n-a deja de reportar SEGMENT_ONLY).');
 console.log('  Conteos: 13, 1, 1.');
+
+// ═══════════════════════════════════════════════════════════════════════
+seccion('Mutaciones "prueba de vida" — Fase 12b (AC59/INV-60/INV-79)');
+// ═══════════════════════════════════════════════════════════════════════
+console.log('  Mismo principio que las de 12a: sin código nuevo, sin batería propia por');
+console.log('  AC/INV — 3 mutaciones que confirman que estos asserts detectarían una');
+console.log('  ruptura real. AC66/INV-71 no lleva mutación: son chequeos estructurales');
+console.log('  (grep + identidad de objetos) verdaderos por construcción del lenguaje.');
+console.log('  1. [AC59] enums.js: `STABILITY_CV_STABLE_GENERICO: 0.15` → `0.99` (el piso');
+console.log('     genérico deja de detectar volatilidad real) → 2 rojos: 1 aquí ("AC59:');
+console.log('     serie [80,20]...") + 1 en runPIIO.test.js (el assert de la reapertura,');
+console.log('     "...CV≈0.45 de [80,30]...", mismo mecanismo).');
+console.log('  2. [INV-60 estructural] temporal.js: se inyecta un comentario con el texto');
+console.log('     `riesgo_futuro` → 1 rojo aquí (el grep estructural lo detecta de verdad,');
+console.log('     no es un chequeo vacío).');
+console.log('  3. [INV-79] phenomenon.js: `coberturaFenomeno`, rama final `NONE` → `COMPLETE`');
+console.log('     (cero requeridos cubiertos ya no da NONE) → 4 rojos: 2 aquí (coverage_status');
+console.log('     + admissibility) + 2 en phenomenon.test.js (sus propios asserts de §16 que');
+console.log('     verifican esa misma rama NONE).');
+console.log('  Conteos: 2, 1, 4.');
 
 // ═══════════════════════════════════════════════════════════════════════
 console.log('\n' + '═'.repeat(74));
