@@ -226,6 +226,7 @@ de la fase que lo motivó).
 | `contratos.js` — `ESQUEMA_REFERENCE_SPEC` (+`admissibility_declared` obligatorio, `critical_failure?`, `change_mode?`/`supersedes?`) y `ESQUEMA_METRIC_DEFINITION` (+`bridge_rule?`) | Fase 3 | §8.2 exige un veredicto de admisibilidad por referencia (ambig. X) y §8.4 exige una regla de bridge validada (ambig. Y) — ninguno tenía dónde vivir en §25.3 / §7 | `fa0a467` |
 | `enums.js` — `PARAMS` (+7 constantes calibrables de `temporal.js`: `STABILITY_CV_*`, `PATTERN_*`, `MIN_HISTORIA_TRAJ`, `SPARSITY_MIN_DENSIDAD`, `TEMPORAL_METHOD_DEFAULT`, `TEMPORAL_WINDOW`) | Fase 4 | §11.2/§12 nombran los conceptos sin dar número — Grupo 1 (`PENDIENTE_CALIBRACION`); aditivo, no rompe nada | `8051890` |
 | `contratos.js` — `ESQUEMA_REFERENCE_SPEC` (+`threshold` obligatorio si `reference_role=CONDITION`, `threshold_upper?`, `band?`); `enums.js` `PARAMS` (+`TRAJ_STABLE_BAND`, `PERS_REPEATED_MIN`, `PERS_PERSISTENT_MIN`) | Fase 5 | §11/AC01/04–07 exigen que el motor clasifique `value` → F/I/D contra `REF_COND`, pero §25.3 solo da `rule` como texto libre ("threshold" tiene **0 apariciones** en el documento) — ambig. AH; + Grupo 1 de `kpiState.js` (AI/AJ) | `cc24b3a` |
+| `runPIIO.js` — `rebasarHistoria(inputHistorico, referenciaRebaseada, corridaPrevia)`: ejecuta la directiva `REBASE_HISTORY` que Fase 3 solo emitía (reusa `runPIIOCompleto` completa, cierra la ventana de vigencia de la versión superada, engancha `parent_calculation_version`/`update_reason` ya existentes) | Fase 12 (auditoría de cobertura INV/AC) | `INV-66` ("historial no se sobrescribe", §33) y §31 ("`REBASE_HISTORY` produce nuevas versiones... no sobrescribe") no tenían ninguna función que los ejecutara — Fase 11 (`5130055`) solo dejaba la directiva de Fase 3 sin consumir | `a8f66b1` |
 
 ---
 
@@ -1194,6 +1195,65 @@ hasta `observation_ids`/`reference_ids` no vacíos.
 **Total motor-piio tras Fase 11b: 751 asserts** (contratos 97, config 42,
 observaciones 39, referencias 31, temporal 59, kpiState 53, evidenceGroup
 36, phenomenon 94, domain 65, efo 94, nodos 55, runPIIO 86).
+
+### REAPERTURA de Fase 11 — `rebasarHistoria` (§8.3/§31/AC12/AC13/INV-66)
+
+Encontrada durante la auditoría de cobertura de Fase 12 (ver tabla de
+Reaperturas más abajo para el commit): §31 exige que `REBASE_HISTORY`
+"produzca nuevas versiones de estados históricos; no sobrescriba
+versiones anteriores" — Fase 3 (`evaluarCambioReferencia`) ya emitía la
+**directiva**, pero nada la ejecutaba. `INV-66` no tenía dónde vivir.
+
+`rebasarHistoria(inputHistorico, referenciaRebaseada, corridaPrevia)`
+reusa `runPIIOCompleto` entera — **cero lógica de cascada duplicada**.
+"Rebasar historia" = volver a correr el motor sobre el mismo input
+histórico, con la referencia nueva **agregada** (nunca reemplazada) a
+`input.references`; valida primero con `evaluarCambioReferencia` que de
+verdad sea `REBASE_HISTORY` (no confía en que el llamante ya lo verificó
+— mismo principio que la validación de forma de Fase 5), y engancha
+`parent_calculation_version`/`update_reason` — campos que **ya existían**
+desde 11b (§31), no se inventó ninguno nuevo.
+
+**Hallazgo de un smoke-test propio, antes de mostrar el diseño**: la
+primera versión solo agregaba la referencia nueva y dejaba que Fase 3
+decidiera por vigencia — pero la referencia vieja casi siempre queda
+declarada con `valid_to` abierto (nadie sabe de antemano que la van a
+rebasar), así que agregar la nueva sin más produce **solapamiento**
+(ambigüedad W, ya construida: `REFERENCIA_VERSIONES_SOLAPADAS →
+NOT_ADMISSIBLE`, nunca "la más nueva gana") — el período rebasado caía en
+`N_A` en vez de clasificar con la referencia nueva. Corregido: la función
+también **cierra** la ventana de la versión que `supersedes` señala
+(nunca la quita del array — solo acota su `valid_to` un período antes del
+`valid_from` de la nueva, vía `_periodoAnterior`, aritmética de calendario
+pura, **sin reabrir** `REFERENCE_SPEC`).
+
+**Alcance declarado de INV-66** (comentario en el código, no promesa
+vacía): se prueba en el límite de lo que `motor-piio` construye — pureza
+del recálculo, nunca mutación del resultado previo (`corridaPrevia`
+verificado por snapshot `JSON.stringify` antes/después). La persistencia
+de múltiples versiones históricas **direccionables** es responsabilidad
+de la capa de almacenamiento externa — fuera de alcance de un módulo de
+cálculo puro (mismo patrón que AE/S/AY). No se marca "INV-66 cerrado" sin
+más; se marca cubierto en su mitad computable.
+
+**9 asserts nuevos (95 en runPIIO.test.js), 6 mutaciones**
+`2, 1, 1, 1, 1, 1`:
+1. La guarda `directiva.tipo !== 'REBASE_HISTORY'` → `if (false)` (nunca
+   rechaza) → **2** (los dos asserts de rechazo ahora procesan).
+2. `.concat([rb])` → `.concat([])` (la referencia nueva nunca se agrega)
+   → **1** (2026-02 queda N_A en vez de F).
+3. Se muta `corridaPrevia` dentro de la función → **1** (el snapshot
+   `JSON.stringify` antes/después ya no coincide — INV-66).
+4. `parentCalcVer` fijo en `null` → **1** (se pierde el enlace con la
+   corrida previa).
+5. Se quita `resultado.change_mode = 'REBASE_HISTORY'` → **1**.
+6. Se quita el cierre de ventana de la versión superada (recrea el bug
+   real del smoke-test) → **1** (2026-02 vuelve a `N_A` por
+   `REFERENCIA_VERSIONES_SOLAPADAS`).
+
+**Total motor-piio tras esta reapertura: 760 asserts** (contratos 97,
+config 42, observaciones 39, referencias 31, temporal 59, kpiState 53,
+evidenceGroup 36, phenomenon 94, domain 65, efo 94, nodos 55, runPIIO 95).
 
 **`motor-piio` queda completo pendiente solo de Fase 12 (los 80
 invariantes + 80 AC como batería final) y Fase 13 (cierre §35).**
