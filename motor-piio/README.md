@@ -129,7 +129,7 @@ publish.
 | **9** | `efo.js` | Motor DOMAIN→EFO (§20–21, §24): la regla determinista de 5 ramas (§20.1); `deterioration_present` separado; EFO_traj/pers sobre historia EFO; **sin votación/promedio/score**. **AC37–46, AC75/76, INV-32–41/74/75/76** |
 | **10** | `nodos.js` | Nodos y agregación (§22–23): ORGANIZATIONAL vs SEGMENT_ONLY, padre/hijos no simultáneos, agregación por tipo de métrica, exposición ≠ incidencia, `node_profile[]`. **NO** NODE_CONCENTRATION/POLARIZATION (es AIE). **AC47–55, INV-46–56** |
 | **11** | `runPIIO.js` | Orquestador (§29): encadenar en orden runtime; `PIIO_RESULT`; `PIIO_RUN` + versionamiento (§31); `PIIO_OPERATIONAL_EXPORT` (§26); fallos y propagación (§30); `TRACE_PATH` (§32). **AC61–69, AC72–74, AC80, INV-63–72/79/80** |
-| **12** | `invariantes_aceptacion.test.js` + arnés aparte | Los **80 invariantes** + la suite **AC01–80** como oráculo conductual, contra `runPIIOCompleto`. 3 clases: 12a assembly pass + cierres simples (**COMPLETA**), 12b cierres con matiz interno (**COMPLETA**), 12c arnés real CFF/IFD |
+| **12** | `invariantes_aceptacion.test.js` + `integracion_cff_ifd.test.js` | Los **80 invariantes** + la suite **AC01–80** como oráculo conductual, contra `runPIIOCompleto`. 3 clases, **las 3 COMPLETAS**: 12a assembly pass + cierres simples, 12b cierres con matiz interno, 12c arnés real CFF/IFD |
 | **13** | cierre | Verificación posterior §35: no score 0–100, no ruta PIIO→dinero, no PIIO→Estado EFICIENCIA sin AIE, reproducibilidad; tabla de reaperturas si las hubo |
 
 ## Ambigüedades del documento (traídas antes de fijar nada)
@@ -1389,8 +1389,54 @@ detecta de verdad); 3) `phenomenon.js` `coberturaFenomeno` rama
 
 **Total tras 12b: 825 asserts.** Commit `c366c69`.
 
-**`motor-piio` sigue completo pendiente de 12c (arnés real CFF/IFD) y
-Fase 13 (cierre §35).**
+### 12c — arnés real contra `motor-cff`/`motor-ifd` (`integracion_cff_ifd.test.js`)
+
+Arnés real, no sintético: `require` directo de `motor-cff/runCFF.js` y
+`motor-ifd/runIFD.js` — ambos están trackeados dentro de `feat/motor-piio`
+(la rama se creó desde `main` en `365348c`, YA con esos motores
+fusionados; confirmado con ejecución antes de escribir el arnés, sin
+vendorizar nada). Ningún adaptador expuesto por `motor-cff`/`motor-ifd`
+para consumidores externos — `_aCFFEvent`/`_aComponent` son una decisión
+DEL ARNÉS, documentada como tal.
+
+El adaptador copia SOLO identificación (`phenomenon_id`/`domain_id`/
+`node_id`/período) del export de PIIO hacia `CFF_EVENT`; la magnitud
+económica es un dato **independiente** del fixture, nunca derivado de
+`exposure`/`observed_quantity` de PIIO (mismo hallazgo ya documentado:
+"exposure" es un falso amigo entre los dos motores, sin mapeo real en
+código de producción).
+
+**4 relaciones, 15 asserts:**
+- **AC61/AC62** — `runCFF`/`runEPD` monetizan/proyectan exclusivamente
+  desde la magnitud declarada por el arnés (verificado que `cff_total` no
+  coincide con ningún campo crudo del export de PIIO).
+- **AC64/AC65/INV-72** — snapshot `JSON.stringify` del `PIIO_RESULT`
+  antes/después de correr CFF con costo altísimo e IFD con deterioro
+  altísimo: byte a byte idéntico.
+- **INV-68** (solo rama CFF — IFD confirmado sin `phenomenon_id`) —
+  hallazgo estructural: fuera de `contratos.js`, **ningún** archivo de
+  producción de `motor-cff` lee ni escribe `phenomenon_id` — no puede
+  redefinirlo porque no lo toca en absoluto.
+- **INV-70** — un componente que falla la puerta `scope_valid` (una de
+  las 7 AND estrictas de `admisibilidad.js`, citadas verbatim contra el
+  código real) queda excluido (`cff_total=null`, `coverage.
+  overall_coverage_status=INSUFFICIENT`, razón
+  `FALLA_COMPUERTA_ADMISIBILIDAD_§18`) aunque PIIO siga con
+  `output_status=VALID` para el mismo fenómeno — la elegibilidad de PIIO
+  no fuerza nada en CFF.
+
+**2 mutaciones "prueba de vida"** (el arnés no introduce código nuevo en
+ninguno de los 3 motores): 1) `motor-cff/admisibilidad.js`: desactivar la
+compuerta `scope_valid` (temporal, restaurado) → **3** rojos en INV-70;
+2) adaptador propio del arnés: acoplar `original_value` a
+`row.observed_quantity` (el error que AC61 existe para atrapar) → **2**
+rojos. `motor-cff`/`motor-ifd` verificados sin cambios (`git status`
+limpio).
+
+**Total tras 12c: 840 asserts.** Commit `a5e68b8`.
+
+**Fase 12 completa (12a + 12b + 12c). `motor-piio` sigue completo
+pendiente solo de Fase 13 (cierre §35).**
 
 ## Qué NO hace este módulo
 
