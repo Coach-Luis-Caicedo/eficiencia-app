@@ -40,11 +40,11 @@ pruebas negativas, distribuidos en las fases donde corresponden.
 | `contratos.js` | Los 10 validadores de contrato (§22.1-22.10): campos obligatorios/opcionales, tipos, enums, y **10 reglas condicionales** (5 de Fase 0 + 3 de Fase 1 + regla 9 de Fase 4b-iv: `cff_total` nulable — primer cambio a un contrato de Fase 0 + regla 10 de Fase 5: `salary_derived ⇒ salary_basis_kind`, §8.4). Sin lógica de negocio. |
 | `contratos.test.js` | Batería de contratos. `node motor-cff/contratos.test.js` → **87 asserts OK, 0 fallos**. |
 | `monetizacion.js` | **Fase 1** (+ compuertas §8.3/§8.4 de Fase 5). Los 4 mecanismos (§6), `resolverValorComponente` (calcula solo en `UNIT_RATE`), `calcularLostCapacity` (§8.2), `calcularReposicion` (§8.3, interina), `calcularValorNoCapturado` (§8.4, interina), `agregarPorMecanismo` (§35), `preferirBaseMonetaria` (§8.5). |
-| `monetizacion.test.js` | Batería de monetización. `node motor-cff/monetizacion.test.js` → **66 asserts OK, 0 fallos**, incluidas mutaciones de §8.2, §8.3 y §8.4. |
+| `monetizacion.test.js` | Batería de monetización. `node motor-cff/monetizacion.test.js` → **68 asserts OK, 0 fallos**, incluidas mutaciones de §8.2, §8.3 y §8.4. |
 | `atribucion.js` | **Fase 2.** `clasificarAtribucion` (§11, 6 dimensiones → `CONFIRMED`/`SUPPORTED`/`UNRESOLVED`), `profundizar` (§12, nueva versión + inmutabilidad de la anterior). |
 | `atribucion.test.js` | Batería de atribución. `node motor-cff/atribucion.test.js` → **41 asserts OK, 0 fallos**, incluidas 3 mutaciones (precedencia `CONFIRMED`/`SUPPORTED`, lectura ampliada de convergencia). |
 | `relaciones.js` | **Fase 3.** Grafo económico + detección de ciclos sobre `CONTAINS` (§13.3, `AC15`), `resolverRelacion` (§13, las 6 reglas de suma por tipo de relación). |
-| `relaciones.test.js` | Batería de relaciones. `node motor-cff/relaciones.test.js` → **23 asserts OK, 0 fallos**, incluida mutación de la detección de ciclos. |
+| `relaciones.test.js` | Batería de relaciones. `node motor-cff/relaciones.test.js` → **25 asserts OK, 0 fallos**, incluida mutación de la detección de ciclos. |
 | `costos_compartidos.js` | **Fase 3.** `resolverCostoCompartido` (§14, no prorratea sin base documentada), `filtrarTransferenciasInternasPuras` (§14, elimina en alcance ORGANIZATION, conserva en NODE). |
 | `costos_compartidos.test.js` | Batería de costos compartidos. `node motor-cff/costos_compartidos.test.js` → **13 asserts OK, 0 fallos**, incluida mutación del no-prorrateo. |
 | `nodos.js` | **Fase 3.** `NODE_HIERARCHY` (extensión del arnés, ver abajo) + las 4 reglas de §15 (`LEAF_ONLY`/`AGGREGATE_ONLY`/`NO_PARENT_CHILD_DOUBLE_COUNT`/`SEGMENT_ONLY`) vía `clasificarAlcance`. |
@@ -60,7 +60,7 @@ pruebas negativas, distribuidos en las fases donde corresponden.
 | `cobertura.js` | **Fase 4b (iii).** `clasificarCobertura` (§20, las 4 categorías `COVERAGE_STATUS` — criterio cualitativo, sin umbral numérico) + `distinguirCeroDeNA` (§20/AC21/AC22/AC46, `CFF=0` real vs `CFF=N_A` con `value=null`). |
 | `cobertura.test.js` | Batería de cobertura. `node motor-cff/cobertura.test.js` → **41 asserts OK, 0 fallos**, incluida la verificación de partición independiente del orden sobre los 64 casos (condiciones crudas + solapamientos localizados), las 2 mutaciones (N_A→0 prohibida por AC46; precedencia FULL/LIMITED) y la prueba dirigida de `_verificarValorConsistente`. |
 | `runCFF.js` | **Fase 4b (iv).** `runCFF` (§24, orquestador determinista end-to-end) — arma el `CFF_RESULT` completo (§22.8) + `CFF_RUN` + `TRACE_PATH`, delegando en todas las fases anteriores. `resolveStatus` (§21) conectada por primera vez. |
-| `runCFF.test.js` | Batería de runCFF. `node motor-cff/runCFF.test.js` → **41 asserts OK, 0 fallos**, incluidos AC51 (determinismo byte a byte), la indemnización $7.000.000 COP end-to-end, `resolveStatus` reflejando una degradación, el caso N_A (regla 9), los 7 parámetros de invocación y las 2 mutaciones. |
+| `runCFF.test.js` | Batería de runCFF. `node motor-cff/runCFF.test.js` → **53 asserts OK, 0 fallos**, incluidos AC51 (determinismo byte a byte), la indemnización $7.000.000 COP end-to-end, `resolveStatus` reflejando una degradación, el caso N_A (regla 9), los 7 parámetros de invocación y las 2 mutaciones. |
 | `versionamiento.js` | **Fase 5** (§25-26). `evaluarShortCircuit` (severidad WARNING/DEGRADED/BLOCKING, local vs. global), `aplicarTecho`, `cambioRequiereNuevaCorrida` (§26/INV-51), `crearNuevaVersion` (INV-65), `marcarStale` (§26.2/INV-66). Funciones puras, no cableadas a `runCFF` (mismo criterio que `estados.js`). |
 | `versionamiento.test.js` | Batería de versionamiento. `node motor-cff/versionamiento.test.js` → **48 asserts OK, 0 fallos**, incluidas 4 mutaciones (BLOCKING→DEGRADED; global→local; `crearNuevaVersion` mutando el histórico; quitar la condición `modificaResultado`). |
 | `invariantes_arquitectonicos.test.js` | **Fase 5.** Los 12 invariantes ARQ (INV-16/17/37-40/52/53/58-60/69) verificados por inspección de la superficie del módulo. `node motor-cff/invariantes_arquitectonicos.test.js` → **12 asserts OK, 0 fallos** + 1 mutación (`aie_state` como export → INV-16 lo atrapa). |
@@ -1097,17 +1097,25 @@ en sus totales, fuera de `cff_total` · (9) dos corridas idénticas;
 `crearNuevaVersion`/`marcarStale` no tocan el histórico · (10) ninguna
 función nombra CFG/DYN/EFO/AIE; `runCFF` solo devuelve `result/run/trace`.
 
-### Hallazgo abierto (Fase 5) — cobertura por capa en `runCFF`
+### Hallazgo (Fase 5) — cobertura por capa en `runCFF`: RESUELTO
 
 Las 3 capas de cobertura de `runCFF` (operacional / monetización /
-atribución) se calculan del embudo de S3 (resolución de valor + estado de
-monetización/atribución). **No ven las exclusiones de la etapa de
-consolidación** (`DUPLICATE` sin resolver, admisibilidad, costo compartido
-`UNALLOCATED`): esos componentes quedan en `coverage.limitations` pero no
-degradan `overall_coverage_status`. Un `DUPLICATE` material irresoluble
-puede dejar la cobertura en `FULL` cuando §20 pediría `PARTIAL`.
-Reportado; corrección pendiente de decisión (tocaría `runCFF`, Fase 4b-iv
-comiteada).
+atribución) se calculaban del embudo de S3 (resolución de valor + estado
+de monetización/atribución) y no veían las exclusiones de la etapa de
+consolidación (`DUPLICATE` sin resolver, admisibilidad §18, costo
+compartido `UNALLOCATED`, doble falla): esos componentes quedaban en
+`coverage.limitations` pero no degradaban `overall_coverage_status` — un
+`DUPLICATE` material irresoluble podía dejar la cobertura en `FULL`
+cuando §20 pediría `PARTIAL`.
+
+**Cerrado** por la reapertura de `runCFF.js` (4ª entrada al roll-up de
+cobertura, ver tabla debajo) — verificado contra el código real
+(`runCFF.js`, comentario "4ª entrada — exclusiones de la ETAPA DE
+CONSOLIDACIÓN"): la nueva capa `covConsolidacion` cubre las 4 exclusiones
+que este hallazgo mencionaba (`DUPLICATE`, admisibilidad, costo
+compartido `UNALLOCATED`, doble falla) — no solo `DUPLICATE` — y entra al
+`rollupCobertura` junto con las otras 3 capas. Verificado `FULL → PARTIAL`
+en el caso de 2 duplicados material.
 
 ### Reaperturas de código ya cerrado (las 3, juntas)
 
