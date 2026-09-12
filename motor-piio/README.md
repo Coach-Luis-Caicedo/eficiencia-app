@@ -130,7 +130,7 @@ publish.
 | **10** | `nodos.js` | Nodos y agregación (§22–23): ORGANIZATIONAL vs SEGMENT_ONLY, padre/hijos no simultáneos, agregación por tipo de métrica, exposición ≠ incidencia, `node_profile[]`. **NO** NODE_CONCENTRATION/POLARIZATION (es AIE). **AC47–55, INV-46–56** |
 | **11** | `runPIIO.js` | Orquestador (§29): encadenar en orden runtime; `PIIO_RESULT`; `PIIO_RUN` + versionamiento (§31); `PIIO_OPERATIONAL_EXPORT` (§26); fallos y propagación (§30); `TRACE_PATH` (§32). **AC61–69, AC72–74, AC80, INV-63–72/79/80** |
 | **12** | `invariantes_aceptacion.test.js` + `integracion_cff_ifd.test.js` | Los **80 invariantes** + la suite **AC01–80** como oráculo conductual, contra `runPIIOCompleto`. 3 clases, **las 3 COMPLETAS**: 12a assembly pass + cierres simples, 12b cierres con matiz interno, 12c arnés real CFF/IFD |
-| **13** | cierre | Verificación posterior §35: no score 0–100, no ruta PIIO→dinero, no PIIO→Estado EFICIENCIA sin AIE, reproducibilidad; tabla de reaperturas si las hubo |
+| **13** | `gate_35.test.js` | **COMPLETA** — acceptance gate §35, los 10 puntos (mismo patrón que `gate_32` de `motor-cff`). Cierra `INV-42` (único gap real encontrado en la auditoría) + etiqueta `INV-73` |
 
 ## Ambigüedades del documento (traídas antes de fijar nada)
 
@@ -1435,8 +1435,60 @@ limpio).
 
 **Total tras 12c: 840 asserts.** Commit `a5e68b8`.
 
-**Fase 12 completa (12a + 12b + 12c). `motor-piio` sigue completo
-pendiente solo de Fase 13 (cierre §35).**
+**Fase 12 completa (12a + 12b + 12c).**
+
+## Fase 13 — cierre (§35 acceptance gate) — MOTOR-PIIO COMPLETO
+
+Fase de auditoría, no de nueva lógica: `gate_35.test.js` verifica los 10
+puntos literales de §35, uno por uno, citando en cada caso el mecanismo
+YA establecido en su fase de origen — no re-deriva nada. Mismo patrón que
+`motor-cff/gate_32.test.js` (10/10, ya cerrado).
+
+**Auditoría fresca antes de dar por buenos los puntos 1 y 2** (grep contra
+los 15 archivos actuales, no memoria de fases anteriores): de los 80
+invariantes, 79 ya estaban representados (algunos bajo etiquetas
+combinadas — `INV-43/44/45`, `INV-49/50`, `§28 literal`=INV-6,
+`AC46`=INV-27, `AC67`=INV-65, `AC43`=INV-74). **`INV-73`** ("los perfiles
+de nodo se preservan aunque no cambie EFO_pos") sí estaba probado —
+exactamente lo que el assert de `AC47` en `invariantes_aceptacion.
+test.js` verifica — solo le faltaba la etiqueta, ya agregada.
+
+**El hueco real: `INV-42`** ("PIIO no determina Estado EFICIENCIA").
+Grep de `"Estado EFICIENCIA"|estado_eficiencia` en los 14 archivos
+anteriores: cero resultados, en ningún lado — a diferencia de `INV-71`
+(AIE no reimplementa PIIO, cerrado en 12b), el ángulo espejo nunca se
+había verificado. Cerrado en `gate_35.test.js` (§35 punto 5): grep
+estructural sobre los 12 archivos de producción + confirmación de que
+ninguna salida real de `runPIIOCompleto` lleva un campo
+`estado_eficiencia`. **1 mutación "prueba de vida"**: inyectar el texto
+`estado_eficiencia` en un comentario de `temporal.js` (temporal,
+restaurado) → **1 rojo** — confirma que el grep estructural detecta de
+verdad, no es un chequeo vacío.
+
+**Los otros 9 puntos** citan mecanismos ya cerrados, sin código nuevo:
+punto 3 → `CLAVES_SCORE_PROHIBIDAS` (Fase 0); punto 4 →
+`_ECON_PROHIBIDAS`/`construirExport` (11b) + arnés real contra
+`motor-cff` (12c); punto 6 → `evaluarCambioReferencia` (Fase 3) +
+`rebasarHistoria` (reapertura, §31); punto 7 → §9.2 (Fase 2) + export §26;
+punto 8 → `validarJerarquiaNodos` (Fase 1) + `validarExclusividadNodos`
+(Fase 10); punto 9 → export §26 + `INV-68` verificado real contra
+`motor-cff` (12c); punto 10 → `validarPIIOResult`/`TRACE_PATH` +
+determinismo (11b).
+
+**21 asserts, 1 mutación real.** `temporal.js` verificado byte-idéntico
+tras restaurar.
+
+**Total tras Fase 13: 861 asserts.** Commit `9ccae71`.
+
+## `motor-piio` — MOTOR COMPLETO, las 14 fases del plan cerradas
+
+Fases 0-13, dos reaperturas de código ya comiteado con su alcance
+honestamente documentado (`rebasarHistoria`/INV-66; `estabilidadSerie`
+genérico + `contextoGobernante` automático), y la conexión con dos
+motores externos reales (`motor-cff`, `motor-ifd`) probada de punta a
+punta con código real, no simulado. Tabla final de reaperturas: ver
+"Reaperturas de código ya comiteado" arriba — 6 en total, cada una con su
+propio commit y su motivo documentado, ninguna un descuido.
 
 ## Qué NO hace este módulo
 
