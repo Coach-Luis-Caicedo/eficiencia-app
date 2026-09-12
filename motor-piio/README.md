@@ -129,7 +129,7 @@ publish.
 | **9** | `efo.js` | Motor DOMAIN→EFO (§20–21, §24): la regla determinista de 5 ramas (§20.1); `deterioration_present` separado; EFO_traj/pers sobre historia EFO; **sin votación/promedio/score**. **AC37–46, AC75/76, INV-32–41/74/75/76** |
 | **10** | `nodos.js` | Nodos y agregación (§22–23): ORGANIZATIONAL vs SEGMENT_ONLY, padre/hijos no simultáneos, agregación por tipo de métrica, exposición ≠ incidencia, `node_profile[]`. **NO** NODE_CONCENTRATION/POLARIZATION (es AIE). **AC47–55, INV-46–56** |
 | **11** | `runPIIO.js` | Orquestador (§29): encadenar en orden runtime; `PIIO_RESULT`; `PIIO_RUN` + versionamiento (§31); `PIIO_OPERATIONAL_EXPORT` (§26); fallos y propagación (§30); `TRACE_PATH` (§32). **AC61–69, AC72–74, AC80, INV-63–72/79/80** |
-| **12** | `invariantes_aceptacion.test.js` + arnés aparte | Los **80 invariantes** + la suite **AC01–80** como oráculo conductual, contra `runPIIOCompleto`. 3 clases: 12a assembly pass + cierres simples (**COMPLETA**), 12b cierres con matiz (interno), 12c arnés real CFF/IFD |
+| **12** | `invariantes_aceptacion.test.js` + arnés aparte | Los **80 invariantes** + la suite **AC01–80** como oráculo conductual, contra `runPIIOCompleto`. 3 clases: 12a assembly pass + cierres simples (**COMPLETA**), 12b cierres con matiz interno (**COMPLETA**), 12c arnés real CFF/IFD |
 | **13** | cierre | Verificación posterior §35: no score 0–100, no ruta PIIO→dinero, no PIIO→Estado EFICIENCIA sin AIE, reproducibilidad; tabla de reaperturas si las hubo |
 
 ## Ambigüedades del documento (traídas antes de fijar nada)
@@ -1353,7 +1353,44 @@ fixture llama a `resolverFenomeno` directo, sin el try/catch de
 
 **Total tras esta reapertura: 814 asserts.** Commit `928a1a0`.
 
-**`motor-piio` sigue completo pendiente de 12b/12c y Fase 13 (cierre §35).**
+### 12b — cierres con matiz, alcance interno (mismo `invariantes_aceptacion.test.js`)
+
+CERO código de producción nuevo. Clase 3a del plan (la 3b — arnés real
+CFF/IFD — va en 12c aparte).
+
+- **AC59** — REESCRITO tras la reapertura de arriba: ya no es
+  "irreproducible sin calibrar", es un caso **positivo real** verificado
+  de punta a punta contra `runPIIOCompleto` (serie `[80,20]`, CV≈0.60 →
+  `HIGHLY_VARIABLE` / `CALIBRACION_GENERICA`, nunca presentado como propio
+  de EFICIENCIA). La segunda mitad ("pattern no VOLATILE") solo se cita —
+  ya cubierta en `temporal.test.js`.
+- **INV-60** — estructural (`fs.readFileSync` real sobre los 12 archivos
+  de producción, grep de `riesgo_futuro|probability|forecast_risk|...` —
+  cero ocurrencias) + conductual (evento raro `0,0,80` clasifica `D` por
+  la regla normal, sin campo de proyección de riesgo).
+- **INV-79** — `value` con 9 decimales de precisión + 0 de los
+  `required_evidence_group_ids` cubiertos → `coverage_status=NONE` /
+  `admissibility=NOT_ADMISSIBLE`: la precisión numérica no compra
+  suficiencia inferencial.
+- **AC66 / INV-71** — estructural (cero archivos de `motor-piio` requieren
+  algo con forma de AIE) + ausencia de canal de reescritura (dos corridas
+  separadas producen `efo_states` como objetos distintos en memoria,
+  mismo contenido — determinismo ya probado en 11b). Diferido a
+  integración real cuando exista `motor-aie`.
+
+**11 asserts, 3 mutaciones "prueba de vida"** (mismo principio que 12a —
+sin batería propia por AC/INV, serían duplicadas de la fase de origen),
+con efecto en cascada real hacia otros archivos: 1) `enums.js`
+`STABILITY_CV_STABLE_GENERICO` `0.15→0.99` → **2** (1 aquí + 1 en
+`runPIIO.test.js`, mismo mecanismo de la reapertura); 2) `temporal.js`:
+inyectar `riesgo_futuro` en un comentario → **1** (el grep estructural lo
+detecta de verdad); 3) `phenomenon.js` `coberturaFenomeno` rama
+`NONE`→`COMPLETE` → **4** (2 aquí + 2 en `phenomenon.test.js`).
+
+**Total tras 12b: 825 asserts.** Commit `c366c69`.
+
+**`motor-piio` sigue completo pendiente de 12c (arnés real CFF/IFD) y
+Fase 13 (cierre §35).**
 
 ## Qué NO hace este módulo
 
