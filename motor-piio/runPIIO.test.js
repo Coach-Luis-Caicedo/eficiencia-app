@@ -223,7 +223,97 @@ eq(R._ctxNodo('n-root', input()), 'ORG', '_ctxNodo: sin scope_rules.context → 
 eq(R._ctxNodo('n-root', input({ node_hierarchy: [ns({ scope_rules: { scope: 'ORGANIZATIONAL', context: 'CTX-1' } }), ns({ node_id: 'n-a', parent_node_id: 'n-root' })] })), 'CTX-1', '_ctxNodo: con scope_rules.context → ese valor');
 
 // ═══════════════════════════════════════════════════════════════════════
-seccion('Mutaciones — ejecutadas como paso de Bash aparte (ver cierre)');
+//  11b — salidas, versionamiento, publicación (§26 / §31 / §32)
+// ═══════════════════════════════════════════════════════════════════════
+
+var full = R.runPIIOCompleto(input());
+
+seccion('§31 — PIIO_RUN (15 campos) + determinismo (INV-67/AC68)');
+
+eq(Object.keys(full.piio_run).length, 15, 'PIIO_RUN tiene exactamente 15 campos (§31)');
+eq(full.piio_run.run_status, 'COMPLETED', 'PIIO_RUN.run_status = el de 11a');
+eq(full.piio_run.update_reason, 'INITIAL', 'update_reason por defecto → INITIAL');
+ok(/^rs=rs-v1\|/.test(full.piio_run.calculation_version), 'calculation_version determinista (empieza por rs=rs-v1|, sin timestamp)');
+eq(full.piio_run.piio_run_id, 'org1|2026-01,2026-02|' + full.piio_run.calculation_version, 'piio_run_id = org | periods | calculation_version (determinista)');
+// determinismo: dos corridas idénticas salvo generated_at
+var d1 = R.runPIIOCompleto(input());
+var d2 = R.runPIIOCompleto(input());
+ok(d1.piio_run.generated_at !== undefined && typeof d1.piio_run.generated_at === 'string', 'generated_at presente (ISO string)');
+delete d1.piio_run.generated_at;
+delete d2.piio_run.generated_at;
+eq(JSON.stringify(d1), JSON.stringify(d2), 'INV-67/AC68: dos corridas con el mismo input → deep-equal EXCLUYENDO SOLO generated_at');
+// cambiar una versión → distinto calculation_version y piio_run_id
+var otroRs = R.runPIIOCompleto(input({ ruleset_version: 'rs-v2' }));
+ok(otroRs.piio_run.calculation_version !== full.piio_run.calculation_version, 'cambio de ruleset_version → calculation_version distinto (AC67)');
+
+seccion('§26 — PIIO_OPERATIONAL_EXPORT (21 campos): proyección pura');
+
+eq(full.operational_export.length, 4, '4 filas de export (ph1 × 2 nodos × 2 períodos)');
+var xr = full.operational_export.filter(function (r) { return r.node_id === 'n-root' && r.period === '2026-01'; })[0];
+eq(Object.keys(xr).length, 21, 'cada fila tiene exactamente 21 campos (§26)');
+eq([xr.numerator, xr.denominator, xr.observed_quantity], [80, 100, 80], 'numerator/denominator/observed_quantity COPIADOS de la observación, sin calcular');
+var psR1chk = full.phenomenon_states.filter(function (p) { return p.node_id === 'n-root' && p.period === '2026-01'; })[0];
+eq([xr.position, xr.trajectory], [psR1chk.pos, psR1chk.traj], 'position/trajectory COPIADOS tal cual del PHENOMENON_STATE (sin recalcular)');
+eq([xr.recurrence_type, xr.directionality, xr.unit], ['RATE_BASED', 'HIGHER_IS_WORSE', '%'], 'recurrence_type/directionality/unit COPIADOS del METRIC_DEFINITION');
+eq(xr.piio_run_id, full.piio_run.piio_run_id, 'source_refs + piio_run_id trazables');
+// PIIO ↛ dinero/modelo: ninguna clave económica ni predictiva
+var clavesExport = full.operational_export.reduce(function (acc, r) { return acc.concat(Object.keys(r)); }, []);
+ok(!clavesExport.some(function (k) { return /cost|roi|tre|npv|projec|forecast|monetiz|predic|estimated/i.test(k); }), 'INV-43/44/45: ninguna clave de costo / ROI / TRE / proyección en el export');
+
+seccion('§6.2 — fenómeno PIIO_COMPATIBLE_PROVISIONAL: en el export, NO en EFO');
+
+var prov = R.runPIIOCompleto(input({ phenomenon_catalog: [ph({ status: 'PIIO_COMPATIBLE_PROVISIONAL' })] }));
+eq(prov.efo_states.length, 0, 'AC63: el fenómeno provisional NO produce EFO_STATE (no alimenta la cascada)');
+ok(prov.operational_export.length > 0, '§6.2: PERO el export para CFF/IFD SÍ lleva sus filas (' + prov.operational_export.length + ')');
+eq(prov.operational_export.every(function (r) { return r.phenomenon_id === 'ph1'; }), true, '...todas del fenómeno provisional ph1');
+
+seccion('§32 — TRACE_PATH (12 campos): genealogía hasta observaciones/referencias');
+
+var tps = full.trace_paths;
+eq(tps.filter(function (t) { return t.output_type === 'EFO_STATE'; }).length, 4, 'un TRACE_PATH por EFO_STATE');
+var tEfo = tps.filter(function (t) { return t.output_type === 'EFO_STATE' && t.output_id.indexOf('n-root') !== -1; })[0];
+eq(Object.keys(tEfo).length, 12, 'cada TRACE_PATH tiene 12 campos (§32)');
+ok(tEfo.observation_ids.length > 0, 'INV-80/AC80: el trace de una EFO llega hasta observation_ids');
+ok(tEfo.reference_ids.length > 0, '...y hasta reference_ids');
+eq(tEfo.domain_ids, ['QUALITY'], '...domain_ids del dominio que la alimentó');
+eq(tEfo.phenomenon_ids, ['ph1'], '...phenomenon_ids');
+eq(tEfo.kpi_ids, ['k1'], '...kpi_ids');
+ok(tps.some(function (t) { return t.output_type === 'OPERATIONAL_EXPORT'; }), 'también hay TRACE_PATH para las filas de export (genealogía CFF/IFD, §32)');
+
+seccion('INV-63 — toda salida publicada tiene status y trazabilidad');
+
+eq(full.efo_states.every(function (e) { return e.output_status === 'VALID' || e.output_status === 'VALID_WITH_LIMITATIONS' || e.output_status === 'INSUFFICIENT'; }), true, 'toda EFO publicada tiene output_status válido');
+eq(full.efo_states.every(function (e) { return e.piio_run_id === full.piio_run.piio_run_id; }), true, '...y piio_run_id estampado');
+eq(full.efo_states.every(function (e) { return e.ruleset_version === 'rs-v1'; }), true, '...y ruleset_version');
+ok(R.validarPIIOResult(full).ok, 'validarPIIOResult(full) → ok');
+
+seccion('_outputStatus — el mapeo (decisión etiquetada)');
+
+eq(R._outputStatus({ admissibility: 'ADMISSIBLE', data_quality: 'VALID' }, []), 'VALID', 'ADMISSIBLE + VALID → VALID');
+eq(R._outputStatus({ admissibility: 'NOT_ADMISSIBLE' }, []), 'INSUFFICIENT', 'NOT_ADMISSIBLE → INSUFFICIENT');
+eq(R._outputStatus({ data_quality: 'INVALID' }, []), 'INVALID', 'data_quality INVALID → INVALID');
+eq(R._outputStatus({ admissibility: 'ADMISSIBLE_WITH_LIMITATIONS' }, []), 'VALID_WITH_LIMITATIONS', 'ADMISSIBLE_WITH_LIMITATIONS → VALID_WITH_LIMITATIONS');
+eq(R._outputStatus({ efo_state_id: 'e1', admissibility: 'ADMISSIBLE' }, [{ severity: 'DEGRADED', scope: 'STATE', target: 'e1' }]), 'VALID_WITH_LIMITATIONS', 'finding DEGRADED sobre esa salida → VALID_WITH_LIMITATIONS (§30)');
+eq(R._outputStatus({ applicability: 'NOT_APPLICABLE' }, []), 'NOT_APPLICABLE', 'applicability NOT_APPLICABLE → NOT_APPLICABLE');
+
+seccion('validarPIIOResult — rechaza claves económicas y salidas sin status/trace');
+
+var conCosto = R.runPIIOCompleto(input());
+conCosto.operational_export[0].estimated_cost = 999;
+ok(!R.validarPIIOResult(conCosto).ok, 'una fila de export con `estimated_cost` → validarPIIOResult NO ok (INV-43/44/45)');
+var sinStatus = R.runPIIOCompleto(input());
+delete sinStatus.efo_states[0].output_status;
+ok(!R.validarPIIOResult(sinStatus).ok, 'una EFO sin output_status → validarPIIOResult NO ok (INV-63)');
+
+seccion('run_status BLOCKED → PIIO_RESULT sin salidas publicadas');
+
+var bloq = R.runPIIOCompleto(input({ domain_catalog: [ds({ core_phenomenon_ids: ['ph-x'] })] }));
+eq(bloq.run_status, 'BLOCKED', 'catálogo corrupto → run_status BLOCKED');
+eq([bloq.operational_export.length, bloq.trace_paths.length, bloq.efo_states.length], [0, 0, 0], '...export / trace / efo vacíos (§30: fallo global no publica)');
+eq(Object.keys(bloq.piio_run).length, 15, '...pero el PIIO_RUN se emite igual (registra el intento, §31)');
+
+// ═══════════════════════════════════════════════════════════════════════
+seccion('Mutaciones 11a — ejecutadas como paso de Bash aparte (ver cierre)');
 // ═══════════════════════════════════════════════════════════════════════
 console.log('  1. [frontera C] la línea del lookup en el bucle de KPI:');
 console.log('     `evals: evalsPorKpi[kpiSpec.kpi_id] || [],`  →  `evals: ing.evals,`');
@@ -254,6 +344,44 @@ console.log('      k2 no publica" cae (resuelve md@v1 para v9).');
 console.log('  12. `_clasificarRun` → siempre "COMPLETED" → "md ausente → PARTIAL" y los asserts');
 console.log('      directos de _clasificarRun caen.');
 console.log('  Conteos: 7, 5, 4, 2, 1, 1, 2, 3, 3, 3, 3, 5.');
+
+// ═══════════════════════════════════════════════════════════════════════
+seccion('Mutaciones 11b — ejecutadas como paso de Bash aparte (ver cierre)');
+// ═══════════════════════════════════════════════════════════════════════
+console.log('  1. [determinismo] _calculationVersion agrega Date.now() al final del join(\'|\') →');
+console.log('     1 rojo: la comparación deep-equal de dos corridas (d1 vs d2, excluyendo SOLO');
+console.log('     generated_at) ya no coincide (INV-67/AC68).');
+console.log('  2. [determinismo] _piioRunId agrega Math.random() al id →');
+console.log('     2 rojos: el formato esperado de piio_run_id ("org|periods|calcVer") y la');
+console.log('     comparación deep-equal d1 vs d2.');
+console.log('  3. [PIIO ↛ dinero] construirExport agrega `estimated_cost: 999` a cada fila →');
+console.log('     3 rojos: el conteo de 21 campos, el chequeo de "ninguna clave económica" y');
+console.log('     validarPIIOResult(full).ok (el denylist la detecta también).');
+console.log('  4. [PIIO ↛ modelo predictivo] construirExport agrega `projected_trajectory: \'X\'` →');
+console.log('     3 rojos: mismo patrón que MUT3 (21 campos, denylist regex, validarPIIOResult).');
+console.log('  5. [§6.2] se comenta `estados.push(ps)` para los fenómenos PIIO_COMPATIBLE_PROVISIONAL →');
+console.log('     1 rojo: "el export SÍ lleva sus filas" cae (0 filas para el fenómeno provisional).');
+console.log('  6. [§32/INV-80] genKpi dentro de construirTracePaths fija `observation_ids: []` →');
+console.log('     2 rojos: "el trace de una EFO llega hasta observation_ids" y validarPIIOResult(full).ok');
+console.log('     (INV-80 lo rechaza por trace que no llega a observaciones).');
+console.log('  7. [§32/INV-80] genKpi fija `reference_ids: []` → 2 rojos: mismo patrón que MUT6,');
+console.log('     ahora sobre reference_ids.');
+console.log('  8. [_outputStatus] NOT_ADMISSIBLE devuelve VALID en vez de INSUFFICIENT →');
+console.log('     1 rojo: el unit test directo de _outputStatus para ese caso.');
+console.log('  9. [_outputStatus] se ignora la rama ADMISSIBLE_WITH_LIMITATIONS →');
+console.log('     1 rojo: el unit test directo de ese caso.');
+console.log('  10. [INV-63] publicar() ya no estampa `s.output_status` (línea comentada) →');
+console.log('      2 rojos: "toda EFO publicada tiene output_status válido" y validarPIIOResult(full).ok.');
+console.log('  11. [validarPIIOResult] _sinEconomia hace `return;` antes de revisar ninguna clave →');
+console.log('      1 rojo: "una fila de export con estimated_cost → validarPIIOResult NO ok" cae');
+console.log('      (ya no la detecta).');
+console.log('  12. [proyección pura] observed_quantity se calcula como `ev.value * 2` en vez de');
+console.log('      copiarse tal cual → 1 rojo: "numerator/denominator/observed_quantity COPIADOS".');
+console.log('      (nota: la primera variante de esta mutación —recomputar como');
+console.log('      numerator/denominator*100— dio 0 rojos por coincidencia numérica del fixture:');
+console.log('      con denominator=100, la razón×100 iguala numerator, que en el fixture ya');
+console.log('      coincide con value; se cambió a ×2 para no depender de esa coincidencia.)');
+console.log('  Conteos: 1, 2, 3, 3, 1, 2, 2, 1, 1, 2, 1, 1.');
 
 // ═══════════════════════════════════════════════════════════════════════
 console.log('\n' + '═'.repeat(74));

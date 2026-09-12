@@ -1097,9 +1097,106 @@ mutaciones** — `7, 5, 4, 2, 1, 1, 2, 3, 3, 3, 3, 5`:
 
 **Total motor-piio tras Fase 11a: 710 asserts.**
 
-**PENDIENTE para 11b:** confirmar línea a línea los 3 conteos de campos
-antes de ensamblar — `PIIO_RUN` (§31), `TRACE_PATH` (§32),
-`PIIO_OPERATIONAL_EXPORT` (§26).
+### 11b — export, trace, PIIO_RUN, publish, determinismo
+
+`runPIIOCompleto(input, opciones) → PIIO_RESULT = { piio_run, efo_states,
+domain_states, phenomenon_states, kpi_states, evidence_groups,
+node_profile, operational_export, trace_paths, findings, run_status }`.
+Envuelve `runPIIO` (11a) sin tocarlo. Aditivo, **sin reapertura**.
+
+Conteos de campos confirmados línea a línea contra el documento (excluyendo
+la línea de nombre de la estructura): **`PIIO_RUN` (§31) = 15**,
+**`TRACE_PATH` (§32) = 12**, **`PIIO_OPERATIONAL_EXPORT` (§26) = 21** —
+verificados de forma independiente por Luis, coinciden exactos.
+
+#### §31 — `PIIO_RUN` y determinismo (INV-67/AC68)
+
+"MISMOS INPUTS + MISMAS VERSIONES → MISMO RESULTADO" se resuelve
+**arquitectónicamente**, no relajando la prueba: `_calculationVersion` y
+`_piioRunId` son funciones puras de las versiones estables del input (sin
+`Date.now()`/`Math.random()` en ningún punto). El **único** campo
+legítimamente no determinista de todo `PIIO_RESULT` es
+`piio_run.generated_at`. El test corre `runPIIOCompleto` dos veces con el
+mismo input, borra `generated_at` de ambos resultados y compara por
+`JSON.stringify` — sin excluir ningún otro campo.
+
+#### §26 — `construirExport`: proyección pura (PIIO ↛ dinero/modelo)
+
+Copia campos ya calculados (`position`, `trajectory`, `admissibility`,
+`freshness`) y datos crudos (`numerator`, `denominator`, `exposure`,
+`observed_quantity`, `recurrence_type`, `directionality`, `unit`). **Cero
+aritmética nueva** — ninguna función multiplica, proyecta o monetiza nada,
+ni como helper de cortesía. Incluye los fenómenos
+`PIIO_COMPATIBLE_PROVISIONAL` (§6.2 — "puede declararse para CFF/IFD"),
+resueltos aparte vía `phenomenon.resolverFenomeno`, que **nunca** entran a
+`efo_states` (AC63 se mantiene intacto). `validarPIIOResult` rechaza además
+cualquier clave que matchee un denylist económico/predictivo
+(`_ECON_PROHIBIDAS`), como segunda línea de defensa.
+
+#### §32 — `construirTracePaths`: genealogía (INV-80/AC80)
+
+Construye acumuladores de genealogía de abajo hacia arriba (KPI_STATE →
+EVIDENCE_GROUP → PHENOMENON_STATE → DOMAIN_STATE → EFO_STATE), fusionando
+listas de ids (`observation_ids`, `reference_ids`, etc.) vía `_mergeGen`.
+`parent_state_ids` se excluye deliberadamente de esa fusión genérica — cada
+nivel fija sus propios padres inmediatos (un bug real de acumulación
+transitiva se encontró y corrigió durante el smoke-test, antes de mostrar
+el código).
+
+#### INV-63 — `publicar` / `_outputStatus` / `validarPIIOResult`
+
+`publicar` estampa `piio_run_id`, `ruleset_version` y `output_status` en
+cada estado publicado. `_outputStatus` es el mapeo (decisión etiquetada,
+no dictada por el texto — INV-63 exige que el status exista, no cómo se
+calcula): `NOT_APPLICABLE` → ese; `INVALID` data_quality → `INVALID`;
+`NOT_ADMISSIBLE` → `INSUFFICIENT`; degradado (finding) o
+`ADMISSIBLE_WITH_LIMITATIONS` → `VALID_WITH_LIMITATIONS`; si no, `VALID`.
+`validarPIIOResult(result)` es el gate final: campos de `PIIO_RESULT`
+presentes, `PIIO_RUN` con 15 campos, ninguna clave económica en ningún
+punto, cada EFO con `output_status`/`piio_run_id`/`TRACE_PATH` que llegue
+hasta `observation_ids`/`reference_ids` no vacíos.
+
+#### Batería
+
+`node motor-piio/runPIIO.test.js` → **86 asserts, 0 fallos** (45 de 11a +
+41 nuevos de 11b) + **12 mutaciones nuevas** — `1, 2, 3, 3, 1, 2, 2, 1, 1,
+2, 1, 1`:
+1. **[determinismo]** `_calculationVersion` agrega `Date.now()` al join →
+   **1** (INV-67/AC68: deep-equal d1 vs d2 cae).
+2. **[determinismo]** `_piioRunId` agrega `Math.random()` → **2** (formato
+   esperado del id + deep-equal d1 vs d2).
+3. **[PIIO ↛ dinero]** `construirExport` agrega `estimated_cost: 999` a
+   cada fila → **3** (21 campos, denylist económico, `validarPIIOResult`).
+4. **[PIIO ↛ modelo predictivo]** agrega `projected_trajectory: 'X'` →
+   **3** (mismo patrón que MUT3).
+5. **[§6.2]** se comenta `estados.push(ps)` para fenómenos
+   `PIIO_COMPATIBLE_PROVISIONAL` → **1** (el export deja de llevar sus
+   filas).
+6. **[§32/INV-80]** `genKpi.observation_ids` fijo en `[]` → **2** (el
+   trace no llega a observaciones + `validarPIIOResult`).
+7. **[§32/INV-80]** `genKpi.reference_ids` fijo en `[]` → **2** (mismo
+   patrón que MUT6, sobre referencias).
+8. **[`_outputStatus`]** `NOT_ADMISSIBLE` → `VALID` en vez de
+   `INSUFFICIENT` → **1**.
+9. **[`_outputStatus`]** se ignora la rama `ADMISSIBLE_WITH_LIMITATIONS`
+   → **1**.
+10. **[INV-63]** `publicar` deja de estampar `output_status` → **2** (el
+    chequeo de status válido + `validarPIIOResult`).
+11. **[validador]** `_sinEconomia` hace `return` inmediato (neutered) →
+    **1** (deja de detectar `estimated_cost` inyectado).
+12. **[proyección pura]** `observed_quantity` se calcula como `ev.value *
+    2` en vez de copiarse → **1**. *(La primera variante —recomputar como
+    `numerator/denominator*100`— dio 0 rojos: guarda enmascarada por una
+    coincidencia numérica del fixture, `denominator=100` hace que la razón
+    ×100 iguale `numerator`, que ya coincide con `value`; se cambió a ×2
+    para no depender de esa coincidencia.)*
+
+**Total motor-piio tras Fase 11b: 751 asserts** (contratos 97, config 42,
+observaciones 39, referencias 31, temporal 59, kpiState 53, evidenceGroup
+36, phenomenon 94, domain 65, efo 94, nodos 55, runPIIO 86).
+
+**`motor-piio` queda completo pendiente solo de Fase 12 (los 80
+invariantes + 80 AC como batería final) y Fase 13 (cierre §35).**
 
 ## Qué NO hace este módulo
 
