@@ -87,10 +87,38 @@ seccion('§12 — estabilidad (Grupo 1: cortes de CV null → INSUFFICIENT)');
 
 eq(T.estabilidadSerie([5]).valor, 'INSUFFICIENT', 'serie de 1 punto → INSUFFICIENT');
 ok(tieneFlag(T.estabilidadSerie([5]), 'SERIE_MUY_CORTA'), '...flag SERIE_MUY_CORTA');
-var est = T.estabilidadSerie([10, 11, 9, 10, 12]);
-eq(est.valor, 'INSUFFICIENT', 'serie válida pero STABILITY_CV_* null → INSUFFICIENT (Grupo 1, ambig. AA)');
-ok(tieneFlag(est, 'STABILITY_NO_CALIBRADA'), '...flag STABILITY_NO_CALIBRADA (no se inventa una lectura, §30)');
+eq(T.estabilidadSerie([0, 0, 0]).valor, 'INSUFFICIENT', 'media=0 → CV indefinido → INSUFFICIENT (no hay número que mostrar)');
+ok(tieneFlag(T.estabilidadSerie([0, 0, 0]), 'CV_INDEFINIDO_MEDIA_CERO'), '...flag CV_INDEFINIDO_MEDIA_CERO');
+
+// REAPERTURA 12b (decisión de negocio de Luis, NO dictada por el
+// documento): sin calibración propia por organización NI calibración
+// global (STABILITY_CV_STABLE/_MODERATE siguen null, Grupo 1), el piso
+// genérico (convención estadística general, NUNCA presentada como propia
+// de EFICIENCIA) clasifica — ya NO se devuelve INSUFFICIENT solo por
+// falta de calibración.
+var est = T.estabilidadSerie([10, 11, 9, 10, 12]); // CV ≈ 0.098
+eq(est.valor, 'STABLE', 'REAPERTURA 12b: sin calibración propia ni global → clasifica con el genérico (CV≈0.098 ≤ 0.15)');
+ok(typeof est.cv === 'number' && est.cv > 0 && est.cv < 0.15, '...cv SIEMPRE visible (antes se descartaba) y coherente con la clasificación');
+eq(est.flags, ['CALIBRACION_GENERICA'], '...flag de origen = CALIBRACION_GENERICA (nunca "STABILITY_NO_CALIBRADA")');
 ok(['STABLE', 'MODERATELY_VARIABLE', 'HIGHLY_VARIABLE', 'INSUFFICIENT'].indexOf(est.valor) !== -1, 'estabilidad ∈ SERIES_STABILITY');
+
+// CALIBRACION_PROPIA (umbralesOrg, provisto por el llamante) tiene
+// precedencia sobre el genérico — mismo CV≈0.098, ahora > umbral propio 0.05
+var estPropia = T.estabilidadSerie([10, 11, 9, 10, 12], { stable: 0.05, moderate: 0.20 });
+eq([estPropia.valor, estPropia.flags], ['MODERATELY_VARIABLE', ['CALIBRACION_PROPIA']], 'umbralesOrg presente → CALIBRACION_PROPIA gana sobre el genérico');
+
+// CALIBRACION_GLOBAL (PARAMS.STABILITY_CV_STABLE/_MODERATE) tiene
+// precedencia sobre el genérico, pero PIERDE contra la propia — se
+// calibra temporalmente y se restaura de inmediato (mismo objeto PARAMS
+// que usa temporal.js; sin esto los demás asserts de este archivo, que
+// asumen Grupo 1 sin calibrar, quedarían contaminados).
+var _stableOrig = E.PARAMS.STABILITY_CV_STABLE, _modOrig = E.PARAMS.STABILITY_CV_MODERATE;
+E.PARAMS.STABILITY_CV_STABLE = 0.05; E.PARAMS.STABILITY_CV_MODERATE = 0.20;
+var estGlobal = T.estabilidadSerie([10, 11, 9, 10, 12]);
+eq([estGlobal.valor, estGlobal.flags], ['MODERATELY_VARIABLE', ['CALIBRACION_GLOBAL']], 'sin umbralesOrg pero CON calibración global → CALIBRACION_GLOBAL gana sobre el genérico');
+var estPropiaSobreGlobal = T.estabilidadSerie([10, 11, 9, 10, 12], { stable: 0.5, moderate: 0.9 });
+eq(estPropiaSobreGlobal.flags, ['CALIBRACION_PROPIA'], '...pero si ADEMÁS hay umbralesOrg, la propia sigue ganando sobre la global');
+E.PARAMS.STABILITY_CV_STABLE = _stableOrig; E.PARAMS.STABILITY_CV_MODERATE = _modOrig; // restaurar — Grupo 1 sigue sin calibrar
 
 // ═══════════════════════════════════════════════════════════════════════
 seccion('§12 — patrón temporal (INV-57/58)');
@@ -150,8 +178,11 @@ console.log('  2. continuidadRun: la rama `N_A` cierra el run (`cerrar()`) → 2
 console.log('     ("D,N_A,D → det_run=2", "un solo run") — INV-25.');
 console.log('  3. continuidadRun: `d > gap` → `d < gap` (split invertido) → 4 rojos');
 console.log('     (los 4 asserts de AC19: gap 8 ya no rompe, gap 2 sí rompe).');
-console.log('  4. estabilidadSerie: no calibrada → devolver `STABLE` en vez de INSUFFICIENT');
-console.log('     → 2 rojos ("STABILITY_CV_* null → INSUFFICIENT" + flag) — Grupo 1 / §30.');
+console.log('  4. [OBSOLETA tras REAPERTURA 12b, ver sección aparte más abajo] estabilidadSerie:');
+console.log('     esta mutación original probaba "no calibrada → INSUFFICIENT nunca inventa STABLE"');
+console.log('     — la REAPERTURA 12b cambió esa premisa a propósito (decisión de negocio de Luis:');
+console.log('     usar un genérico de respaldo en vez de no clasificar). El nuevo comportamiento');
+console.log('     tiene sus propias 6 mutaciones, ver más abajo.');
 console.log('  5. regimen: REBASE_HISTORY también → NEW_REGIME → 1 rojo');
 console.log('     ("REBASE_HISTORY → CONTINUOUS") — AF.');
 console.log('  6. registrarShock: declaración inválida → devolver el status crudo → 1 rojo');
@@ -161,6 +192,24 @@ console.log('     EXCLUDE está diferido, no ejecutado (INV-59).');
 console.log('  8. magnitudCambio: `m = metodo` (sin fallback al default) → 3 rojos (los 2');
 console.log('     DELTA-implícito + "método no reconocido → cae al default DELTA").');
 console.log('  9. historiaSuficiente: `>= minimo` → `>= 1` → 1 rojo ("[1] → insuficiente", INV-26).');
+
+// ═══════════════════════════════════════════════════════════════════════
+seccion('Mutaciones REAPERTURA 12b (estabilidadSerie: genérico/propio/global) — Bash aparte');
+// ═══════════════════════════════════════════════════════════════════════
+console.log('  Conteos por archivo (temporal + phenomenon + runPIIO + invariantes_aceptacion):');
+console.log('  1. rama genérica final → `return INSUFFICIENT+STABILITY_NO_CALIBRADA` (revierte al');
+console.log('     comportamiento previo) → 7 rojos (3 en este archivo + 2 en phenomenon.test.js +');
+console.log('     2 en runPIIO.test.js).');
+console.log('  2. condición CALIBRACION_PROPIA → `if (false)` (nunca se usa umbralesOrg) → 3 rojos');
+console.log('     (2 en este archivo + 1 en phenomenon.test.js).');
+console.log('  3. condición CALIBRACION_GLOBAL → `if (false)` (nunca se usa PARAMS calibrado) →');
+console.log('     1 rojo (en este archivo).');
+console.log('  4. se quita `cv` del objeto de retorno calibrado → 1 rojo (en este archivo).');
+console.log('  5. se quita el flag de origen (`flags: []` en vez de `[origen]`) → 7 rojos (4 en');
+console.log('     este archivo + 2 en phenomenon.test.js + 1 en runPIIO.test.js).');
+console.log('  6. guarda de serie corta `length < 2` → `length < 1` (permite series de 1 punto) →');
+console.log('     2 rojos (en este archivo — "serie de 1 punto → INSUFFICIENT" y su flag).');
+console.log('  Conteos: 7, 3, 1, 1, 7, 2.');
 
 // ═══════════════════════════════════════════════════════════════════════
 console.log('\n' + '═'.repeat(74));

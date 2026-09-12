@@ -288,7 +288,7 @@ var full = P.resolverFenomeno(inFen({
   gruposColapsados: [grpC('egA', 'D', [ks({ kpi_id: 'kA', pos: 'D', traj: 'DETERIORATING', pers: 'REPEATED', det_run: 2, metric_definition_version: 'md@v2' })], { evidence_proximity: 'DIRECT' })],
   phenSpec: ph1({ required_evidence_group_ids: ['egA'] })
 }));
-eq(Object.keys(full).length, 20, 'el PHENOMENON_STATE tiene exactamente 20 campos (§15.1)');
+eq(Object.keys(full).length, 22, 'el PHENOMENON_STATE tiene los 20 campos oficiales de §15.1 + 2 diagnósticos aditivos de la REAPERTURA 12b (series_stability_cv, series_stability_origen — validarPhenomenonState NO los exige)');
 ok(P.validarPhenomenonState(full).ok, 'validarPhenomenonState → ok');
 eq([full.pos, full.traj, full.pers, full.det_run], ['D', 'DETERIORATING', 'REPEATED', 2], 'pos D → traj/pers/det_run propagados del KPI_STATE gobernante');
 eq(full.deterioration_present, true, 'pos D → deterioration_present = true');
@@ -316,6 +316,70 @@ var fullI = P.resolverFenomeno(inFen({
 }));
 eq([fullI.pos, fullI.deterioration_present], ['I', true], 'pos I por F+D → deterioration_present = true (hubo un contribuyente D)');
 eq([fullI.traj, fullI.pers], ['N_A', 'N_A'], '...traj = pers = N_A (pos I)');
+
+// ═══════════════════════════════════════════════════════════════════════
+seccion('REAPERTURA 12b (Commit B) — _construirContextoGobernante');
+// ═══════════════════════════════════════════════════════════════════════
+
+var evalsPorKpi1 = {
+  k1: [
+    { kpi_id: 'k1', period_start: '2026-01', value: 10, data_quality: 'VALID' },
+    { kpi_id: 'k1', period_start: '2026-02', value: 12, data_quality: 'VALID' },
+    { kpi_id: 'k1', period_start: '2026-03', value: 11, data_quality: 'VALID' },
+    { kpi_id: 'k1', period_start: '2026-04', value: 999, data_quality: 'VALID' } // futuro — no debe verse desde 2026-03
+  ]
+};
+var directivasPorKpi1 = { k1: { cambioReferencia: { tipo: 'SIN_CAMBIO' }, continuidad: { modo: 'CONTINUOUS', puede_unir_serie: true } } };
+
+var ctx1 = P._construirContextoGobernante('k1', evalsPorKpi1, directivasPorKpi1, '2026-03');
+eq(ctx1.serie, [10, 12, 11], 'TRUNCA por período: NO incluye 2026-04 (futuro respecto a hastaPeriodo=2026-03) — sin fuga de futuro');
+eq(ctx1.periods, ['2026-01', '2026-02', '2026-03'], '...periods coincide con la serie truncada');
+eq(ctx1.directivas, directivasPorKpi1.k1, 'directivas viene del mapa directivasPorKpi (mismo kpi_id)');
+
+var evalsConInvalido = {
+  k1: [
+    { kpi_id: 'k1', period_start: '2026-01', value: 10, data_quality: 'VALID' },
+    { kpi_id: 'k1', period_start: '2026-02', value: 999, data_quality: 'INVALID' }, // se descarta
+    { kpi_id: 'k1', period_start: '2026-03', value: null, data_quality: 'MISSING' } // se descarta (no numérico)
+  ]
+};
+eq(P._construirContextoGobernante('k1', evalsConInvalido, {}, '2026-03').serie, [10], 'FILTRA data_quality inválida y value no numérico — mismo criterio que kpiState.js');
+eq(P._construirContextoGobernante('k-inexistente', evalsPorKpi1, {}, '2026-03').serie, [], 'kpi_id sin evals → serie vacía (no revienta)');
+
+seccion('REAPERTURA 12b (Commit B) — resolverFenomeno deriva contextoGobernante automáticamente');
+
+var grupoUnico = grpC('egA', 'D', [ks({ kpi_id: 'k1', pos: 'D' })]);
+var inBase = inFen({ gruposColapsados: [grupoUnico], kpiSpecsPorId: { k1: { kpi_id: 'k1', temporal_role: 'COINCIDENT' } }, phenSpec: ph1({ required_evidence_group_ids: ['egA'] }) });
+
+var sinNada = P.resolverFenomeno(inBase);
+eq(sinNada.series_stability, 'INSUFFICIENT', 'sin contextoGobernante ni evalsPorKpi → comportamiento previo SIN CAMBIOS');
+ok(tieneFlag(sinNada, 'TEMPORALES_FENOMENO_SIN_SERIE'), '...+ flag TEMPORALES_FENOMENO_SIN_SERIE (ambig. AU, comportamiento original)');
+
+var conAuto = P.resolverFenomeno(Object.assign({}, inBase, { evalsPorKpi: evalsPorKpi1, directivasPorKpi: directivasPorKpi1 }));
+ok(!tieneFlag(conAuto, 'TEMPORALES_FENOMENO_SIN_SERIE'), 'con evalsPorKpi (y gobernante real k1) → SÍ se deriva contexto — código antes muerto, ahora se ejecuta');
+eq(conAuto.series_stability_origen, 'CALIBRACION_GENERICA', '...clasifica con el genérico (sin propia ni global) — CV≈0.074 de [10,12,11]');
+
+var conManualYAuto = P.resolverFenomeno(Object.assign({}, inBase, {
+  evalsPorKpi: evalsPorKpi1, directivasPorKpi: directivasPorKpi1,
+  contextoGobernante: { serie: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1], periods: [], directivas: {} } // CV=0 exacto
+}));
+// se compara el cv NUMÉRICO (0 vs ≈0.074 del auto-derivado), no solo el
+// balde cualitativo — ambos caen en 'STABLE' bajo el genérico, así que
+// comparar solo `.series_stability` no distinguiría cuál serie se usó.
+eq(conManualYAuto.series_stability_cv, 0, 'PRECEDENCIA: contextoGobernante manual explícito gana sobre la derivación automática (cv=0 EXACTO de la serie manual, no ≈0.074 del auto-derivado)');
+
+var conUmbrales = P.resolverFenomeno(Object.assign({}, inBase, {
+  evalsPorKpi: evalsPorKpi1, directivasPorKpi: directivasPorKpi1,
+  umbralesEstabilidad: { stable: 0.001, moderate: 0.01 } // umbral muy estricto por organización
+}));
+eq(conUmbrales.series_stability_origen, 'CALIBRACION_PROPIA', 'umbralesEstabilidad en el input de resolverFenomeno → CALIBRACION_PROPIA (por organización)');
+
+var sinGobernanteReal = P.resolverFenomeno(inFen({
+  gruposColapsados: [grpC('egA', 'I', [])], // pos I sin member_states alineados → kpiStateGob = null
+  phenSpec: ph1({ required_evidence_group_ids: ['egA'] }),
+  evalsPorKpi: evalsPorKpi1, directivasPorKpi: directivasPorKpi1
+}));
+ok(tieneFlag(sinGobernanteReal, 'TEMPORALES_FENOMENO_SIN_SERIE'), 'sin KPI_STATE gobernante real (aunque evalsPorKpi SÍ venga) → NO se inventa una serie fantasma, se mantiene el flag original');
 
 // ═══════════════════════════════════════════════════════════════════════
 seccion('Mutaciones 7a — ejecutadas como paso de Bash aparte (ver cierre)');
@@ -385,6 +449,32 @@ console.log('  9. propagarTemporalidadFenomeno: sin serie → no marcar INSUFFIC
 console.log('  10. resolverFenomeno: `metric_definition_versions` sin deduplicar → 1 rojo');
 console.log('      ("deduplica: 2×v1 + 1×v2 → [v1, v2]").');
 console.log('  Conteos 7c: 2, 1, 2, 2, 2, 3, 1, 1, 2, 1.');
+
+// ═══════════════════════════════════════════════════════════════════════
+seccion('Mutaciones REAPERTURA 12b (Commit B: contextoGobernante automático) — Bash aparte');
+// ═══════════════════════════════════════════════════════════════════════
+console.log('  1. runPIIO.js: no guardar `directivasPorKpi[kpiSpec.kpi_id]` → 1 rojo, en');
+console.log('     runPIIO.test.js ("regime_status = NEW_REGIME..."; directivas real vs {} vacío)');
+console.log('     — este archivo (phenomenon.test.js) NO lo detecta: regimen({}) y');
+console.log('     regimen(directivas SIN cambio real) dan el mismo CONTINUOUS, guarda enmascarada');
+console.log('     evitada con un fixture que SÍ tiene change_mode=START_NEW_REGIME.');
+console.log('  2. runPIIO.js: quitar `evalsPorKpi` de la llamada principal (línea ~216) → 4 rojos');
+console.log('     en runPIIO.test.js (vuelve TEMPORALES_FENOMENO_SIN_SERIE + regime_status).');
+console.log('  3. _construirContextoGobernante: quitar el chequeo de `hastaPeriodo` (fuga de');
+console.log('     futuro) → 2 rojos, en este archivo.');
+console.log('  4. _construirContextoGobernante: quitar el filtro data_quality/numérico → 1 rojo,');
+console.log('     en este archivo.');
+console.log('  5. resolverFenomeno: quitar `!ctxGob` de la condición de auto-derivación (el');
+console.log('     override manual deja de tener precedencia) → 1 rojo, en este archivo — la');
+console.log('     primera formulación (comparar solo `.series_stability`) daba 0: la serie manual');
+console.log('     (cv=0) y la auto-derivada (cv≈0.074) caen en el MISMO balde \'STABLE\' bajo el');
+console.log('     genérico; reformulada comparando `.series_stability_cv` (0 exacto vs ≈0.074).');
+console.log('  6. resolverFenomeno: quitar `kpiStateGob &&` de la condición (deriva contexto SIN');
+console.log('     gobernante real) → el script NO llega a imprimir RESULTADO: crashea con');
+console.log('     `TypeError: Cannot read properties of null (reading \'kpi_id\')` — detección');
+console.log('     real, solo que como crash en vez de rojo (el fixture del test llama a');
+console.log('     resolverFenomeno directo, sin el try/catch que runPIIO.js sí tiene).');
+console.log('  Conteos: 1 (runPIIO.test.js), 4 (runPIIO.test.js), 2, 1, 1, crash.');
 
 // ═══════════════════════════════════════════════════════════════════════
 console.log('\n' + '═'.repeat(74));

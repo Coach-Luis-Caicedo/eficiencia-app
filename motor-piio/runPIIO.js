@@ -151,6 +151,7 @@ function runPIIO(input) {
     findings.push(_finding('OBSERVACION_OMITIDA', 'WARNING', 'KPI', s.observation_id || null, s.reason || ''));
   });
   var evalsPorKpi = _porKpi(ing.evals);
+  var directivasPorKpi = {}; // REAPERTURA 12b: mismas directivas ya computadas por KPI, ahora también en un mapa (para resolverFenomeno → contextoGobernante)
 
   // ── §29 paso 6: resolve_kpi_state (F5), por kpi_spec ────────────
   var kpi_states = [];
@@ -164,6 +165,7 @@ function runPIIO(input) {
       cambioReferencia: _directivaCambio(kpiSpec, inp.references),
       continuidad: referencias.continuidadDefinicion(metricDef)
     };
+    directivasPorKpi[kpiSpec.kpi_id] = directivas;
     try {
       var r = kpiState.resolverKpiState({
         evals: evalsPorKpi[kpiSpec.kpi_id] || [],
@@ -210,7 +212,8 @@ function runPIIO(input) {
         try {
           phenomenon_states.push(phenomenon.resolverFenomeno({
             phenSpec: phenSpec, gruposColapsados: grupos, kpiSpecsPorId: kpiSpecsPorId,
-            node_id: nodo, period: periodo
+            node_id: nodo, period: periodo,
+            evalsPorKpi: evalsPorKpi, directivasPorKpi: directivasPorKpi // REAPERTURA 12b
           }));
         } catch (e) {
           findings.push(_finding('PHENOMENON_ERROR', 'BLOCKING', 'STATE', phenSpec.phenomenon_id, String(e && e.message)));
@@ -417,6 +420,14 @@ function construirExport(res11a, input, piio_run_id, evals) {
   // adoptados: de res11a.  provisionales: resolver aparte (§6.2 — para CFF/IFD, NO EFO).
   var estados = _arr(res11a.phenomenon_states).slice();
   var kpiSpecsPorId = ksById;
+  // REAPERTURA 12b: evalsPorKpi sí se puede reconstruir aquí (trivial, mismo
+  // helper _porKpi ya usado en runPIIO()) — pero directivasPorKpi vive en el
+  // closure de runPIIO() y depende de `references`/`metric_definitions` por
+  // KPI; recomputarla aquí duplicaría lógica de Fase 3 solo para fenómenos
+  // provisionales, que de todos modos NUNCA alimentan la cascada EFO (AC63/
+  // §6.2). Asimetría DECIDIDA, no un descuido: regime_status de los
+  // provisionales queda sin cambio de comportamiento (directivas={}).
+  var evalsPorKpiExport = _porKpi(evals);
   _arr(inp.phenomenon_catalog).forEach(function (phenSpec) {
     if (!phenSpec || phenSpec.status !== 'PIIO_COMPATIBLE_PROVISIONAL') return;
     _arr(inp.node_hierarchy).forEach(function (ns) {
@@ -426,7 +437,10 @@ function construirExport(res11a, input, piio_run_id, evals) {
         });
         if (grupos.length === 0) return;
         try {
-          var ps = phenomenon.resolverFenomeno({ phenSpec: phenSpec, gruposColapsados: grupos, kpiSpecsPorId: kpiSpecsPorId, node_id: ns.node_id, period: per });
+          var ps = phenomenon.resolverFenomeno({
+            phenSpec: phenSpec, gruposColapsados: grupos, kpiSpecsPorId: kpiSpecsPorId, node_id: ns.node_id, period: per,
+            evalsPorKpi: evalsPorKpiExport
+          });
           ps._provisional = true;
           estados.push(ps);
         } catch (e) { /* fenómeno provisional que no resuelve → no va al export */ }

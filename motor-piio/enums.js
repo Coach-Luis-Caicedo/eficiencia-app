@@ -162,8 +162,22 @@ var PARAMS = {
 
   // §12 — SERIES_STABILITY: cortes del coeficiente de variación (ambig. AA).
   // CV <= STABLE → STABLE; <= MODERATE → MODERATELY_VARIABLE; si no → HIGHLY_VARIABLE.
+  // Slot para una futura CALIBRACION_GLOBAL propia de EFICIENCIA — se
+  // mantienen null a propósito.
   STABILITY_CV_STABLE: null,
   STABILITY_CV_MODERATE: null,
+
+  // REAPERTURA (Fase 12b, decisión de negocio de Luis, NO dictada por el
+  // documento): umbrales genéricos de RESPALDO — convención estadística
+  // general (regla de bolsillo del coeficiente de variación: <=15% baja
+  // dispersión, <=30% moderada), NO derivada de datos de EFICIENCIA.
+  // Solo se usan cuando NO hay calibración propia por organización NI
+  // calibración global (ver referencias.js/temporal.js: precedencia
+  // CALIBRACION_PROPIA > CALIBRACION_GLOBAL > CALIBRACION_GENERICA).
+  // Provisional hasta que exista calibración real por organización.
+  STABILITY_CV_STABLE_GENERICO: 0.15,
+  STABILITY_CV_MODERATE_GENERICO: 0.30,
+  STABILITY_CV_GENERICO_FUENTE: 'Convención estadística general del coeficiente de variación (<=15% baja dispersión, <=30% moderada). NO derivada de datos de EFICIENCIA. Provisional hasta calibración propia por organización.',
 
   // §12 — TEMPORAL_PATTERN (ambig. AB): mínimo de puntos para intentar
   // detección; pendiente relativa que cuenta como TREND; fuerza de

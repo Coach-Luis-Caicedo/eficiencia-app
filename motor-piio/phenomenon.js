@@ -421,9 +421,13 @@ function propagarTemporalidadFenomeno(pos, kpiStateGob, contextoGob) {
   var freshness = s.freshness || 'N_A';
 
   var temporal_pattern = 'INSUFFICIENT', series_stability = 'INSUFFICIENT', regime_status = null;
+  var series_stability_cv = null, series_stability_origen = null;
   if (Array.isArray(ctx.serie) && ctx.serie.length > 0) {
     temporal_pattern = T.patronTemporal(ctx.serie, ctx.periods || []).valor;
-    series_stability = T.estabilidadSerie(ctx.serie).valor;
+    var estab = T.estabilidadSerie(ctx.serie, ctx.umbralesOrg);
+    series_stability = estab.valor;
+    series_stability_cv = estab.cv != null ? estab.cv : null; // REAPERTURA 12b: cv visible, no descartado
+    series_stability_origen = (estab.flags || [])[0] || null; // CALIBRACION_PROPIA|GLOBAL|GENERICA
     regime_status = T.regimen(ctx.directivas || {});
   } else {
     flags.push('TEMPORALES_FENOMENO_SIN_SERIE'); // ambig. AU
@@ -433,17 +437,54 @@ function propagarTemporalidadFenomeno(pos, kpiStateGob, contextoGob) {
     traj: traj, pers: pers, det_run: det_run, det_duration: det_duration,
     freshness: freshness,
     temporal_pattern: temporal_pattern, series_stability: series_stability, regime_status: regime_status,
+    series_stability_cv: series_stability_cv, series_stability_origen: series_stability_origen,
     flags: flags
   };
 }
 
 /**
- * resolverFenomeno(input) → PHENOMENON_STATE (§15.1 — 20 campos)
+ * _construirContextoGobernante(kpiId, evalsPorKpi, directivasPorKpi, hastaPeriodo)
+ * → { serie[], periods[], directivas } | null
+ *
+ * REAPERTURA 12b (Commit B) — cierra la ambigüedad AU: antes,
+ * `contextoGobernante` era un input opcional del orquestador que NUNCA se
+ * cableaba (`runPIIO.js` no lo pasaba en ninguna de sus 2 llamadas) — código
+ * muerto en producción. Ahora se DERIVA del `evalsPorKpi` que `runPIIO()`
+ * ya construye (agrupado por kpi_id, todos los períodos), sin inventar
+ * ninguna fuente de datos nueva.
+ *
+ * Dos reglas, mismo criterio que `kpiState.js` (línea 222) usa para la
+ * serie de trayectoria del propio KPI — consistencia entre niveles:
+ *   1. TRUNCA por período: solo evals con period_start <= hastaPeriodo
+ *      (nunca mira el futuro — misma causalidad que Fase 5).
+ *   2. FILTRA por calidad: solo data_quality válida + value numérico.
+ */
+function _construirContextoGobernante(kpiId, evalsPorKpi, directivasPorKpi, hastaPeriodo) {
+  var evals = (evalsPorKpi && kpiId && evalsPorKpi[kpiId]) || [];
+  var util = evals.filter(function (e) {
+    if (!e) return false;
+    if (hastaPeriodo != null && String(e.period_start) > String(hastaPeriodo)) return false; // sin fuga de futuro
+    return (e.data_quality === 'VALID' || e.data_quality === 'VALID_WITH_LIMITATIONS') && typeof e.value === 'number' && isFinite(e.value);
+  }).slice().sort(function (a, b) { return String(a.period_start) < String(b.period_start) ? -1 : 1; });
+  return {
+    serie: util.map(function (e) { return e.value; }),
+    periods: util.map(function (e) { return e.period_start; }),
+    directivas: (directivasPorKpi && kpiId && directivasPorKpi[kpiId]) || {}
+  };
+}
+
+/**
+ * resolverFenomeno(input) → PHENOMENON_STATE (§15.1 — 20 campos oficiales
+ * + 2 diagnósticos aditivos de la reapertura 12b: series_stability_cv,
+ * series_stability_origen)
  *
  * input = {
  *   phenSpec, gruposColapsados[],           // Fase 6 (de este fenómeno/nodo/período)
  *   kpiSpecsPorId?,                          // { kpi_id: KPI_SPEC } — para §17
- *   contextoGobernante?,                     // { serie[], periods[], directivas } del KPI gobernante — AU
+ *   contextoGobernante?,                     // override manual explícito — máxima precedencia (AU)
+ *   evalsPorKpi?,                            // { kpi_id: OBSERVATION_EVAL[] } — deriva contextoGobernante si no viene explícito
+ *   directivasPorKpi?,                       // { kpi_id: {cambioReferencia, continuidad} }
+ *   umbralesEstabilidad?,                    // { stable, moderate } — CALIBRACION_PROPIA por organización (12b)
  *   node_id?, period?
  * }
  */
@@ -452,7 +493,7 @@ function resolverFenomeno(input) {
   var phenSpec = inp.phenSpec || {};
   var grupos = Array.isArray(inp.gruposColapsados) ? inp.gruposColapsados : [];
   var kpiSpecs = inp.kpiSpecsPorId || {};
-  var ctxGob = inp.contextoGobernante || null;
+  var ctxGobManual = inp.contextoGobernante || null; // override explícito — máxima precedencia
   var flags = [];
 
   // 1 — resolve_phenomenon_state: posición DIRECT/PROXY (7a)
@@ -491,6 +532,17 @@ function resolverFenomeno(input) {
     if (grupos[i] && grupos[i].evidence_group_id === res7a.governing_group_id) { gob = grupos[i]; break; }
   }
   var kpiStateGob = gob ? _kpiStateGobernante(gob) : null;
+
+  // REAPERTURA 12b: precedencia — override manual > derivación automática
+  // (solo si HAY gobernante real; nunca se inventa una serie fantasma) >
+  // comportamiento previo sin cambios (TEMPORALES_FENOMENO_SIN_SERIE).
+  var ctxGob = ctxGobManual;
+  if (!ctxGob && kpiStateGob && inp.evalsPorKpi) {
+    ctxGob = _construirContextoGobernante(kpiStateGob.kpi_id, inp.evalsPorKpi, inp.directivasPorKpi, inp.period);
+  }
+  if (ctxGob && inp.umbralesEstabilidad) {
+    ctxGob = Object.assign({}, ctxGob, { umbralesOrg: inp.umbralesEstabilidad });
+  }
 
   // 5 — resolve_temporal_properties
   var temp = propagarTemporalidadFenomeno(pos, kpiStateGob, ctxGob);
@@ -536,6 +588,11 @@ function resolverFenomeno(input) {
     metric_definition_versions: metric_definition_versions,
     temporal_pattern: temp.temporal_pattern,
     series_stability: temp.series_stability,
+    // REAPERTURA 12b (aditivo — §15.1 sigue teniendo sus 20 campos
+    // oficiales, validarPhenomenonState no cambia): cv y origen de la
+    // calibración de series_stability, antes descartados por el llamador.
+    series_stability_cv: temp.series_stability_cv,
+    series_stability_origen: temp.series_stability_origen,
     regime_status: temp.regime_status,
     deterioration_present: deterioration_present,
     flags: flags.concat(cob.flags, adm.flags)
@@ -584,6 +641,7 @@ module.exports = {
   _temporalidadPermiteDivergenciaAutomatica: _temporalidadPermiteDivergenciaAutomatica,
   _kpiStateGobernante: _kpiStateGobernante,
   propagarTemporalidadFenomeno: propagarTemporalidadFenomeno,
+  _construirContextoGobernante: _construirContextoGobernante,
   resolverFenomeno: resolverFenomeno,
   validarPhenomenonState: validarPhenomenonState
 };

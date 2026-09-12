@@ -146,6 +146,27 @@ eq(np_na.scope, 'SEGMENT_ONLY', 'frontera K: node_profile de n-a lleva scope SEG
 eq(np_na.node_level, 1, '...+ node_level 1 (n-a es hijo de n-root)');
 
 // ═══════════════════════════════════════════════════════════════════════
+seccion('REAPERTURA 12b (Commit B) — series_stability ya NO es código muerto en runPIIO()');
+// ═══════════════════════════════════════════════════════════════════════
+
+// n-root tiene 2 períodos reales (k1: 80 en 2026-01, 30 en 2026-02) — antes
+// de esta reapertura, CUALQUIER PHENOMENON_STATE de una corrida real daba
+// series_stability=INSUFFICIENT + TEMPORALES_FENOMENO_SIN_SERIE, siempre,
+// porque runPIIO() nunca pasaba contextoGobernante. Ahora sí se deriva.
+var psR2chk = base.phenomenon_states.filter(function (p) { return p.node_id === 'n-root' && p.period === '2026-02'; })[0];
+ok(!psR2chk.flags.some(function (f) { return f === 'TEMPORALES_FENOMENO_SIN_SERIE'; }), 'frontera nueva: PHENOMENON_STATE de una corrida REAL de runPIIO() ya no cae en "sin serie" — evalsPorKpi llega desde el orquestador');
+eq(psR2chk.series_stability, 'HIGHLY_VARIABLE', '...CV≈0.45 de [80,30] (genérico, sin calibración propia/global) → HIGHLY_VARIABLE, no INSUFFICIENT');
+eq(psR2chk.series_stability_origen, 'CALIBRACION_GENERICA', '...origen visible: CALIBRACION_GENERICA (nunca se presenta como propia de EFICIENCIA)');
+
+// regime_status también deriva de un directivasPorKpi REAL, no de {} vacío
+// — rc1 con change_mode=START_NEW_REGIME debe dar NEW_REGIME (regimen({})
+// daría CONTINUOUS igual que regimen(directivas reales SIN cambio, así que
+// esta prueba usa una directiva que SÍ distingue ambos casos).
+var conNuevoRegimen = R.runPIIO(input({ references: [rs({ change_mode: 'START_NEW_REGIME', supersedes: 'v0' }), rs({ reference_id: 'rt1', reference_role: 'TEMPORAL', threshold: undefined })] }));
+var psNR = conNuevoRegimen.phenomenon_states.filter(function (p) { return p.node_id === 'n-root' && p.period === '2026-02'; })[0];
+eq(psNR.regime_status, 'NEW_REGIME', 'regime_status = NEW_REGIME cuando la directiva REAL del KPI gobernante (rc1 con START_NEW_REGIME) llega vía directivasPorKpi (no {} vacío)');
+
+// ═══════════════════════════════════════════════════════════════════════
 seccion('§30 — BLOCKING + GLOBAL aborta la corrida (AC70/71)');
 // ═══════════════════════════════════════════════════════════════════════
 
@@ -434,6 +455,27 @@ console.log('      numerator/denominator*100— dio 0 rojos por coincidencia num
 console.log('      con denominator=100, la razón×100 iguala numerator, que en el fixture ya');
 console.log('      coincide con value; se cambió a ×2 para no depender de esa coincidencia.)');
 console.log('  Conteos: 1, 2, 3, 3, 1, 2, 2, 1, 1, 2, 1, 1.');
+
+// ═══════════════════════════════════════════════════════════════════════
+seccion('Mutaciones REAPERTURA 12b (Commit A+B: estabilidadSerie + contextoGobernante)');
+// ═══════════════════════════════════════════════════════════════════════
+console.log('  Commit A (temporal.js estabilidadSerie), impacto en ESTE archivo dentro del');
+console.log('  conteo total reportado en temporal.test.js (7, 3, 1, 1, 7, 2):');
+console.log('  1. rama genérica final → INSUFFICIENT+STABILITY_NO_CALIBRADA (revierte) → 2 rojos');
+console.log('     aquí ("HIGHLY_VARIABLE..." + "regime_status = NEW_REGIME...").');
+console.log('  5. se quita el flag de origen → 1 rojo aquí ("...CALIBRACION_GENERICA...").');
+console.log('  (las mutaciones 2/3/4/6 de Commit A no tocan nada que este archivo verifique).');
+console.log('');
+console.log('  Commit B (phenomenon.js + runPIIO.js — contextoGobernante automático):');
+console.log('  1. runPIIO.js: no guardar `directivasPorKpi[kpiSpec.kpi_id]` → 1 rojo aquí');
+console.log('     ("regime_status = NEW_REGIME..." — directivas real vs {} vacío; SIN este');
+console.log('     fixture específico la mutación queda enmascarada, ver nota en phenomenon.test.js).');
+console.log('  2. runPIIO.js: quitar `evalsPorKpi` de la llamada principal (línea ~216) → 4 rojos');
+console.log('     aquí (vuelven TEMPORALES_FENOMENO_SIN_SERIE + los 3 asserts que dependen de');
+console.log('     series_stability/regime_status reales).');
+console.log('  3-6. (truncar por período, filtrar calidad, precedencia manual, gobernante nulo)');
+console.log('     no tocan nada que ESTE archivo verifique — sus rojos están en phenomenon.test.js');
+console.log('     (ver su propia sección de mutaciones).');
 
 // ═══════════════════════════════════════════════════════════════════════
 console.log('\n' + '═'.repeat(74));

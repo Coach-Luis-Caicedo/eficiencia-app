@@ -181,19 +181,46 @@ function _cv(valores) {
   return Math.sqrt(varianza) / Math.abs(media);
 }
 
-function estabilidadSerie(valores) {
+/**
+ * estabilidadSerie(valores, umbralesOrg?) → { valor, cv?, flags }
+ *
+ * REAPERTURA (Fase 12b, decisión de negocio de Luis — NO dictada por el
+ * documento): antes, sin `STABILITY_CV_STABLE`/`_MODERATE` calibrados
+ * (Grupo 1), la función SIEMPRE devolvía `INSUFFICIENT` — nunca
+ * clasificaba nada. Luis decide arrancar con una convención estadística
+ * GENÉRICA de respaldo en vez de seguir sin clasificar, con la condición
+ * explícita de que (a) nunca se presente como específica de EFICIENCIA,
+ * y (b) el sistema pueda migrar a calibración propia por organización sin
+ * perder trazabilidad de cuál se usó.
+ *
+ * Precedencia (documentada en el flag de origen, siempre presente cuando
+ * hay clasificación): CALIBRACION_PROPIA (`umbralesOrg`, provisto por el
+ * llamante — `motor-piio` sigue sin persistencia propia) >
+ * CALIBRACION_GLOBAL (`PARAMS.STABILITY_CV_STABLE`/`_MODERATE`, hoy
+ * siguen `null` — slot para una futura calibración propia de EFICIENCIA)
+ * > CALIBRACION_GENERICA (`PARAMS.STABILITY_CV_*_GENERICO`, el piso).
+ * `cv` se calcula y devuelve siempre que la serie sea válida, incluso si
+ * media=0 no permite clasificar (para diagnóstico) — excepto en ese caso,
+ * donde no hay número que mostrar.
+ */
+function estabilidadSerie(valores, umbralesOrg) {
   if (!Array.isArray(valores) || valores.length < 2 || !valores.every(esNum)) {
     return { valor: 'INSUFFICIENT', flags: ['SERIE_MUY_CORTA'] };
   }
-  var estable = PARAMS.STABILITY_CV_STABLE;
-  var moderado = PARAMS.STABILITY_CV_MODERATE;
-  if (!esNum(estable) || !esNum(moderado)) {
-    return { valor: 'INSUFFICIENT', flags: ['STABILITY_NO_CALIBRADA'] }; // Grupo 1 — no se inventa
-  }
   var cv = _cv(valores);
   if (cv === null) return { valor: 'INSUFFICIENT', flags: ['CV_INDEFINIDO_MEDIA_CERO'] };
+
+  var uo = umbralesOrg || {};
+  var estable, moderado, origen;
+  if (esNum(uo.stable) && esNum(uo.moderate)) {
+    estable = uo.stable; moderado = uo.moderate; origen = 'CALIBRACION_PROPIA';
+  } else if (esNum(PARAMS.STABILITY_CV_STABLE) && esNum(PARAMS.STABILITY_CV_MODERATE)) {
+    estable = PARAMS.STABILITY_CV_STABLE; moderado = PARAMS.STABILITY_CV_MODERATE; origen = 'CALIBRACION_GLOBAL';
+  } else {
+    estable = PARAMS.STABILITY_CV_STABLE_GENERICO; moderado = PARAMS.STABILITY_CV_MODERATE_GENERICO; origen = 'CALIBRACION_GENERICA';
+  }
   var valor = cv <= estable ? 'STABLE' : (cv <= moderado ? 'MODERATELY_VARIABLE' : 'HIGHLY_VARIABLE');
-  return { valor: valor, flags: [], cv: cv };
+  return { valor: valor, cv: cv, flags: [origen] };
 }
 
 // ═════════════════════════════════════════════════════════════════════
