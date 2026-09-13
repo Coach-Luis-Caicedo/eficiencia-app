@@ -21,9 +21,9 @@ del núcleo CFF"). No se integra a producción hasta aprobación explícita.
 | 1 | Monetización: 4 mecanismos (§6, §8), naturaleza financiera + `recovery_realization_type` (§7, §7.1), bases monetarias (§9), calidad de monetización (§10) | ✅ |
 | 2 | Atribución: motor determinista (§11), profundización y genealogía (§12) | ✅ |
 | 3 | Relaciones, dedup, jerarquía: relaciones económicas + grafo + ciclos (§13), costos compartidos/transferencias (§14), nodos y alcance (§15) | ✅ |
-| **4a** | Normalización: temporalidad/frecuencia (§16), moneda/FX/NOMINAL-REAL (§17) | **✅ Esta entrega** |
-| 4b | Consolidación end-to-end: admisibilidad (§18), fórmula de consolidación (§19), cobertura (§20), algoritmo `runCFF()` (§24) | Pendiente |
-| 5 | Fallos/short-circuit (§25), versionamiento/staleness (§26), batería completa: 70 invariantes + 60 AC + acceptance gate (§32) | Pendiente |
+| **4a** | Normalización: temporalidad/frecuencia (§16), moneda/FX/NOMINAL-REAL (§17) | ✅ |
+| 4b | Consolidación end-to-end: admisibilidad (§18), fórmula de consolidación (§19), cobertura (§20), algoritmo `runCFF()` (§24) | ✅ |
+| 5 | Fallos/short-circuit (§25), versionamiento/staleness (§26), batería completa: 70 invariantes + 60 AC + acceptance gate (§32) | ✅ |
 
 Aprobación fase por fase — no se construyen las seis de corrido. Las secciones
 §27-29 (evitabilidad, contrafactual/intervención, integración IFT) quedan fuera
