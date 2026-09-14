@@ -50,8 +50,17 @@
  *    `status` en el esquema de Fase 0 → se lee `phenSpec.status`, sin
  *    validar; `=== 'PIIO_COMPATIBLE_PROVISIONAL'` → excluido de la cascada
  *    EFO (AC63 / INV-69). Sin reabrir Fase 0.
- *  · efoPrevio / historia EFO = null en 11a — una corrida no tiene runs
- *    anteriores; la historia la aporta 11b. `traj = N_A` + flag es lo esperado.
+ *  · REAPERTURA (2026-09-13): esta nota decía "efoPrevio/historia EFO = null
+ *    en 11a — una corrida no tiene runs anteriores; la historia la aporta
+ *    11b" — verificado que "11b" nunca construía esa historia en ningún
+ *    lado (única llamada a resolverEFO, siempre efoPrevio:null, sin
+ *    historiaEFOPos/historiaPeriods — cada EFO_STATE salía con traj='N_A'
+ *    sin importar cuántos períodos reales trajera el input). Corregido:
+ *    `efo.resolverEFO()` ya no acepta ni necesita efoPrevio/historia — su
+ *    `traj`/`pers`/`det_run` se propagan del `DOMAIN_STATE` gobernante
+ *    entre `domStates` (mismo patrón que `domain.resolverDominio` ya usa
+ *    con su `PHENOMENON_STATE` gobernante). Ver
+ *    `DISENO_REAPERTURA_EFO_TRAJ_PERS.md`.
  */
 
 'use strict';
@@ -253,8 +262,7 @@ function runPIIO(input) {
       try {
         efo_states.push(efo.resolverEFO({
           domainStates: domStates, nodeSpec: _nodeSpec(nodo, inp),
-          organization_id: inp.organization_id, node_id: nodo, period: periodo,
-          efoPrevio: null
+          organization_id: inp.organization_id, node_id: nodo, period: periodo
         }));
       } catch (e) {
         findings.push(_finding('EFO_ERROR', 'BLOCKING', 'STATE', nodo, String(e && e.message)));

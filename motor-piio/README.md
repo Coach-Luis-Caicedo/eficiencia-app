@@ -228,6 +228,7 @@ de la fase que lo motivó).
 | `contratos.js` — `ESQUEMA_REFERENCE_SPEC` (+`threshold` obligatorio si `reference_role=CONDITION`, `threshold_upper?`, `band?`); `enums.js` `PARAMS` (+`TRAJ_STABLE_BAND`, `PERS_REPEATED_MIN`, `PERS_PERSISTENT_MIN`) | Fase 5 | §11/AC01/04–07 exigen que el motor clasifique `value` → F/I/D contra `REF_COND`, pero §25.3 solo da `rule` como texto libre ("threshold" tiene **0 apariciones** en el documento) — ambig. AH; + Grupo 1 de `kpiState.js` (AI/AJ) | `cc24b3a` |
 | `runPIIO.js` — `rebasarHistoria(inputHistorico, referenciaRebaseada, corridaPrevia)`: ejecuta la directiva `REBASE_HISTORY` que Fase 3 solo emitía (reusa `runPIIOCompleto` completa, cierra la ventana de vigencia de la versión superada, engancha `parent_calculation_version`/`update_reason` ya existentes) | Fase 12 (auditoría de cobertura INV/AC) | `INV-66` ("historial no se sobrescribe", §33) y §31 ("`REBASE_HISTORY` produce nuevas versiones... no sobrescribe") no tenían ninguna función que los ejecutara — Fase 11 (`5130055`) solo dejaba la directiva de Fase 3 sin consumir | `a8f66b1` |
 | `enums.js`/`temporal.js` — `estabilidadSerie` gana un piso de calibración GENÉRICA (`STABILITY_CV_*_GENERICO`) con precedencia propia/global/genérica; `phenomenon.js`/`runPIIO.js` — `resolverFenomeno` deriva `contextoGobernante` automáticamente desde `evalsPorKpi` (ya no depende de que el orquestador lo arme a mano) | Fase 12 (decisión de negocio de Luis + auditoría de cobertura) | `estabilidadSerie` nunca clasificaba nada (Grupo 1 sin calibrar, por diseño) — Luis decide un genérico de respaldo; y se descubrió que `contextoGobernante` (ambig. AU) NUNCA se cableaba desde `runPIIO.js`, así que la función entera era código muerto en producción | `928a1a0` |
+| `efo.js` — `trayectoriaEFO`/`persistenciaEFO` (+ parámetros `efoPrevio`/`historiaEFOPos`/`historiaPeriods` de `resolverEFO`) reemplazados por `_domainStateGobernante`/`propagarTemporalidadEFO` (mismo patrón que `domain._phenStateGobernante`/`propagarTemporalidadDominio`, un nivel más arriba); `runPIIO.js` — se quita `efoPrevio: null` de la única llamada a `resolverEFO()` | Motivado por el diseño del arnés `EFO`↔`AIE` (encargo externo) | `runPIIO.js` nunca construía la historia que `trayectoriaEFO`/`persistenciaEFO` necesitaban (única llamada, siempre `efoPrevio: null`, sin `historiaEFOPos`/`historiaPeriods` — cada `EFO_STATE` salía con `traj='N_A'` sin importar cuántos períodos reales trajera el input). `domain.js` ya resolvía el mismo problema, un nivel más abajo, sin necesitar ninguna historia externa — `efo.js` era el único de los 4 niveles (KPI→Phenomenon→Domain→EFO) que no seguía ese patrón. Ver `DISENO_REAPERTURA_EFO_TRAJ_PERS.md` | *(pendiente — se agrega en el commit de documentación que sigue al de código)* |
 
 ---
 
@@ -1482,13 +1483,87 @@ tras restaurar.
 
 ## `motor-piio` — MOTOR COMPLETO, las 14 fases del plan cerradas
 
-Fases 0-13, dos reaperturas de código ya comiteado con su alcance
+Fases 0-13, tres reaperturas de código ya comiteado con su alcance
 honestamente documentado (`rebasarHistoria`/INV-66; `estabilidadSerie`
-genérico + `contextoGobernante` automático), y la conexión con dos
-motores externos reales (`motor-cff`, `motor-ifd`) probada de punta a
-punta con código real, no simulado. Tabla final de reaperturas: ver
-"Reaperturas de código ya comiteado" arriba — 6 en total, cada una con su
-propio commit y su motivo documentado, ninguna un descuido.
+genérico + `contextoGobernante` automático; `efo.js` `traj`/`pers`/
+`det_run` vía `_domainStateGobernante`/`propagarTemporalidadEFO`), y la
+conexión con dos motores externos reales (`motor-cff`, `motor-ifd`)
+probada de punta a punta con código real, no simulado. Tabla final de
+reaperturas: ver "Reaperturas de código ya comiteado" arriba — 7 en
+total, cada una con su propio commit y su motivo documentado, ninguna un
+descuido.
+
+**Nota sobre el conteo total de asserts:** la reapertura de `efo.js`
+reescribió por completo la sección 9b de `efo.test.js` (las funciones que
+probaba, `trayectoriaEFO`/`persistenciaEFO`, ya no existen) — de 94 a 78
+asserts en ese archivo (neto **-16**, verificado corriendo ambas
+versiones). El total de la batería completa de `motor-piio` pasa de
+**861 a 845 asserts, 0 fallos** — verificado corriendo los 15 archivos
+`.test.js` uno por uno, no de memoria. Ningún otro archivo de la batería
+cambió de expectativa: se buscó explícitamente cualquier assert sobre
+`EFO_STATE.traj`/`.pers` fuera de `efo.test.js` y no se encontró ninguno
+(los únicos `.traj` en `invariantes_aceptacion.test.js` son de
+`KPI_STATE`, calculado por `kpiState.js`, no tocado por esta reapertura).
+
+### REAPERTURA de Fase 9 — `efo.js`: `traj`/`pers`/`det_run` vía `_domainStateGobernante` (§21/INV-39, `runPIIO.js`)
+
+Encontrada al diseñar el arnés `EFO`↔`AIE` (encargo externo, cero código de
+producción tocado en ese diseño): `EFO_STATE.traj`/`pers`/`det_run` salían
+**siempre** `'N_A'`/de una historia de un solo punto, sin importar cuántos
+períodos reales trajera el input de `runPIIOCompleto()`. Verificado con
+`grep` sobre todo `runPIIO.js`: **una sola llamada** a `efo.resolverEFO()`
+en todo el archivo, siempre `efoPrevio: null`, sin `historiaEFOPos`/
+`historiaPeriods` — el propio comentario del código lo declaraba
+("la historia la aporta 11b"), pero "11b" nunca la construía en ningún
+lado. Detalle completo de la investigación (incluida la comparación
+textual con `contextoGobernante`/`rebasarHistoria`, y por qué ninguna de
+esas dos reaperturas resuelve esto) en `DISENO_REAPERTURA_EFO_TRAJ_PERS.md`.
+
+**La corrección no fue "hacer que `runPIIO.js` acumule historia"** — fue
+descubrir que `domain.js` ya resuelve exactamente este problema, un nivel
+más abajo, con un mecanismo que no necesita ninguna historia externa:
+`_phenStateGobernante` (elige el `PHENOMENON_STATE` "gobernante" — el
+peor, por `traj`/`pers`/`det_run` — entre los ya alineados con la `pos`
+del dominio) + `propagarTemporalidadDominio` (propaga, no recalcula).
+`efo.js` era el único de los 4 niveles de la cascada (KPI → Phenomenon →
+Domain → EFO) que no seguía ese patrón. Se reemplazó `trayectoriaEFO`/
+`persistenciaEFO` por `_domainStateGobernante`/`propagarTemporalidadEFO`
+— mismo texto que `domain.js`, un nivel más arriba — y `resolverEFO()` ya
+no acepta `efoPrevio`/`historiaEFOPos`/`historiaPeriods`/`opcionesTraj`/
+`opcionesPers`. `runPIIO.js` pierde una línea (`efoPrevio: null`), no gana
+ningún acumulador nuevo en su bucle `nodeIds × periodos`.
+
+`freshness` (`_freshnessEFO`, "la peor entre los REQUIRED clasificables")
+**no se tocó** — es una decisión etiquetada de Fase 9 sin relación con
+este bug, aunque `domain.js` propague `freshness` de su gobernante
+distinto a como lo hace `efo.js`; tocar eso habría sido alcance no pedido.
+
+**`efo.test.js`: 94 → 78 asserts** (la sección 9b entera se reescribió;
+`trayectoriaEFO`/`persistenciaEFO` ya no existen para probarlas
+aisladas). **3 mutaciones reales**, ciclo completo backup/aplicar/correr/
+restaurar/diff-limpio en cada una:
+
+1. `_domainStateGobernante`: se quita el `sort()` (retorna el primero sin
+   ordenar) → **3 rojos** reales (selección de gobernante por
+   `traj`/desempate por `det_run`, y el caso `multiD` de `resolverEFO`
+   que depende de la selección correcta).
+2. `propagarTemporalidadEFO`: se quita el `if (pos === 'D')` (pers/det_run
+   se propagan siempre, no solo cuando `pos=D`) → **1 rojo** real ("pos F
+   → pers N_A", §11).
+3. *(pedida explícitamente por Luis)* `resolverEFO`: se quita el filtro de
+   alineación (`.filter(s => s.pos === pos)`) → **el primer intento dio 0
+   rojos** (guarda enmascarada — el fixture existente tenía por
+   casualidad un `REQUIRED F` con `traj`/`pers` por defecto que perdía el
+   orden total de todos modos). Reformulada con un fixture que
+   deliberadamente le da al `REQUIRED F` no-alineado un `traj`/`pers`/
+   `det_run` que **ganarían** el orden total si se colaran → **1 rojo**
+   real, confirmando que el filtro de alineación es load-bearing.
+
+**Total motor-piio tras esta reapertura: 845 asserts** (config 42,
+contratos 97, domain 65, efo 78, evidenceGroup 36, gate_35 21,
+integracion_cff_ifd 15, invariantes_aceptacion 43, kpiState 53, nodos 55,
+observaciones 39, phenomenon 106, referencias 31, runPIIO 99, temporal 65)
+— los 15 archivos corridos uno por uno, 0 fallos en todos.
 
 ## Qué NO hace este módulo
 

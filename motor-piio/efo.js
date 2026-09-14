@@ -69,7 +69,6 @@
 'use strict';
 
 var C = require('./contratos'); // validarEFOStateLigero (rechazo de score — AC75)
-var T = require('./temporal');   // continuidadRun — historia de EFO_pos (INV-39)
 
 function _tieneFlag(o, f) { return (o && o.flags || []).some(function (x) { return x === f || x.indexOf(f + ':') === 0; }); }
 function _clasificable(s) { return !!s && (s.pos === 'F' || s.pos === 'I' || s.pos === 'D') && s.admissibility !== 'NOT_ADMISSIBLE'; }
@@ -234,13 +233,44 @@ function admisibilidadEFO(args) {
  *    operacionalice AC44/45 del todo — es una lectura específica de "puede"
  *    condicionada a datos presentes. Ausentes → STABLE + flag.
  *
- * ── §21 — persistencia EFO ────────────────────────────────────────
+ * ── §21 — trayectoria/persistencia EFO — REAPERTURA (2026-09-13) ──
  *
- * `EFO_det_run` sobre la historia de EFO_pos (INV-39 — NO hereda la
- * persistencia de los dominios). `pos ≠ D` → `pers = N_A` (§11). AC43:
- * locus del deterioro variable entre dominios → la persistencia significa
- * "condición operacional deteriorada persistente, no el mismo problema"
- * → flag `LOCUS_DETERIORO_VARIABLE`.
+ * La versión original de esta sección intentaba recalcular `traj`/`pers`
+ * desde cero con `trayectoriaEFO(posActual, posPrevio, ...)` +
+ * `persistenciaEFO(historiaEFOPos, periods, ...)` — funciones que exigían
+ * que el LLAMANTE le aportara una historia de posiciones EFO entre
+ * llamadas. Verificado que `runPIIO.js` NUNCA construía esa historia (una
+ * sola llamada a `resolverEFO()` en todo el archivo, siempre con
+ * `efoPrevio: null`, sin `historiaEFOPos`/`historiaPeriods`) — cada
+ * `EFO_STATE` se calculaba tratando su período como si fuera el único que
+ * existió jamás (`traj` siempre `'N_A'`).
+ *
+ * **CORRECCIÓN — se adopta el mismo patrón que `domain.js` ya usa un
+ * nivel más abajo** (`_phenStateGobernante`/`propagarTemporalidadDominio`,
+ * `domain.js:182-223`): en vez de recalcular con historia externa, se
+ * ELIGE un `DOMAIN_STATE` "gobernante" (el peor, por `traj`/`pers`/
+ * `det_run`, entre los REQUIRED alineados con `pos`) y se PROPAGA su
+ * `traj`/`pers`/`det_run`/`det_duration`/`freshness` ya-correctos — sin
+ * necesitar ningún parámetro de historia, porque el gobernante ya trae la
+ * historia real (la propagó, a su vez, de su `PHENOMENON_STATE`
+ * gobernante, que la propagó de su `KPI_STATE` gobernante, que la calculó
+ * de observaciones reales — `kpiState.js`). `EFO` es el único de los 4
+ * niveles (KPI → Phenomenon → Domain → EFO) que no seguía este patrón; ya
+ * no es el caso. Ver `DISENO_REAPERTURA_EFO_TRAJ_PERS.md` para la
+ * verificación completa (incluida la razón por la que NO se resuelve
+ * acumulando historia en `runPIIO.js`, ni por qué esto es distinto de
+ * `contextoGobernante`/`rebasarHistoria`).
+ *
+ * `EFO_det_run` YA NO es un conteo propio sobre historia de `EFO_pos`
+ * (INV-39 leído así en la versión original) — es el `det_run` del
+ * `DOMAIN_STATE` gobernante, propagado tal cual (mismo criterio que
+ * `domain.js` ya aplica al propagar el `det_run` de su `PHENOMENON_STATE`
+ * gobernante, sin recalcularlo). `pos ≠ D` → `pers = N_A` (§11), igual que
+ * antes. AC43: locus del deterioro variable entre dominios → la
+ * persistencia significa "condición operacional deteriorada persistente,
+ * no el mismo problema" → flag `LOCUS_DETERIORO_VARIABLE` (esta
+ * anotación se conserva como comentario; la propagación no la calcula —
+ * ver nota en `propagarTemporalidadEFO`).
  *
  * ── Ambigüedad O — materializada aquí ─────────────────────────────
  *
@@ -264,88 +294,66 @@ function admisibilidadEFO(args) {
 var _RANGO_FRESH = { STALE: 3, AGING: 2, CURRENT: 1, N_A: 0 };
 var _SCOPE = ['ORGANIZATIONAL', 'SEGMENT_ONLY'];
 
-var _MEJORA = { 'D>I': 1, 'D>F': 1, 'I>F': 1 };
-var _DETERIORO = { 'F>I': 1, 'F>D': 1, 'I>D': 1 };
+var _RANGO_TRAJ = { DETERIORATING: 3, STABLE: 2, IMPROVING: 1, N_A: 0 };
+var _RANGO_PERS = { PERSISTENT: 3, REPEATED: 2, POINT: 1, N_A: 0 };
 
 /**
- * trayectoriaEFO(posActual, posPrevio, opciones) → { traj, flags }
+ * _domainStateGobernante(domainStatesAlineados) → un DOMAIN_STATE (o null)
+ * REAPERTURA — mismo patrón que `domain._phenStateGobernante` (ambig. J
+ * extendida un nivel más arriba): el peor por orden total (traj, luego
+ * pers, luego det_run, desempate por domain_id).
  */
-function trayectoriaEFO(posActual, posPrevio, opciones) {
-  var o = opciones || {};
-  var flags = [];
-
-  if (posPrevio == null || o.comparacionAdmisible === false) {
-    return { traj: 'N_A', flags: ['SIN_COMPARACION_TEMPORAL'] };
-  }
-  if (posActual === 'N_A' || posPrevio === 'N_A') {
-    return { traj: 'N_A', flags: ['POS_N_A_EN_LA_COMPARACION'] };
-  }
-
-  var t = posPrevio + '>' + posActual;
-
-  if (_MEJORA[t]) {
-    if (o.porPerdidaEvidencia === true) {
-      // AC46: "no declarar IMPROVING". Relleno positivo = DECISIÓN: N_A.
-      return { traj: 'N_A', flags: ['MEJORA_APARENTE_POR_PERDIDA_EVIDENCIA'] };
-    }
-    // INV-41: "salir de D" NO equivale a alcanzar F — esto es traj, no pos;
-    // el pos ya lo fijó la regla de 5 ramas, aquí no se toca.
-    return { traj: 'IMPROVING', flags: flags };
-  }
-
-  if (_DETERIORO[t]) {
-    if (o.cambioOperacionalReal === false) {
-      return { traj: 'N_A', flags: ['CAMBIO_NO_REFLEJA_OPERACION_REAL'] };
-    }
-    if (o.cambioOperacionalReal !== true) flags.push('CAMBIO_OPERACIONAL_NO_CONFIRMADO'); // AX
-    return { traj: 'DETERIORATING', flags: flags };
-  }
-
-  if (posActual === 'D' && posPrevio === 'D') {
-    var tienenConteos = typeof o.dDominiosPrev === 'number' && typeof o.dDominiosActual === 'number';
-    if (o.nuevosDeterioros === true) return { traj: 'DETERIORATING', flags: flags };           // AC45
-    if (tienenConteos && o.dDominiosActual < o.dDominiosPrev) return { traj: 'IMPROVING', flags: flags }; // AC44
-    if (!tienenConteos && o.nuevosDeterioros == null) flags.push('CONFIG_DOMINIOS_NO_COMPARADA');
-    return { traj: 'STABLE', flags: flags };
-  }
-
-  // misma pos (F→F, I→I) u otra transición sin regla → STABLE
-  return { traj: 'STABLE', flags: flags };
+function _domainStateGobernante(domainStatesAlineados) {
+  var e = (domainStatesAlineados || []).slice();
+  if (e.length === 0) return null;
+  e.sort(function (a, b) {
+    var t = (_RANGO_TRAJ[b.traj] || 0) - (_RANGO_TRAJ[a.traj] || 0); if (t) return t;
+    var p = (_RANGO_PERS[b.pers] || 0) - (_RANGO_PERS[a.pers] || 0); if (p) return p;
+    var d = (b.det_run || 0) - (a.det_run || 0); if (d) return d;
+    return String(a.domain_id || '').localeCompare(String(b.domain_id || ''));
+  });
+  return e[0];
 }
 
 /**
- * persistenciaEFO(historiaEFOPos, periods, opciones) → {
- *   pers, det_run, det_duration, flags
+ * propagarTemporalidadEFO(pos, domainStateGob) → {
+ *   traj, pers, det_run, det_duration, flags
  * }
- * INV-39: sobre la historia de EFO_pos. §11: pers sólo si pos actual = D.
+ * REAPERTURA — mismo patrón que `domain.propagarTemporalidadDominio`: NO
+ * recalcula nada, propaga lo que el DOMAIN_STATE gobernante ya trae
+ * (calculado con historia real, varios niveles más abajo). AC43 (locus del
+ * deterioro variable entre dominios) queda documentado en el comentario de
+ * cabecera de esta sección — no hay un cálculo propio de "locus" que
+ * marcar aquí; `domain.js` tampoco lo calcula en su propagación.
+ *
+ * NO incluye `freshness` — a diferencia de `domain.js` (donde `freshness`
+ * SÍ viene del gobernante), `EFO_STATE.freshness` tiene su propio cálculo
+ * ya existente y ya probado (`_freshnessEFO`, "la peor entre los REQUIRED
+ * clasificables" — Derivación DECISIÓN etiquetada de Fase 9, sin relación
+ * con el bug de historia que corrige esta reapertura). No se toca aquí —
+ * fuera de alcance de este encargo.
  */
-function persistenciaEFO(historiaEFOPos, periods, opciones) {
-  var o = opciones || {};
-  var serie = Array.isArray(historiaEFOPos) ? historiaEFOPos : [];
-  var per = Array.isArray(periods) ? periods : serie.map(function (_, i) { return String(i + 1); });
+function propagarTemporalidadEFO(pos, domainStateGob) {
   var flags = [];
+  var s = domainStateGob || {};
+  var traj, pers, det_run, det_duration;
 
-  var cont;
-  try {
-    cont = T.continuidadRun(serie, per, { maxGap: o.maxGap });
-  } catch (e) {
-    return { pers: 'N_A', det_run: 0, det_duration: null, flags: ['HISTORIA_EFO_INVALIDA'] };
+  if (pos === 'F' || pos === 'D') {
+    traj = s.traj || 'N_A';
+    if (pos === 'D') {
+      pers = s.pers || 'N_A';
+      det_run = s.det_run != null ? s.det_run : 0;
+      det_duration = s.det_duration != null ? s.det_duration : null;
+    } else {
+      pers = 'N_A'; det_run = 0; det_duration = null; // §11 — PERSISTENCE es sobre posición D
+    }
+    if (!domainStateGob) flags.push('SIN_DOMAIN_STATE_GOBERNANTE');
+  } else {
+    // DECISIÓN: pos ∈ {I, N_A} → sin trayectoria/persistencia significativa.
+    traj = 'N_A'; pers = 'N_A'; det_run = 0; det_duration = null;
   }
-  flags = flags.concat(cont.flags || []);
 
-  var posActual = serie.length ? serie[serie.length - 1] : null;
-  if (posActual !== 'D') {
-    return { pers: 'N_A', det_run: cont.det_run, det_duration: cont.det_duration, flags: flags }; // §11
-  }
-
-  var pers;
-  var pMin = null; // PARAMS.PERS_REPEATED_MIN / _PERSISTENT_MIN — Grupo 1, null
-  if (pMin == null) {
-    pers = cont.det_run >= 2 ? 'REPEATED' : 'POINT';
-    flags.push('PERS_EFO_NO_CALIBRADA');
-  }
-  if (o.locusVariable === true) flags.push('LOCUS_DETERIORO_VARIABLE'); // AC43
-  return { pers: pers, det_run: cont.det_run, det_duration: cont.det_duration, flags: flags };
+  return { traj: traj, pers: pers, det_run: det_run, det_duration: det_duration, flags: flags };
 }
 
 /**
@@ -383,11 +391,14 @@ var _CAMPOS_EFO_STATE = [
  * input = {
  *   domainStates[], nodeSpec?,
  *   organization_id?, node_id?, period?,
- *   efoPrevio?,                              // { pos } del período anterior
- *   historiaEFOPos?, historiaPeriods?,       // para pers/det_run (INV-39)
- *   opcionesTraj?, opcionesPers?,
  *   regimeStatus?, piio_run_id?, ruleset_version?
  * }
+ *
+ * REAPERTURA (2026-09-13): ya NO recibe `efoPrevio`/`historiaEFOPos`/
+ * `historiaPeriods`/`opcionesTraj`/`opcionesPers` — `traj`/`pers`/
+ * `det_run`/`det_duration` se propagan del `DOMAIN_STATE` gobernante entre
+ * `domainStates` (mismo patrón que `domain.resolverDominio` usa con su
+ * `PHENOMENON_STATE` gobernante), no se recalculan con historia externa.
  */
 function resolverEFO(input) {
   var inp = input || {};
@@ -414,13 +425,12 @@ function resolverEFO(input) {
   });
   flags = flags.concat(admRes.flags);
 
-  var trajRes = trayectoriaEFO(pos, (inp.efoPrevio || {}).pos, inp.opcionesTraj);
-  flags = flags.concat(trajRes.flags);
-
-  var histPos = Array.isArray(inp.historiaEFOPos) && inp.historiaEFOPos.length ? inp.historiaEFOPos : [pos];
-  var histPer = Array.isArray(inp.historiaPeriods) && inp.historiaPeriods.length ? inp.historiaPeriods : [inp.period || '1'];
-  var persRes = persistenciaEFO(histPos, histPer, inp.opcionesPers);
-  flags = flags.concat(persRes.flags);
+  // 7 — propagación (mismo patrón que domain.js): REQUIRED clasificables
+  // alineados con la pos final del EFO → gobernante → propagar temporalidad.
+  var alineados = (part.requiredClasificables || []).filter(function (s) { return s.pos === pos; });
+  var gob = _domainStateGobernante(alineados);
+  var temp = propagarTemporalidadEFO(pos, gob);
+  flags = flags.concat(temp.flags);
 
   var scopeRes = resolverScope(inp.nodeSpec);
   flags = flags.concat(scopeRes.flags);
@@ -451,10 +461,10 @@ function resolverEFO(input) {
     scope: scopeRes.scope,
     period: inp.period || null,
     pos: pos,
-    traj: trajRes.traj,
-    pers: persRes.pers,
-    det_run: persRes.det_run,
-    det_duration: persRes.det_duration,
+    traj: temp.traj,
+    pers: temp.pers,
+    det_run: temp.det_run,
+    det_duration: temp.det_duration,
     admissibility: admRes.admissibility,
     freshness: _freshnessEFO(part),
     coverage_status: cobRes.coverage_status,
@@ -505,8 +515,8 @@ module.exports = {
   deterioracionEFO: deterioracionEFO,
   coberturaEFO: coberturaEFO,
   admisibilidadEFO: admisibilidadEFO,
-  trayectoriaEFO: trayectoriaEFO,
-  persistenciaEFO: persistenciaEFO,
+  _domainStateGobernante: _domainStateGobernante,
+  propagarTemporalidadEFO: propagarTemporalidadEFO,
   resolverScope: resolverScope,
   resolverEFO: resolverEFO,
   validarEFOState: validarEFOState
