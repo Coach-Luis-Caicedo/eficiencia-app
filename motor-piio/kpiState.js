@@ -92,9 +92,23 @@ function clasificarPosicion(value, refCond, directionality) {
 }
 
 // ═════════════════════════════════════════════════════════════════════
-// §11.2 — TRAYECTORIA: magnitud de cambio contra TRAJ_STABLE_BAND.
+// §11.2 — TRAYECTORIA: magnitud de cambio RELATIVA contra TRAJ_STABLE_BAND.
+//
+// REAPERTURA (Fase 5, DISENO_TRAJ_STABLE_BAND_PERS.md §2/§6): antes, `mag`
+// se comparaba CRUDA (unidades absolutas del KPI) contra `band` — un band
+// único no tiene sentido entre KPIs de escalas distintas. Ahora se compara
+// `mag / |base|` — % de cambio relativo al valor anterior (HIGHER_IS_WORSE/
+// LOWER_IS_WORSE) o al ANCHO del rango, `upper - threshold` (TARGET_RANGE —
+// ya lo conoce REFERENCE_SPEC, no se fabrica una tercera forma). `base=0`
+// (o indeterminada) → N_A, mismo tratamiento que _cv() con media=0
+// (temporal.js). Precedencia de 3 niveles idéntica a estabilidadSerie:
+// CALIBRACION_PROPIA (`umbralesOrg.band`) > CALIBRACION_GLOBAL
+// (`PARAMS.TRAJ_STABLE_BAND`) > CALIBRACION_GENERICA
+// (`PARAMS.TRAJ_STABLE_BAND_GENERICO`) — ya no existe "no calibrado": el
+// genérico siempre tiene valor, mismo cambio de postura que tuvo
+// estabilidadSerie en la reapertura 12b.
 // ═════════════════════════════════════════════════════════════════════
-function resolverTrayectoria(serieValores, refTempRes, directivas, directionality, refCond) {
+function resolverTrayectoria(serieValores, refTempRes, directivas, directionality, refCond, umbralesOrg) {
   if (!temporal.historiaSuficiente(serieValores)) return { traj: 'N_A', flags: ['HISTORIA_INSUFICIENTE'] }; // INV-26
   if (!refTempRes || !refTempRes.ref || refTempRes.admissibility === 'NOT_ADMISSIBLE') {
     return { traj: 'N_A', flags: ['REF_TEMP_NO_ADMISIBLE'] };
@@ -104,46 +118,70 @@ function resolverTrayectoria(serieValores, refTempRes, directivas, directionalit
     return { traj: 'N_A', flags: ['SERIE_NO_UNE'] }; // INV-29 / AC16
   }
 
-  var band = PARAMS.TRAJ_STABLE_BAND;
-  if (!esNum(band)) return { traj: 'N_A', flags: ['TRAJ_BAND_NO_CALIBRADO'] }; // AI (Grupo 1) — nunca STABLE (INV-26)
-
-  var mag, flags = [];
+  var mag, base;
   if (directionality === 'TARGET_RANGE') {
     var lo = refCond && refCond.threshold, up = refCond && refCond.threshold_upper;
     if (!esNum(lo) || !esNum(up)) return { traj: 'N_A', flags: ['TARGET_RANGE_SIN_LIMITES'] };
     mag = temporal.magnitudCambio(serieValores.map(function (v) { return _distanciaAlRango(v, lo, up); }));
-    if (mag === null) return { traj: 'N_A', flags: ['MAGNITUD_NULA'] };
-    if (mag < -band) return { traj: 'IMPROVING', flags: flags };   // distancia al rango disminuye
-    if (mag > band) return { traj: 'DETERIORATING', flags: flags };
-    return { traj: 'STABLE', flags: flags };
+    base = up - lo; // ancho del rango — REFERENCE_SPEC ya lo conoce (ambig. AI, TARGET_RANGE)
+  } else {
+    mag = temporal.magnitudCambio(serieValores);
+    base = temporal.valorAnteriorDelta(serieValores);
   }
-
-  mag = temporal.magnitudCambio(serieValores);
   if (mag === null) return { traj: 'N_A', flags: ['MAGNITUD_NULA'] };
-  var peor = directionality === 'HIGHER_IS_WORSE' ? (mag > band) : (mag < -band);
-  var mejor = directionality === 'HIGHER_IS_WORSE' ? (mag < -band) : (mag > band);
-  if (peor) return { traj: 'DETERIORATING', flags: flags };
-  if (mejor) return { traj: 'IMPROVING', flags: flags };
-  return { traj: 'STABLE', flags: flags };
+  if (!esNum(base) || base === 0) return { traj: 'N_A', flags: ['BASE_CERO_TRAYECTORIA_INDEFINIDA'] }; // mismo tratamiento que _cv() con media=0
+  var relativo = mag / Math.abs(base);
+
+  var uo = umbralesOrg || {};
+  var band, origenBand;
+  if (esNum(uo.band)) { band = uo.band; origenBand = 'CALIBRACION_PROPIA'; }
+  else if (esNum(PARAMS.TRAJ_STABLE_BAND)) { band = PARAMS.TRAJ_STABLE_BAND; origenBand = 'CALIBRACION_GLOBAL'; }
+  else { band = PARAMS.TRAJ_STABLE_BAND_GENERICO; origenBand = 'CALIBRACION_GENERICA'; }
+
+  // TARGET_RANGE comparte forma con HIGHER_IS_WORSE: "más" siempre es peor
+  // (distancia al rango que crece = tan malo como un valor que empeora) —
+  // mismos signos que el early-return original de TARGET_RANGE tenía.
+  var peor, mejor;
+  if (directionality === 'HIGHER_IS_WORSE' || directionality === 'TARGET_RANGE') {
+    peor = relativo > band; mejor = relativo < -band;
+  } else {
+    peor = relativo < -band; mejor = relativo > band;
+  }
+  if (peor) return { traj: 'DETERIORATING', flags: [origenBand] };
+  if (mejor) return { traj: 'IMPROVING', flags: [origenBand] };
+  return { traj: 'STABLE', flags: [origenBand] };
 }
 
 // ═════════════════════════════════════════════════════════════════════
 // §11.3 / §28 — PERSISTENCIA sobre det_run (solo si pos actual = D).
+//
+// REAPERTURA (Fase 5, DISENO_TRAJ_STABLE_BAND_PERS.md §5/§6): precedencia
+// de 3 niveles idéntica a estabilidadSerie — CALIBRACION_PROPIA
+// (`opciones.umbralesOrg.{repeatedMin,persistentMin}`) > CALIBRACION_GLOBAL
+// (`PARAMS.PERS_REPEATED_MIN`/`_PERSISTENT_MIN`) > CALIBRACION_GENERICA
+// (`PARAMS.PERS_REPEATED_MIN_GENERICO`/`_PERSISTENT_MIN_GENERICO`). Ya no
+// existe "no calibrado": el genérico siempre distingue POINT/REPEATED/
+// PERSISTENT. `opciones` se reusa — ya traía `.maxGap` para
+// `continuidadRun`; ahora también puede traer `.umbralesOrg`.
 // ═════════════════════════════════════════════════════════════════════
 function clasificarPersistencia(pos, secuenciaPos, periods, opciones) {
   if (pos !== 'D') return { pers: 'N_A', det_run: 0, det_duration: 0, flags: [] }; // §28: current pos≠D → pers=N_A
 
   var cr = temporal.continuidadRun(secuenciaPos, periods, opciones);
   var flags = cr.flags.slice();
-  var repMin = PARAMS.PERS_REPEATED_MIN, perMin = PARAMS.PERS_PERSISTENT_MIN;
 
-  var pers;
-  if (!esNum(repMin) || !esNum(perMin)) {
-    pers = cr.det_run === 1 ? 'POINT' : 'REPEATED';
-    if (cr.det_run >= 2) flags.push('PERS_UMBRAL_NO_CALIBRADO'); // AJ — no se puede distinguir REPEATED de PERSISTENT
+  var uo = (opciones && opciones.umbralesOrg) || {};
+  var repMin, perMin, origenPers;
+  if (esNum(uo.repeatedMin) && esNum(uo.persistentMin)) {
+    repMin = uo.repeatedMin; perMin = uo.persistentMin; origenPers = 'CALIBRACION_PROPIA';
+  } else if (esNum(PARAMS.PERS_REPEATED_MIN) && esNum(PARAMS.PERS_PERSISTENT_MIN)) {
+    repMin = PARAMS.PERS_REPEATED_MIN; perMin = PARAMS.PERS_PERSISTENT_MIN; origenPers = 'CALIBRACION_GLOBAL';
   } else {
-    pers = cr.det_run < repMin ? 'POINT' : (cr.det_run < perMin ? 'REPEATED' : 'PERSISTENT');
+    repMin = PARAMS.PERS_REPEATED_MIN_GENERICO; perMin = PARAMS.PERS_PERSISTENT_MIN_GENERICO; origenPers = 'CALIBRACION_GENERICA';
   }
+  flags.push(origenPers);
+
+  var pers = cr.det_run < repMin ? 'POINT' : (cr.det_run < perMin ? 'REPEATED' : 'PERSISTENT');
   return { pers: pers, det_run: cr.det_run, det_duration: cr.det_duration, flags: flags };
 }
 
@@ -172,6 +210,16 @@ function resolverAdmisibilidad(dataQuality, refCondRes, freshnessStatus) {
 //   bloqueado: boolean,         // AC73 — KPI en estados_bloqueados de Fase 1
 //   flags: string[]
 // }
+//
+// opciones? = { continuidadRun?, umbralesTrayectoria?, umbralesPersistencia? }
+//   continuidadRun         → pasado tal cual a clasificarPersistencia/
+//                            continuidadRun (ya existía — `.maxGap`).
+//   umbralesTrayectoria    → { band } — CALIBRACION_PROPIA por organización
+//                            para resolverTrayectoria (DISENO_TRAJ_STABLE_
+//                            BAND_PERS.md §6). Mismo mecanismo real que
+//                            PIIO_INPUT.umbralesEstabilidad (phenomenon.js).
+//   umbralesPersistencia   → { repeatedMin, persistentMin } — ídem, para
+//                            clasificarPersistencia (opciones.umbralesOrg).
 // ═════════════════════════════════════════════════════════════════════
 function resolverKpiState(args) {
   var evals = Array.isArray(args.evals) ? args.evals.slice() : [];
@@ -223,10 +271,11 @@ function resolverKpiState(args) {
     var traj, trajFlags;
     if (degradado) { traj = 'N_A'; trajFlags = ['KPI_DEGRADADO_FASE1']; }
     else if (!valida) { traj = 'N_A'; trajFlags = ['SIN_VALOR_ACTUAL']; }
-    else { var ct = resolverTrayectoria(serieHasta, refTempRes, directivas, directionality, refCondRes.ref); traj = ct.traj; trajFlags = ct.flags; }
+    else { var ct = resolverTrayectoria(serieHasta, refTempRes, directivas, directionality, refCondRes.ref, opciones.umbralesTrayectoria); traj = ct.traj; trajFlags = ct.flags; }
 
     // ── pers / det_run / det_duration ──
-    var cper = clasificarPersistencia(pos, secuenciaPos.slice(), periodos.slice(), opciones.continuidadRun);
+    var opcionesPersistencia = Object.assign({}, opciones.continuidadRun, { umbralesOrg: opciones.umbralesPersistencia });
+    var cper = clasificarPersistencia(pos, secuenciaPos.slice(), periodos.slice(), opcionesPersistencia);
 
     // ── freshness (ambig. AM: ancla = period_end) ──
     var age = temporal.edadEnPeriodos(ev.period_end, ahora);

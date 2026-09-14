@@ -325,6 +325,28 @@ function magnitudCambio(valores, metodo, opciones) {
 }
 
 /**
+ * valorAnteriorDelta(valores, opciones) → number | null
+ *
+ * REAPERTURA (Fase 5, DISENO_TRAJ_STABLE_BAND_PERS.md §2/§6): el valor
+ * "anterior" que magnitudCambio(DELTA) usa como base de la resta — mismo
+ * cálculo de ventana (`w`) que la rama DELTA de arriba, sin duplicar la
+ * resolución de PARAMS.TEMPORAL_WINDOW en otro archivo. Necesario para
+ * expresar el cambio como RELATIVO (%), no absoluto (ambig. AI,
+ * TRAJ_STABLE_BAND — kpiState.js). Solo tiene sentido para DELTA:
+ * resolverTrayectoria() nunca pasa `metodo` a magnitudCambio(), así que
+ * siempre usa el default (`TEMPORAL_METHOD_DEFAULT='DELTA'`) — no hay hoy
+ * una noción de "valor base" para SLOPE/ROLLING_COMPARE que valga la pena
+ * generalizar sin un caso de uso real.
+ */
+function valorAnteriorDelta(valores, opciones) {
+  if (!Array.isArray(valores) || valores.length < 2 || !valores.every(esNum)) return null;
+  var op = opciones || {};
+  var w = esNum(op.window) ? op.window : (esNum(PARAMS.TEMPORAL_WINDOW) ? PARAMS.TEMPORAL_WINDOW : 1);
+  var j = valores.length - 1 - w;
+  return j >= 0 ? valores[j] : null;
+}
+
+/**
  * historiaSuficiente(valores) → boolean
  * INV-PIIO-26: historia insuficiente → traj = N_A.
  *
@@ -352,5 +374,6 @@ module.exports = {
   regimen: regimen,
   registrarShock: registrarShock,
   magnitudCambio: magnitudCambio,
+  valorAnteriorDelta: valorAnteriorDelta,
   historiaSuficiente: historiaSuficiente
 };

@@ -292,25 +292,27 @@ eq(r24.phenomenon_states[0].pos, 'I', 'AC77: 3 KPI F (mayoría numérica) vs. 1 
 seccion('CIERRE SIMPLE — INV-05: posición y trayectoria son independientes');
 // ═══════════════════════════════════════════════════════════════════════
 
-// Nota: TRAJ_STABLE_BAND sigue PENDIENTE_CALIBRACION (Fase 4/5, ambig. AI,
-// Grupo 1) — con dos valores IGUALES la traj real hoy es N_A + flag, NUNCA
-// STABLE inventado (mismo principio que AC59: no fabricar un valor
-// calibrado que el motor todavía no puede producir). INV-05 se demuestra
-// igual: dos casos con `pos` DISTINTA (D vs F) comparten la MISMA `traj`
-// (N_A) — ninguno de los dos ejes determina al otro.
+// Nota — REAPERTURA (Fase 5, DISENO_TRAJ_STABLE_BAND_PERS.md): TRAJ_STABLE_
+// BAND sigue PENDIENTE_CALIBRACION a nivel CALIBRACION_GLOBAL/PROPIA, pero
+// ya NO es N_A por default — TRAJ_STABLE_BAND_GENERICO (5%, relativo)
+// clasifica de verdad (mismo cambio de postura que tuvo AC59 con
+// STABILITY_CV_*_GENERICO). Con dos valores IGUALES, el cambio relativo es
+// 0% < 5% → STABLE, no N_A. INV-05 se demuestra igual: dos casos con `pos`
+// DISTINTA (D vs F) comparten la MISMA `traj` (STABLE) — ninguno de los dos
+// ejes determina al otro.
 var r25 = R.runPIIOCompleto(baseInput({
   periods: ['2026-01', '2026-02'],
   observations: [obs({ value: 80, numerator: 80 }), obs({ observation_id: 'o1b', period_start: '2026-02', period_end: '2026-02', value: 80, numerator: 80 })]
 }));
 var k1r25 = r25.kpi_states.filter(function (s) { return s.period === '2026-02'; })[0];
-eq([k1r25.pos, k1r25.traj], ['D', 'N_A'], 'INV-05 (caso a): pos=D, traj=N_A (TRAJ_STABLE_BAND sin calibrar — Grupo 1, nunca STABLE inventado)');
+eq([k1r25.pos, k1r25.traj], ['D', 'STABLE'], 'INV-05 (caso a): pos=D, traj=STABLE (valores iguales → 0% de cambio < banda genérica 5%)');
 
 var r26 = R.runPIIOCompleto(baseInput({
   periods: ['2026-01', '2026-02'],
   observations: [obs({ value: 20, numerator: 20 }), obs({ observation_id: 'o1b', period_start: '2026-02', period_end: '2026-02', value: 20, numerator: 20 })]
 }));
 var k1r26 = r26.kpi_states.filter(function (s) { return s.period === '2026-02'; })[0];
-eq([k1r26.pos, k1r26.traj], ['F', 'N_A'], 'INV-05 (caso b): pos=F — DISTINTA del caso a — pero la MISMA traj=N_A: ninguno de los dos ejes determina al otro');
+eq([k1r26.pos, k1r26.traj], ['F', 'STABLE'], 'INV-05 (caso b): pos=F — DISTINTA del caso a — pero la MISMA traj=STABLE: ninguno de los dos ejes determina al otro');
 
 // ═══════════════════════════════════════════════════════════════════════
 seccion('CIERRE SIMPLE — INV-11: cada KPI tiene una ruta inferencial primaria única');

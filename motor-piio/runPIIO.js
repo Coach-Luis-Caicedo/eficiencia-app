@@ -180,7 +180,15 @@ function runPIIO(input) {
         evals: evalsPorKpi[kpiSpec.kpi_id] || [],
         kpiSpec: kpiSpec, metricDef: metricDef,
         referencias: inp.references, directivas: directivas,
-        reporteFase1: { kpis_degradados: cfg.kpis_degradados, estados_bloqueados: cfg.estados_bloqueados }
+        reporteFase1: { kpis_degradados: cfg.kpis_degradados, estados_bloqueados: cfg.estados_bloqueados },
+        // REAPERTURA (Fase 5, DISENO_TRAJ_STABLE_BAND_PERS.md §6.3): mismo
+        // mecanismo real que PIIO_INPUT.umbralesEstabilidad (phenomenon.js)
+        // — CALIBRACION_PROPIA por organización, opcional, sin persistencia
+        // propia de motor-piio.
+        opciones: {
+          umbralesTrayectoria: inp.umbralesTrayectoria,
+          umbralesPersistencia: inp.umbralesPersistencia
+        }
       });
       if (r.bloqueado) {
         findings.push(_finding('KPI_STATE_BLOQUEADO', 'BLOCKING', 'STATE', kpiSpec.kpi_id, 'bloqueado en Fase 1 (AC73)'));

@@ -220,13 +220,46 @@ var PARAMS = {
   //    conceptos sin dar número.
 
   // §11.2 / AI — magnitud de cambio por debajo de la cual traj = STABLE.
-  // Sin calibrar: traj = N_A + flag (NO STABLE — INV-26 "insuficiente → N_A").
+  // Slot para una futura CALIBRACION_GLOBAL propia de EFICIENCIA — se
+  // mantiene null a propósito, mismo criterio que STABILITY_CV_STABLE/_MODERATE.
   TRAJ_STABLE_BAND: null,
 
+  // REAPERTURA (Fase 5, DISENO_TRAJ_STABLE_BAND_PERS.md §4): genérico de
+  // RESPALDO, RELATIVO (fracción de cambio respecto al valor/base anterior
+  // — nunca un número absoluto, ver kpiState.js: la escala cruda de cada
+  // KPI hace inútil un band absoluto único). Investigado primero si existía
+  // algo citable (MDC — Minimal Detectable Change): existe la FÓRMULA
+  // (MDC95 = 1.96·√2·SEM) pero exige SEM de mediciones repetidas que no
+  // existen pre-piloto — mismo vacío que motivó INVESTIGACION_ANCLAJE_
+  // UMBRAL_PISO.md. No se encontró ninguna convención universal de "% de
+  // cambio significativo" en literatura de KPI de negocio. Este valor NO
+  // es esa convención — es el resultado de un ejercicio de sensibilidad
+  // con series sintéticas (motor-piio/sim/sensibilidad_traj_stable_band.js):
+  // valida que el mecanismo (banda relativa) funciona razonablemente frente
+  // a ruido y tendencias de distinta magnitud y escala — no determina cuál
+  // es el número correcto para EFICIENCIA. MENOS autoridad que
+  // STABILITY_CV_*_GENERICO a propósito — ver TRAJ_STABLE_BAND_GENERICO_FUENTE.
+  TRAJ_STABLE_BAND_GENERICO: 0.05,
+  TRAJ_STABLE_BAND_GENERICO_FUENTE: 'Informado por un ejercicio de sensibilidad con datos sintéticos inventados para este propósito (motor-piio/sim/sensibilidad_traj_stable_band.js) — NO es una convención externa citable, NO deriva de organizaciones reales. Mismo perfil de evidencia que el generador de statistical_simulation.py en aie_validation_kit: valida que el mecanismo (banda relativa) funciona razonablemente frente a ruido y tendencias de distinta magnitud y escala — no determina cuál es el número correcto para EFICIENCIA. Más provisional que STABILITY_CV_*_GENERICO (que sí tiene cita externa real) — sujeto a corrección temprana con el primer dato real del piloto.',
+
   // §11.3 / AJ — cortes de det_run para POINT → REPEATED → PERSISTENT.
-  // Sin calibrar: det_run=1 → POINT; det_run>=2 → REPEATED + flag.
+  // Slot para una futura CALIBRACION_GLOBAL propia de EFICIENCIA — se
+  // mantienen null a propósito.
   PERS_REPEATED_MIN: null,
   PERS_PERSISTENT_MIN: null,
+
+  // REAPERTURA (Fase 5, DISENO_TRAJ_STABLE_BAND_PERS.md §5): genéricos de
+  // RESPALDO. PERS_REPEATED_MIN_GENERICO=2 es el mínimo no-trivial (más de
+  // un punto) que ya regía de hecho sin calibrar (kpiState.js). PERS_
+  // PERSISTENT_MIN_GENERICO=8 SÍ tiene anclaje externo real — Regla 4 de
+  // Western Electric / Regla 2 de Nelson (8-9 puntos consecutivos del mismo
+  // lado de la línea central → señal de desplazamiento sostenido, no
+  // ruido) — a diferencia de TRAJ_STABLE_BAND_GENERICO. Ver PERS_GENERICO_
+  // FUENTE para la limitación de aplicabilidad (supuestos de estacionariedad
+  // de SPC que una serie organizacional puede no cumplir).
+  PERS_REPEATED_MIN_GENERICO: 2,
+  PERS_PERSISTENT_MIN_GENERICO: 8,
+  PERS_GENERICO_FUENTE: 'PERS_REPEATED_MIN_GENERICO: mínimo no-trivial (más de un punto), ya vigente de hecho sin calibrar. PERS_PERSISTENT_MIN_GENERICO: ancla a la Regla 4 de Western Electric / Regla 2 de Nelson (8-9 puntos consecutivos del mismo lado de la línea central → señal de desplazamiento sostenido, no ruido) — convención real y citada del control estadístico de procesos (Western Electric Co., SQC Handbook, 1956; Nelson, Journal of Quality Technology, 1984). Limitación de aplicabilidad: esas tasas de falsa alarma asumen un proceso aproximadamente estacionario con ruido i.i.d. alrededor de una media conocida — una serie de KPI organizacional puede violar ese supuesto (autocorrelación, estacionalidad). El número es una convención externa real; la garantía estadística detrás de ese número no se traslada automáticamente a series organizacionales. Provisional hasta calibración propia por organización.',
 
   KPISTATE_ESTADO: 'PENDIENTE_CALIBRACION'
 };

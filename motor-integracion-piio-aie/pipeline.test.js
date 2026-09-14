@@ -162,11 +162,17 @@ eq(serieReal.efoStates.map(function (s) { return s.pers; }), ['N_A', 'POINT', 'R
   'REAPERTURA CONFIRMADA: pers acumula correctamente a través de la cascada real (ya no siempre N_A)');
 eq(serieReal.efoStates.map(function (s) { return s.det_run; }), [0, 1, 2, 3],
   'REAPERTURA CONFIRMADA: det_run acumula 0,1,2,3 — antes de la reapertura esto era imposible (siempre 0/historia de 1 punto)');
-eq(serieReal.efoStates.map(function (s) { return s.traj; }), ['N_A', 'N_A', 'N_A', 'N_A'],
-  'traj se mantiene N_A en TODOS los períodos — verificado que es TRAJ_STABLE_BAND sin calibrar en kpiState.js ' +
-  '(Grupo 1, enums.js PARAMS.TRAJ_STABLE_BAND=null), NO un defecto de esta reapertura ni de este arnés — ' +
-  'confirmado inspeccionando r.kpi_states directamente: también dan traj=N_A desde el nivel KPI');
-eq(serieReal.rachaTrayectoria, [0, 0, 0, 0], 'racha de trayectoria = 0 en los 4 períodos (consistente con traj=N_A siempre)');
+// REAPERTURA (Fase 5, DISENO_TRAJ_STABLE_BAND_PERS.md): TRAJ_STABLE_BAND ya
+// NO es N_A por default — TRAJ_STABLE_BAND_GENERICO (5% relativo) clasifica
+// de verdad. Serie real del KPI: 20 → 80 → 80 → 80. 2026-02: mag=80-20=60,
+// base=20 (valor anterior), relativo=300% > 5% → DETERIORATING. 2026-03/04:
+// mag=80-80=0, relativo=0% < 5% → STABLE (valor ya no cambia). Confirmado
+// inspeccionando r.kpi_states directamente — mismo valor desde el nivel KPI,
+// no un artefacto del arnés.
+eq(serieReal.efoStates.map(function (s) { return s.traj; }), ['N_A', 'DETERIORATING', 'STABLE', 'STABLE'],
+  'REAPERTURA CONFIRMADA: traj real (20→80→80→80) — DETERIORATING en el salto, STABLE una vez el valor se estabiliza');
+eq(serieReal.rachaTrayectoria, [0, 1, 0, 0],
+  'racha de trayectoria: 1 en el único período DETERIORATING (2026-02), resetea a 0 cuando pasa a STABLE');
 
 // multi-nodo — n-root y n-a, KPIs y observaciones distintas
 var inputMultiNodo = {
