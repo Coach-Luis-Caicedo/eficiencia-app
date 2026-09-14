@@ -259,8 +259,34 @@ seccion('CASO 7 — Agregación colectiva (§3.9): IAO_g simple, IAO_ORG pondera
   eq(sinB.nodosExcluidos.join(','), 'B', 'nodosExcluidos = [B]');
   ok(!sinB.perfilPorNodo.some(function (x) { return x.id === 'B'; }), 'B ya no aparece en perfilPorNodo');
 
-  try { M.agregarNodo([1, 2], {}); ok(false, 'agregarNodo sin minReportableN → error (no lanzó)'); }
-  catch (e) { ok(e.message.indexOf('minReportableN') !== -1, 'agregarNodo sin minReportableN → error'); }
+  // REAPERTURA (DISENO_CALIBRACION_SDMO_IAO.md): minReportableN YA NO lanza
+  // sin calibrar — cae a GENERICO=5 (convención real de industria: WorkBuzz/
+  // 15Five/Effectory/Supermood/Gallup). Los demás PENDIENTE_VALIDACION de
+  // motor-iao (umbralPolarizacion*, los 6 de PRECISIÓN) siguen exigiendo el
+  // valor explícito, sin cambio.
+  eq(M.GENERICO.minReportableN, 5, 'GENERICO.minReportableN formalizado (5, convención real de industria)');
+  var sinOpts = M.agregarNodo([1, 2], {});
+  eq(sinOpts.reportable, false, 'agregarNodo([1,2], {}) sin calibrar → n=2 < GENERICO=5 → no reportable (ya no error)');
+  eq(sinOpts.minReportableN_origen, 'CALIBRACION_GENERICA', "...minReportableN_origen = 'CALIBRACION_GENERICA'");
+  // n=4 discrimina de verdad: propio=3 → reportable; GENERICO=5 (si la
+  // precedencia estuviera rota) → NO reportable. No basta con comparar el
+  // origen reportado — _paramOrigen es una función HERMANA de _param (Opción
+  // A, DISENO_CALIBRACION_SDMO_IAO.md §4.3) y podría desincronizarse de la
+  // resolución real sin que un assert que solo mire el string de origen lo note.
+  var conPropio = M.agregarNodo([1, 2, 3, 4], { minReportableN: 3 });
+  eq(conPropio.reportable, true, 'opts.minReportableN=3 (CALIBRACION_PROPIA) gana sobre GENERICO=5 — n=4 ≥ 3, reportable');
+  eq(conPropio.minReportableN_origen, 'CALIBRACION_PROPIA', "...minReportableN_origen = 'CALIBRACION_PROPIA'");
+  // CALIBRACION_GLOBAL gana sobre CALIBRACION_GENERICA — n=7 discrimina:
+  // GLOBAL=10 → NO reportable; GENERICO=5 (si rota) → SÍ reportable.
+  M.PENDIENTE_VALIDACION.minReportableN = 10; // mutación de PRUEBA — restaurado abajo
+  var conGlobal = M.agregarNodo([1, 2, 3, 4, 5, 6, 7], {});
+  eq(conGlobal.reportable, false, 'PENDIENTE_VALIDACION.minReportableN=10 (CALIBRACION_GLOBAL) gana sobre GENERICO=5 — n=7 < 10');
+  eq(conGlobal.minReportableN_origen, 'CALIBRACION_GLOBAL', "...minReportableN_origen = 'CALIBRACION_GLOBAL'");
+  M.PENDIENTE_VALIDACION.minReportableN = null; // restaurado — sigue sin calibrar
+  // agregarOrganizacion — mismo genérico, campo aditivo en organizacion.*
+  var personaValida = {}; M.VARIABLES.forEach(function (k) { personaValida[k] = 50; });
+  var orgSinOpts = M.agregarOrganizacion([{ id: 'X', personas: [personaValida, personaValida] }], {});
+  eq(orgSinOpts.organizacion.minReportableN_origen, 'CALIBRACION_GENERICA', 'agregarOrganizacion(..., {}) sin calibrar → minReportableN_origen = CALIBRACION_GENERICA (ya no error)');
 })();
 
 // ══════════════════════════════════════════════════════════════════════════

@@ -274,8 +274,22 @@ seccion('CASO 7 — Estructura, no colisión y parámetros pendientes exigidos')
   lanza(function () { M.trayectoria([1, 2, 3], 2, { cambioMinimo: 5, estimadorPendiente: M.pendienteLineal }); }, 'trendWindow', 'trayectoria sin trendWindow → error');
   lanza(function () { M.trayectoria([1, 2, 3], 2, { trendWindow: 3, cambioMinimo: 5 }); }, 'estimadorPendiente', 'trayectoria sin estimadorPendiente → error (método de pendiente PENDIENTE_VALIDACION)');
   lanza(function () { M.clasificarSenal([1, 2, 3], 2, { trendWindow: 3, cambioMinimo: 5, estimadorPendiente: M.pendienteLineal, umbralFavorable: 40, umbralDeteriorado: 60, persistRunMin: 4 }); }, 'persistMin', 'clasificarSenal sin persistMin → error');
-  lanza(function () { M.categoria(50, {}); }, 'umbralFavorable', 'categoria sin umbrales → error');
-  lanza(function () { M.agregarNodo([1, 2], {}); }, 'minReportableN', 'agregarNodo sin minReportableN → error');
+  // REAPERTURA (DISENO_CALIBRACION_SDMO_IAO.md): umbralFavorable/umbralDeteriorado
+  // YA NO lanzan sin calibrar — caen a GENERICO (tercil 0-100: F=33, D=67).
+  // Los demás PENDIENTE_VALIDACION (delta, trendWindow, persistMin,
+  // minReportableN, percentilConcentracion, etc.) siguen exigiendo el valor
+  // explícito, sin cambio (ver lanza(...) de línea 273-279).
+  eq(M.GENERICO.umbralFavorable, 33, 'GENERICO.umbralFavorable formalizado (tercil 0-100)');
+  eq(M.GENERICO.umbralDeteriorado, 67, 'GENERICO.umbralDeteriorado formalizado (tercil 0-100)');
+  eq(M.categoria(50, {}), 'I', 'categoria(50, {}) sin calibrar → I (50 entre GENERICO F=33 y D=67, ya no error)');
+  eq(M.categoria(33, {}), 'F', 'categoria(33, {}) → F (33 = GENERICO.umbralFavorable, límite inclusive)');
+  eq(M.categoria(67, {}), 'D', 'categoria(67, {}) → D (67 = GENERICO.umbralDeteriorado, límite inclusive)');
+  eq(M.categoria(50, { umbralFavorable: 10, umbralDeteriorado: 20 }), 'D', 'opts explícito (CALIBRACION_PROPIA) gana sobre GENERICO — 50 ≥ 20');
+  // CALIBRACION_GLOBAL (PENDIENTE_VALIDACION) gana sobre CALIBRACION_GENERICA
+  M.PENDIENTE_VALIDACION.umbralFavorable = 10; M.PENDIENTE_VALIDACION.umbralDeteriorado = 20; // mutación de PRUEBA — restaurado abajo
+  eq(M.categoria(50, {}), 'D', 'PENDIENTE_VALIDACION.umbralDeteriorado=20 (CALIBRACION_GLOBAL) gana sobre GENERICO=67 — 50 ≥ 20');
+  M.PENDIENTE_VALIDACION.umbralFavorable = null; M.PENDIENTE_VALIDACION.umbralDeteriorado = null; // restaurado — sigue sin calibrar
+  lanza(function () { M.agregarNodo([1, 2], {}); }, 'minReportableN', 'agregarNodo sin minReportableN → error (minReportableN de motor-sdmo, fuera de alcance de esta reapertura)');
   lanza(function () { M.concentracionColectiva([1, 2, 3], {}); }, 'percentilConcentracion', 'concentracionColectiva sin percentil → error');
 })();
 

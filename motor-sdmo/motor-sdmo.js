@@ -115,10 +115,42 @@
     estimadorPendiente: null
   };
 
+  // ══════════════════════════════════════════════════════════════════════════
+  //  0b. GENÉRICOS DE RESPALDO — REAPERTURA (DISENO_CALIBRACION_SDMO_IAO.md).
+  //  Solo `umbralFavorable`/`umbralDeteriorado` tienen entrada aquí — todos
+  //  los demás PENDIENTE_VALIDACION de arriba (δ, ventanas, persistMin,
+  //  percentiles, etc.) siguen exigiendo el valor explícito, sin cambio.
+  //  Precedencia (mismo patrón que motor-piio/temporal.js:estabilidadSerie):
+  //  CALIBRACION_PROPIA (opts[clave]) > CALIBRACION_GLOBAL
+  //  (PENDIENTE_VALIDACION[clave]) > CALIBRACION_GENERICA (GENERICO[clave]).
+  // ══════════════════════════════════════════════════════════════════════════
+  var GENERICO = {
+    // Tercil de la escala 0-100 del IDA — convención general de clasificación
+    // de escalas compuestas, NO específica de EFICIENCIA ni derivada del IDA.
+    // La propia literatura consultada advierte que los cortes por tercil/
+    // mediana son arbitrarios respecto al punto exacto de corte, no una
+    // propiedad objetiva de los datos. Más provisional que
+    // STABILITY_CV_*_GENERICO (motor-piio), que no tiene esa crítica
+    // documentada en su convención de origen. Provisional hasta calibración
+    // propia por organización.
+    umbralFavorable: 33,
+    umbralDeteriorado: 67
+  };
+  var GENERICO_FUENTE = {
+    umbralFavorable: 'Tercil de la escala 0-100 del IDA — convención general de clasificación ' +
+      'de escalas compuestas, NO derivada de EFICIENCIA ni del IDA específicamente. La ' +
+      'literatura consultada advierte que los cortes por tercil/mediana son arbitrarios ' +
+      'respecto al punto exacto de corte. Provisional hasta calibración propia por organización.',
+    umbralDeteriorado: 'Mismo origen y misma salvedad que umbralFavorable (tercil 0-100, no cita externa específica del IDA).'
+  };
+
   function _param(opts, clave, ctxFn) {
     var v = (opts && opts[clave] !== undefined && opts[clave] !== null)
       ? opts[clave]
       : PENDIENTE_VALIDACION[clave];
+    if ((v === null || v === undefined) && GENERICO[clave] !== undefined) {
+      v = GENERICO[clave]; // CALIBRACION_GENERICA — solo para claves con entrada en GENERICO
+    }
     if (v === null || v === undefined) {
       throw new Error(
         'motor-sdmo: "' + clave + '" es PENDIENTE_VALIDACION — pásalo explícitamente en opts a ' +
@@ -722,6 +754,8 @@
     CODIGOS: CODIGOS,
     CODIGOS_RESERVADOS_ICE_IEH: CODIGOS_RESERVADOS_ICE_IEH,
     PENDIENTE_VALIDACION: PENDIENTE_VALIDACION,
+    GENERICO: GENERICO,
+    GENERICO_FUENTE: GENERICO_FUENTE,
 
     // normalización y IDA (§2.5, §2.6)
     normalizar: normalizar,

@@ -76,14 +76,55 @@
     precisionCorteDispersionAlta: null   // dispPool(IAO) ≥ alta ⇒ "alta" ⇒ BAJA
   };
 
+  // ══════════════════════════════════════════════════════════════════════════
+  //  0b. GENÉRICOS DE RESPALDO — REAPERTURA (DISENO_CALIBRACION_SDMO_IAO.md).
+  //  Solo `minReportableN` tiene entrada aquí — todos los demás PENDIENTE_
+  //  VALIDACION de arriba siguen exigiendo el valor explícito, sin cambio.
+  //  Precedencia (mismo patrón que motor-piio/temporal.js:estabilidadSerie):
+  //  CALIBRACION_PROPIA (opts[clave]) > CALIBRACION_GLOBAL
+  //  (PENDIENTE_VALIDACION[clave]) > CALIBRACION_GENERICA (GENERICO[clave]).
+  // ══════════════════════════════════════════════════════════════════════════
+  var GENERICO = {
+    // Umbral mínimo de N para reporte de grupo sin comprometer confidencialidad
+    // — convención real de la industria de encuestas organizacionales
+    // (WorkBuzz, 15Five, Effectory, Supermood: default N=5; Gallup: 4-5 según
+    // configuración). NO derivada de datos de EFICIENCIA. La hipótesis interna
+    // previa de este módulo ("N≥8-10 pre-piloto", §3.11 arriba) es MÁS
+    // conservadora que este genérico — alternativa disponible si se prefiere
+    // priorizar cautela sobre la convención de industria. Provisional hasta
+    // calibración propia por organización.
+    minReportableN: 5
+  };
+  var GENERICO_FUENTE = {
+    minReportableN: 'Convención real de la industria de encuestas organizacionales ' +
+      '(WorkBuzz/15Five/Effectory/Supermood: default N=5; Gallup: 4-5). NO derivada de ' +
+      'datos de EFICIENCIA. La hipótesis interna previa ("N≥8-10 pre-piloto") es MÁS ' +
+      'conservadora — alternativa disponible. Provisional hasta calibración propia por organización.'
+  };
+
   function _param(opts, clave, ctxFn) {
     var v = (opts && opts[clave] !== undefined && opts[clave] !== null)
       ? opts[clave] : PENDIENTE_VALIDACION[clave];
+    if ((v === null || v === undefined) && GENERICO[clave] !== undefined) {
+      v = GENERICO[clave]; // CALIBRACION_GENERICA — solo para claves con entrada en GENERICO
+    }
     if (v === null || v === undefined) {
       throw new Error('motor-iao: "' + clave + '" es PENDIENTE_VALIDACION — pásalo explícitamente en opts a ' +
         ctxFn + '(). El piloto fijará su valor.');
     }
     return v;
+  }
+
+  /** _paramOrigen(opts, clave) → 'CALIBRACION_PROPIA'|'CALIBRACION_GLOBAL'|'CALIBRACION_GENERICA'|null
+   *  Compañera de _param — NO cambia su forma de retorno (Opción A,
+   *  DISENO_CALIBRACION_SDMO_IAO.md §4.3) para no tocar los ~15 call sites
+   *  existentes. Solo se usa donde hace falta trazar el origen (agregarNodo/
+   *  agregarOrganizacion, §4.5) — asume que _param ya validó que hay valor. */
+  function _paramOrigen(opts, clave) {
+    if (opts && opts[clave] !== undefined && opts[clave] !== null) return 'CALIBRACION_PROPIA';
+    if (PENDIENTE_VALIDACION[clave] !== null && PENDIENTE_VALIDACION[clave] !== undefined) return 'CALIBRACION_GLOBAL';
+    if (GENERICO[clave] !== undefined) return 'CALIBRACION_GENERICA';
+    return null;
   }
 
   // ══════════════════════════════════════════════════════════════════════════
@@ -327,6 +368,7 @@
       n: n, convocados: convocados,
       tasaRespuesta: convocados > 0 ? n / convocados : null,
       reportable: reportable,
+      minReportableN_origen: _paramOrigen(opts, 'minReportableN'),
       iaoNodo: n ? promedio(validos) : null,          // §3.9
       dispersion: n ? dispersionDescriptiva(validos) : null
     };
@@ -598,6 +640,7 @@
         convocados: convocadosTotal,
         tasaRespuesta: convocadosTotal > 0 ? n / convocadosTotal : null,
         reportable: n >= minN,
+        minReportableN_origen: _paramOrigen(opts, 'minReportableN'),
         iaoOrg: sumaNg ? sumaNgIaog / sumaNg : null,     // Σ(n_g·IAO_g)/Σn_g (§3.9)
         dispersionIao: dispersionIao,
         perfilOrg: perfilOrg,
@@ -621,6 +664,8 @@
     PESOS: PESOS,
     DISENOS_MUESTRALES: DISENOS_MUESTRALES,
     PENDIENTE_VALIDACION: PENDIENTE_VALIDACION,
+    GENERICO: GENERICO,
+    GENERICO_FUENTE: GENERICO_FUENTE,
 
     // cálculo individual (§3.4–3.7)
     deficit: deficit,
