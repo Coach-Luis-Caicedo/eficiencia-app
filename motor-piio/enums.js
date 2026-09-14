@@ -187,7 +187,21 @@ var PARAMS = {
   PATTERN_SEASONAL: null,
 
   // §11.2 / INV-PIIO-26 — mínimo de historia comparable para traj ≠ N_A (ambig. AC).
+  // Slot para una futura CALIBRACION_GLOBAL propia de EFICIENCIA — se
+  // mantiene null a propósito, mismo criterio que STABILITY_CV_STABLE/_MODERATE.
   MIN_HISTORIA_TRAJ: null,
+
+  // REAPERTURA (Fase 4, AUDITORIA_PARAMETROS_CALIBRACION.md §1.5): genérico
+  // de RESPALDO — NO es una convención estadística (a diferencia de
+  // STABILITY_CV_*_GENERICO). Es el mínimo matemático absoluto: con menos de
+  // 2 puntos no existe ningún cambio que calcular (magnitudCambio() y
+  // _pendiente() de temporal.js exigen al menos 2 valores para una resta o
+  // una pendiente). Formaliza un valor que ya regía de hecho, sin nombre,
+  // en historiaSuficiente() — no cambia ningún comportamiento. Solo se usa
+  // cuando NO hay CALIBRACION_GLOBAL (arriba); provisional hasta calibración
+  // propia por organización, igual que los demás genéricos de este bloque.
+  MIN_HISTORIA_TRAJ_GENERICO: 2,
+  MIN_HISTORIA_TRAJ_GENERICO_FUENTE: 'Mínimo matemático absoluto para calcular un cambio entre dos puntos (resta o pendiente de 2 valores) — NO es una convención estadística ni deriva de datos de EFICIENCIA. Provisional hasta calibración propia por organización.',
 
   // §12 / INV-PIIO-58 — densidad mínima (puntos observados / períodos del
   // rango) por debajo de la cual la serie es "sparse" (ambig. AG).

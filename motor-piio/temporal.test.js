@@ -165,7 +165,8 @@ eq(T.magnitudCambio([5]), null, 'serie de 1 punto → null');
 eq(T.magnitudCambio([1, 2], 'OTHER_VALIDATED'), null, 'OTHER_VALIDATED → null (lo aporta el llamante)');
 eq(T.magnitudCambio([1, 2, 3], 'INVENTADO'), 1, 'método no reconocido → cae al default DELTA');
 
-eq(T.historiaSuficiente([1, 2]), true, 'MIN_HISTORIA_TRAJ null → mínimo absoluto 2, [1,2] suficiente');
+eq(E.PARAMS.MIN_HISTORIA_TRAJ_GENERICO, 2, 'MIN_HISTORIA_TRAJ_GENERICO formalizado (enums.js) — mínimo matemático, no convención estadística');
+eq(T.historiaSuficiente([1, 2]), true, 'MIN_HISTORIA_TRAJ null → cae a MIN_HISTORIA_TRAJ_GENERICO=2, [1,2] suficiente');
 eq(T.historiaSuficiente([1]), false, '[1] → insuficiente → traj = N_A en Fase 5 (INV-26)');
 eq(T.historiaSuficiente([]), false, '[] → insuficiente');
 
@@ -192,6 +193,9 @@ console.log('     EXCLUDE está diferido, no ejecutado (INV-59).');
 console.log('  8. magnitudCambio: `m = metodo` (sin fallback al default) → 3 rojos (los 2');
 console.log('     DELTA-implícito + "método no reconocido → cae al default DELTA").');
 console.log('  9. historiaSuficiente: `>= minimo` → `>= 1` → 1 rojo ("[1] → insuficiente", INV-26).');
+console.log('  9b. [REAPERTURA Fase 4, MIN_HISTORIA_TRAJ_GENERICO] enums.js: `MIN_HISTORIA_TRAJ_GENERICO: 2`');
+console.log('      → `3` → 2 rojos (el assert del propio valor + "[1,2] suficiente", que pasa a false)');
+console.log('      — confirma que historiaSuficiente() lee la constante nombrada, no un 2 suelto.');
 
 // ═══════════════════════════════════════════════════════════════════════
 seccion('Mutaciones REAPERTURA 12b (estabilidadSerie: genérico/propio/global) — Bash aparte');

@@ -13,10 +13,20 @@
  *
  * GRUPO 1 (nombre sin número → PARAMS.* = null + PENDIENTE_CALIBRACION,
  * sin decisión de diseño): B `MAX_CONTINUITY_GAP`, C ventanas de freshness,
- * AA cortes de CV, AB params de patrón, AC `MIN_HISTORIA_TRAJ`, AG sparsity.
- * Mientras no estén calibrados, las funciones devuelven INSUFFICIENT / N_A
- * + un flag `*_NO_CALIBRADO` — NUNCA una lectura favorable inventada
- * (§30: "perder cobertura antes que inventar posición").
+ * AB params de patrón, AG sparsity. Mientras no estén calibrados, las
+ * funciones devuelven INSUFFICIENT / N_A + un flag `*_NO_CALIBRADO` — NUNCA
+ * una lectura favorable inventada (§30: "perder cobertura antes que
+ * inventar posición").
+ *
+ * AA (cortes de CV, `estabilidadSerie`) y AC (`MIN_HISTORIA_TRAJ`,
+ * `historiaSuficiente`) YA NO están en GRUPO 1 — ambas tienen hoy un
+ * genérico de respaldo formal (`STABILITY_CV_*_GENERICO`,
+ * `MIN_HISTORIA_TRAJ_GENERICO` — enums.js), con su fuente documentada y
+ * marcado provisional hasta calibración propia por organización
+ * (precedencia CALIBRACION_PROPIA > CALIBRACION_GLOBAL > CALIBRACION_
+ * GENERICA — AUDITORIA_PARAMETROS_CALIBRACION.md §0/§1.5). Mientras no
+ * exista ninguna de las dos primeras, clasifican con el genérico en vez de
+ * degradar a N_A/INSUFFICIENT sin más.
  *
  * GRUPO 2 (mecanismo ausente → decisión de diseño, anotada):
  *   H  — `det_duration` = span calendario del run actual (period[último D]
@@ -316,12 +326,20 @@ function magnitudCambio(valores, metodo, opciones) {
 
 /**
  * historiaSuficiente(valores) → boolean
- * INV-PIIO-26: historia insuficiente → traj = N_A. Sin MIN_HISTORIA_TRAJ
- * calibrado, se exige el mínimo absoluto para computar cualquier cambio (2).
+ * INV-PIIO-26: historia insuficiente → traj = N_A.
+ *
+ * Precedencia (mismo patrón que estabilidadSerie — AUDITORIA_PARAMETROS_
+ * CALIBRACION.md §1.5): CALIBRACION_GLOBAL (`PARAMS.MIN_HISTORIA_TRAJ`, hoy
+ * `null` — slot para una futura calibración propia de EFICIENCIA) >
+ * CALIBRACION_GENERICA (`PARAMS.MIN_HISTORIA_TRAJ_GENERICO`, el mínimo
+ * matemático absoluto para computar cualquier cambio). No hay nivel
+ * CALIBRACION_PROPIA aquí — `historiaSuficiente` no recibe `umbralesOrg` por
+ * llamada (a diferencia de `estabilidadSerie`); extenderlo queda fuera de
+ * este cambio (cero cambio de comportamiento pedido por Luis).
  */
 function historiaSuficiente(valores) {
   if (!Array.isArray(valores) || !valores.every(esNum)) return false;
-  var minimo = esNum(PARAMS.MIN_HISTORIA_TRAJ) ? PARAMS.MIN_HISTORIA_TRAJ : 2;
+  var minimo = esNum(PARAMS.MIN_HISTORIA_TRAJ) ? PARAMS.MIN_HISTORIA_TRAJ : PARAMS.MIN_HISTORIA_TRAJ_GENERICO;
   return valores.length >= minimo;
 }
 
