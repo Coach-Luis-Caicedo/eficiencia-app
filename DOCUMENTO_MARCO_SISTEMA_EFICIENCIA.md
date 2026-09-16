@@ -368,24 +368,38 @@ alguno no se combine en absoluto):
 4. **Mínimo de datos para confiar en la correlación:** ~50-100 respuestas por
    par. Con menos, α = 0.5 como valor provisional, explícitamente no definitivo.
 
-### 6.3 El signo de la Brecha es diagnóstico, no solo magnitud
+### 6.3 El signo de la Brecha indica dirección, no una causa fija
 
-- **Brecha positiva** (Concepto_A/ICE > Concepto_B/IEH): la estructura
-  declara/ofrece más de lo que el individuo percibe recibir → problema de
-  **ejecución/comunicación**. El diseño es correcto, no está llegando.
-- **Brecha negativa** (Concepto_B/IEH > Concepto_A/ICE): el individuo percibe
-  más de lo que la estructura formalmente sostiene → posible **fortaleza
-  cultural informal no institucionalizada** → frágil, depende de personas y no
-  de sistema.
+La Brecha conserva dirección y magnitud (sección 6.1): la dirección indica
+si, para ese par, la lectura sistémica (ICE) supera a la experiencial (IEH)
+o si ocurre lo contrario; la magnitud indica exclusivamente qué tan grande
+es esa distancia, sin indicar dirección.
 
-Esta dirección (no solo la magnitud) es el insumo que debe alimentar el
-catálogo de intervención (`CATALOGO_INTERVENCION_EFICIENCIA.md`).
+**El signo NO tiene asignada una interpretación causal fija** — ni "brecha
+positiva = problema de ejecución/comunicación" ni "brecha negativa =
+fortaleza cultural informal no institucionalizada". Esa lectura estuvo en
+una versión anterior de este documento y quedó explícitamente descartada
+por el Documento Madre `v3` (Registro de cambios, actualización del 1 de
+septiembre de 2026): la interpretación causal específica por dirección —
+qué significa exactamente una brecha positiva frente a una negativa en un
+par determinado — es un parámetro que debe calibrarse empíricamente, no una
+regla fija que el instrumento imponga desde el diseño (Documento Técnico
+Oficial ICE–IEH §8.7 y §13.13: BRECHA ≠ DIAGNÓSTICO).
+
+Mientras no exista esa calibración, la Brecha produce una señal que puede
+justificar profundización — no un diagnóstico cerrado ni una causa
+identificada. La dirección se conserva y se reporta (es información real,
+no se descarta), pero no determina todavía, por sí sola, qué ficha de
+intervención aplica.
 
 ### 6.4 Umbrales de severidad (verde/ámbar/rojo) — PENDIENTE, modelo objetivo definido
 
-La severidad depende de la **magnitud** `|Brecha_final|` (rango [0,1]), no del
-signo — el signo decide qué ficha de intervención aplica (positiva/negativa,
-sección de Catálogo de Intervención); la severidad decide qué tan urgente es.
+La severidad depende de la **magnitud** `|Brecha_final|` (rango [0,1]) — la
+magnitud decide qué tan urgente es la señal. La dirección (sección 6.3)
+sigue reportándose junto a la severidad, pero **no determina
+automáticamente qué ficha de intervención aplica**: qué significa cada
+dirección, para cada par, es precisamente lo que la sección 6.3 deja
+pendiente de calibración empírica, no un mapeo fijo desde el diseño.
 
 No hay umbral numérico definitivo posible sin datos reales — se descartó
 explícitamente usar tercios iguales del rango teórico (0.33/0.67), porque al ser
