@@ -8,6 +8,13 @@
  * existente es la forma de detectar la divergencia -- no un ejercicio de
  * una sola vez, se queda en la batería del proyecto.
  *
+ * Extendida (DISENO_WORKER_EJECUCION_MOTORES.md §5) para cubrir también
+ * runCase.js -- el ensamblador de producción que reemplaza a ejecutarAIE()
+ * de los harnesses motor-integracion-*-aie (que invocaban Python vía
+ * spawnSync, inviable en Cloudflare Workers). Misma batería, misma fuente
+ * de verdad -- runCase() se ejercita fila por fila junto al cálculo
+ * inline ya existente, no en un archivo de prueba aparte.
+ *
  * Fuente de verdad: motor-aie/fixtures/fixture_2f_3f.json -- 19 884 filas
  * generadas UNA VEZ por aie_validation_kit/gen_fixture_2f_3f.py corriendo
  * el Python real (engine_core.py/rules_2f_3f.py sin modificar), sobre los
@@ -27,6 +34,7 @@ var fs = require('fs');
 var path = require('path');
 var E = require('./engine_core');
 var R = require('./rules_2f_3f');
+var runCase = require('./runCase').runCase;
 
 var _ok = 0, _fallos = 0;
 var _discrepancias = [];
@@ -85,12 +93,31 @@ function comparaExacto(source, t, campo, recibido, esperado) {
   return iguales;
 }
 
+var camposRunCase = ['CFG', 'DYN', 'OPS', 'CFG_pos', 'DYN_pos', 'OPS_pos',
+  'CFG_traj', 'DYN_traj', 'OPS_traj', 'DYN_pers', 'DYN_detrun',
+  'OPS_pers', 'OPS_detrun', 'CFG_imprun', 'DYN_imprun', 'AIE_3F', 'AIE_2F'];
+// 't' se compara aparte (es el índice, no un campo derivado) -- 18 campos
+// en total por fila de runCase(), t + los 17 de esta lista.
+var totalFilasRunCase = 0;
+var _discrepanciasRunCase = [];
+function comparaExactoRunCase(source, t, campo, recibido, esperado) {
+  var iguales = recibido === esperado;
+  if (!iguales) {
+    _discrepanciasRunCase.push({ source: source, t: t, campo: campo, recibido: recibido, esperado: esperado });
+  }
+  return iguales;
+}
+
 Object.keys(porSource).forEach(function (source) {
   var grupo = porSource[source].slice().sort(function (a, b) { return a.t - b.t; });
   var cfgArr = grupo.map(function (r) { return r.CFG; });
   var dynArr = grupo.map(function (r) { return r.DYN; });
   var opsArr = grupo.map(function (r) { return r.OPS; }); // puede tener null
   var opsPresente = opsArr[0] !== null;
+
+  // runCase() se corre UNA vez por serie completa (así se invocaría en
+  // producción) -- no fila por fila como el cálculo inline de abajo.
+  var filasRunCase = runCase(cfgArr, dynArr, opsArr);
 
   grupo.forEach(function (fila, t) {
     totalFilas++;
@@ -136,6 +163,17 @@ Object.keys(porSource).forEach(function (source) {
     comparaFloat(source, t, 'CFG_slope', cfg_slope, fila.CFG_slope);
     comparaFloat(source, t, 'DYN_slope', dyn_slope, fila.DYN_slope);
     comparaFloat(source, t, 'OPS_slope', ops_slope, fila.OPS_slope);
+
+    // ── runCase() (motor-aie/runCase.js) contra el mismo fixture ──────
+    // No repite el cálculo inline de arriba -- compara la fila que el
+    // ensamblador de producción ya generó para esta serie completa contra
+    // el fixture, igual que se compararía el port de classify_2F/3F.
+    var filaRunCase = filasRunCase[t];
+    totalFilasRunCase++;
+    ok(filaRunCase.t === t, 'runCase(): fila[' + t + '].t coincide con el índice (source=' + source + ')');
+    camposRunCase.forEach(function (campo) {
+      comparaExactoRunCase(source, t, campo, filaRunCase[campo], fila[campo]);
+    });
   });
 });
 
@@ -150,6 +188,25 @@ if (_discrepancias.length === 0) {
   _discrepancias.slice(0, 20).forEach(function (d) {
     console.log('    source=' + d.source + ' t=' + d.t + ' campo=' + d.campo +
       ' recibido(JS)=' + JSON.stringify(d.recibido) + ' esperado(Python)=' + JSON.stringify(d.esperado));
+  });
+  _fallos++;
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+console.log('\n── runCase() (motor-aie/runCase.js, el ensamblador de producción) contra el mismo fixture ──');
+// ═══════════════════════════════════════════════════════════════════════
+
+console.log('  Filas comparadas: ' + totalFilasRunCase + ' (esperado: 19884)');
+ok(totalFilasRunCase === 19884, 'runCase(): total de filas del fixture coincide con lo esperado (19884)');
+
+if (_discrepanciasRunCase.length === 0) {
+  console.log('  ✓ 0 discrepancias en las ' + totalFilasRunCase + ' filas -- runCase() coincide EXACTO con el fixture (Python real).');
+  _ok++;
+} else {
+  console.log('  ✗ ' + _discrepanciasRunCase.length + ' discrepancias encontradas -- las primeras 20:');
+  _discrepanciasRunCase.slice(0, 20).forEach(function (d) {
+    console.log('    source=' + d.source + ' t=' + d.t + ' campo=' + d.campo +
+      ' recibido(runCase)=' + JSON.stringify(d.recibido) + ' esperado(Python)=' + JSON.stringify(d.esperado));
   });
   _fallos++;
 }
