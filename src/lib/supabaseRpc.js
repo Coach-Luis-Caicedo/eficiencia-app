@@ -33,6 +33,16 @@ class RpcError extends Error {
  *
  * `env` trae SUPABASE_URL y SUPABASE_ANON_KEY (vars del Worker, ver
  * DISENO_WORKER_EJECUCION_MOTORES.md §3 -- nunca service_role).
+ *
+ * `Content-Profile: motores_eficiencia` -- hallazgo real, encontrado al
+ * probar wrangler dev contra Supabase real (no en pglite, que corre
+ * Postgres crudo sin la capa PostgREST): sin este header, PostgREST
+ * busca las funciones en `public` por defecto y devuelve PGRST202
+ * ("could not find the function") para cualquier función de
+ * motores_eficiencia, aunque el esquema ya esté expuesto y los GRANT
+ * EXECUTE/USAGE existan. Todas las llamadas de este helper son POST
+ * (incluidas las funciones de "lectura"), así que Content-Profile
+ * basta -- no se necesita Accept-Profile (el de las peticiones GET/HEAD).
  */
 async function rpc(env, jwt, nombre, params) {
   const res = await fetch(env.SUPABASE_URL + '/rest/v1/rpc/' + nombre, {
@@ -41,6 +51,7 @@ async function rpc(env, jwt, nombre, params) {
       apikey: env.SUPABASE_ANON_KEY,
       Authorization: 'Bearer ' + jwt,
       'Content-Type': 'application/json',
+      'Content-Profile': 'motores_eficiencia',
       Prefer: 'return=representation'
     },
     body: JSON.stringify(params || {})

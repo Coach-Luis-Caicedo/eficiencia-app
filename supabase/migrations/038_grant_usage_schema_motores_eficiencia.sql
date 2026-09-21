@@ -1,0 +1,46 @@
+-- ══════════════════════════════════════════════════════════════════
+-- EFICIENCIA — Migración 038: GRANT USAGE ON SCHEMA motores_eficiencia
+--
+-- CC no ejecuta esto. Se muestra como diff, Luis lo aplica manualmente.
+--
+-- Hallazgo real, encontrado al probar wrangler dev contra Supabase real
+-- (no en pglite): PostgREST devolvía 42501 "permission denied for
+-- schema motores_eficiencia" al llamar generar_invitaciones_cuestionario
+-- autenticado como un consultor real, incluso con el esquema ya
+-- agregado a "Exposed schemas" del proyecto y con GRANT EXECUTE ya
+-- existente en cada función (033/034/035/036).
+--
+-- Causa raíz, confirmada con documentación oficial de PostgreSQL: USAGE
+-- ON SCHEMA es un requisito SEPARADO de EXECUTE ON FUNCTION -- sin
+-- USAGE, un rol no puede ni encontrar los objetos del esquema para que
+-- sus privilegios de EXECUTE lleguen a evaluarse. 030 crea el esquema
+-- (línea 78) pero nunca otorgó USAGE a `anon`/`authenticated` -- a
+-- diferencia de `public`, un esquema nuevo no concede USAGE a nadie por
+-- defecto salvo a su dueño.
+--
+-- Por qué no se detectó antes: los arneses de pglite (030-037)
+-- corrieron simulando auth.uid() vía set_config(), pero nunca bajo el
+-- ROL real de Postgres (`SET ROLE anon`/`SET ROLE authenticated`) --
+-- mismo patrón de brecha que ALTER DEFAULT PRIVILEGES (AUDITORIA_
+-- SUPABASE_MOTORES.md §5): un supuesto de privilegios que solo se
+-- rompe bajo el rol real, no bajo superusuario simulando serlo.
+--
+-- Alcance de la corrección, deliberadamente mínimo: USAGE por sí solo
+-- NO otorga acceso a ningún objeto ("USAGE on a schema does not grant
+-- access to any object in it. It only lets the role find objects" --
+-- documentación oficial) -- los GRANT EXECUTE por función que ya
+-- existen en 033-036 siguen siendo los que de verdad controlan qué
+-- puede llamar cada rol. Esto no ensancha el acceso, solo desbloquea
+-- la resolución de nombres que ya debía funcionar.
+-- ══════════════════════════════════════════════════════════════════
+
+GRANT USAGE ON SCHEMA motores_eficiencia TO anon, authenticated;
+
+-- ══════════════════════════════════════════════════════════════════
+-- Verificación sugerida tras aplicar
+-- ══════════════════════════════════════════════════════════════════
+-- Autenticado como un consultor real vinculado a una organización,
+-- llamar cualquier función de motores_eficiencia (p.ej.
+-- generar_invitaciones_cuestionario) vía PostgREST con
+-- Content-Profile: motores_eficiencia -- debe devolver 200/201, no
+-- 42501.
