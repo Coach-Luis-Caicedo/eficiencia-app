@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>EFICIENCIA — Cuestionario ICE · IEH</title>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@600;700;800&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<style>
+/*
+  cuestionario_ice_ieh.html -- formulario del empleado final para
+  motores_eficiencia.registrar_respuesta_ice_ieh (034), NO para el
+  legacy enviar_respuesta_cuestionario (001).
+
+  Patrones de UI tomados de cuestionario.html (legacy) como referencia,
+  no como reuso -- INVESTIGACION_FORMULARIO_EMPLEADO_ICE_IEH_SDMO.md §2.
+  Las 31 preguntas (texto exacto, código de sensor, variable, tipo) y
+  sus citas están en docs/DOCUMENTO_TECNICO_ICE_IEH_v2.md, cruzadas
+  contra motor-ice-ieh/motor-ice-ieh.js:57-99 -- no son las 25 preguntas
+  del cuestionario.html legacy (versión anterior del instrumento).
+*/
+:root{
+  --azul:#0D2340; --azul-m:#1B3A5C; --azul-l:#2563A8; --azul-bg:#D6E4F7;
+  --dorado:#C9A227; --dorado-lt:#FEF8E3;
+  --paper:#F7F4EF; --paper-w:#EDE8DF; --rule:#D6CEBE;
+  --ink:#0D1B2A; --ink-m:#3D5A73; --ink-s:#7A97AD;
+  --iehs:#1A5C3A; --iehs-lt:#EAF5EF;
+  --ice:#6B3A1F; --ice-lt:#FBF2EA;
+  --ind:#3A1A6B; --ind-lt:#F0EAFB;
+  --r:10px; --shadow:0 2px 12px rgba(13,27,42,.08);
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{font-family:'DM Sans',sans-serif;background:var(--paper);color:var(--ink);font-size:15px;line-height:1.6;min-height:100vh}
+
+.site-header{background:var(--azul);padding:0;position:sticky;top:0;z-index:100}
+.header-inner{max-width:780px;margin:0 auto;display:flex;align-items:center;gap:16px;padding:14px 24px}
+.brand-mark{font-family:'Montserrat',sans-serif;font-weight:800;font-size:18px;line-height:1}
+.efi{color:var(--dorado)}.ciencia{color:#fff}
+.brand-sub{font-size:10px;color:rgba(255,255,255,.35);letter-spacing:.14em;text-transform:uppercase;margin-top:2px}
+.header-progress{flex:1;margin-left:8px}
+.prog-label{font-size:11px;color:rgba(255,255,255,.42);margin-bottom:5px;display:flex;justify-content:space-between}
+.prog-bar{height:4px;background:rgba(255,255,255,.12);border-radius:2px}
+.prog-fill{height:100%;background:var(--dorado);border-radius:2px;transition:width .4s ease}
+
+.btn{padding:12px 28px;border-radius:8px;border:none;cursor:pointer;font-family:'Montserrat',sans-serif;
+     font-weight:700;font-size:13px;transition:all .2s;letter-spacing:.04em;text-transform:uppercase}
+.btn-gold{background:var(--dorado);color:var(--azul)}
+.btn-gold:hover{background:#ddb22e;box-shadow:0 6px 20px rgba(201,162,39,.4);transform:translateY(-2px)}
+.btn-gold:disabled{background:var(--rule);color:var(--ink-s);cursor:not-allowed;box-shadow:none;transform:none}
+.btn-ghost{background:rgba(255,255,255,.1);color:#fff;border:1px solid rgba(255,255,255,.2)}
+.btn-ghost:hover{background:rgba(255,255,255,.18)}
+
+.wrap{max-width:780px;margin:0 auto;padding:0 24px}
+.intro-card{background:var(--azul);color:#fff;border-radius:16px;padding:30px 36px;margin:32px 0 24px;position:relative;overflow:hidden}
+.intro-card::before{content:'';position:absolute;top:-50px;right:-50px;width:180px;height:180px;border-radius:50%;background:radial-gradient(circle,rgba(201,162,39,.22) 0%,transparent 70%)}
+.intro-title{font-family:'Montserrat',sans-serif;font-size:24px;font-weight:700;margin-bottom:6px}
+.intro-desc{font-size:13.5px;color:rgba(255,255,255,.62);line-height:1.7;max-width:520px}
+.meta-pills{display:flex;gap:12px;margin-top:16px;flex-wrap:wrap}
+.meta-pill{background:rgba(255,255,255,.09);border:1px solid rgba(255,255,255,.15);border-radius:20px;padding:4px 12px;font-size:11.5px;color:rgba(255,255,255,.75)}
+
+.questions{max-width:780px;margin:0 auto;padding:0 24px 80px}
+.block-hdr{display:flex;align-items:center;gap:12px;margin:36px 0 14px;padding:12px 18px;background:var(--azul);border-radius:10px;color:#fff}
+.blk-num{font-size:10px;color:rgba(255,255,255,.45);letter-spacing:.12em;text-transform:uppercase;min-width:80px}
+.blk-name{font-family:'Montserrat',sans-serif;font-size:14px;font-weight:700;color:#fff;flex:1}
+
+.q-card{background:#fff;border:1px solid var(--rule);border-radius:var(--r);padding:18px 22px;margin-bottom:8px;box-shadow:var(--shadow);transition:border-left-color .2s}
+.q-card.answered{border-left:3px solid var(--azul-l)}
+.q-hdr{display:flex;align-items:center;gap:8px;margin-bottom:10px}
+.q-n{font-family:'DM Mono',monospace;font-size:11px;font-weight:500;color:var(--ink-s);min-width:30px}
+.q-badge{font-size:10px;font-weight:600;padding:2px 8px;border-radius:20px;letter-spacing:.06em;text-transform:uppercase}
+.badge-ice{background:var(--ice-lt);color:var(--ice)}
+.badge-ieh{background:var(--iehs-lt);color:var(--iehs)}
+.badge-ind{background:var(--ind-lt);color:var(--ind)}
+.q-txt{font-size:15px;font-weight:500;color:var(--ink);line-height:1.5;margin-bottom:13px}
+.lik-wrap{display:flex;gap:6px;flex-wrap:wrap}
+.lik-lbl{cursor:pointer}
+.lik-lbl input{display:none}
+.lik-btn{display:flex;align-items:center;justify-content:center;width:44px;height:44px;border-radius:8px;
+  border:1.5px solid var(--rule);background:#fff;font-family:'DM Mono',monospace;font-size:14px;
+  font-weight:700;color:var(--ink-m);cursor:pointer;transition:all .15s;user-select:none}
+.lik-lbl input:checked + .lik-btn{background:var(--azul);border-color:var(--azul);color:#fff;box-shadow:0 2px 8px rgba(13,35,64,.25)}
+.lik-btn:hover{border-color:var(--azul-l);color:var(--azul-l)}
+
+/* P7 (IND-EF) -- 5 afirmaciones completas, no un Likert numérico con
+   anclas en los extremos (docs/DOCUMENTO_TECNICO_ICE_IEH_v2.md:298-306:
+   cada una de las 5 posiciones tiene su propio enunciado, no solo la 1
+   y la 5) -- componente distinto a propósito, no una reutilización
+   forzada del mismo botón numérico. */
+.choice-list{display:flex;flex-direction:column;gap:8px}
+.choice-opt{display:flex;align-items:flex-start;gap:12px;padding:12px 14px;border:1.5px solid var(--rule);
+  border-radius:8px;cursor:pointer;transition:all .15s}
+.choice-opt:hover{border-color:var(--ind)}
+.choice-opt input{margin-top:3px;accent-color:var(--ind)}
+.choice-opt.sel{border-color:var(--ind);background:var(--ind-lt)}
+.choice-n{font-family:'DM Mono',monospace;font-size:11px;color:var(--ink-s);min-width:16px}
+.choice-txt{font-size:13.5px;color:var(--ink);line-height:1.5}
+
+.submit-wrap{max-width:780px;margin:0 auto;padding:0 24px 60px}
+.submit-card{background:var(--azul);border-radius:16px;padding:28px 32px;text-align:center;color:#fff}
+.submit-card h3{font-family:'Montserrat',sans-serif;font-size:20px;font-weight:700;margin-bottom:8px}
+.submit-card p{font-size:14px;color:rgba(255,255,255,.6);margin-bottom:20px}
+.incomplete-warn{background:rgba(201,162,39,.18);border:1px solid rgba(201,162,39,.4);border-radius:8px;
+  padding:11px 14px;margin-bottom:14px;font-size:13px;color:var(--dorado)}
+
+.float-counter{position:fixed;bottom:24px;right:24px;background:var(--azul);color:#fff;
+  border-radius:50px;padding:10px 18px;font-size:13px;font-weight:700;
+  box-shadow:0 4px 20px rgba(13,35,64,.35);display:flex;align-items:center;gap:10px;z-index:200;cursor:pointer}
+
+.done-overlay{display:none;position:fixed;inset:0;background:var(--azul);z-index:600;
+  align-items:center;justify-content:center;flex-direction:column;text-align:center;padding:40px}
+.done-overlay.show{display:flex}
+.done-icon{font-size:56px;margin-bottom:20px;color:var(--dorado)}
+.done-title{font-family:'Montserrat',sans-serif;font-size:28px;color:var(--dorado);font-weight:800;margin-bottom:10px}
+.done-sub{font-size:14px;color:rgba(255,255,255,.65);max-width:440px;line-height:1.7;margin-bottom:28px}
+</style>
+</head>
+<body>
+
+<header class="site-header">
+  <div class="header-inner">
+    <div style="display:flex;align-items:center;gap:10px;flex-shrink:0">
+      <div class="brand-mark"><span class="efi">EFI</span><span class="ciencia">CIENCIA</span></div>
+    </div>
+    <div class="header-progress">
+      <div class="prog-label"><span>Progreso</span><span id="prog-text">0 / 31</span></div>
+      <div class="prog-bar"><div class="prog-fill" id="prog-fill" style="width:0%"></div></div>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+  <div class="intro-card">
+    <div class="intro-title">Cuestionario ICE · IEH</div>
+    <div class="intro-desc">31 preguntas en 5 bloques. Cada bloque mide dos ángulos del mismo fenómeno: cómo está diseñada la organización (ICE) y cómo lo vive la persona (IEH). No hay respuestas correctas ni incorrectas — responde con lo que reconoces de tu experiencia real.</div>
+    <div class="meta-pills">
+      <span class="meta-pill">31 preguntas</span>
+      <span class="meta-pill">5 bloques</span>
+      <span class="meta-pill">&#8776; 7 minutos</span>
+      <span class="meta-pill">Escala 1&#8211;5</span>
+    </div>
+  </div>
+</div>
+
+<div class="questions" id="questions"></div>
+
+<div class="submit-wrap">
+  <div class="submit-card">
+    <h3>¿Terminaste?</h3>
+    <p>Las 31 preguntas son obligatorias — el sistema no acepta un cuestionario incompleto.</p>
+    <div class="incomplete-warn" id="incomplete-warn" style="display:none">
+      Aún hay <strong id="missing-count">0</strong> preguntas sin responder.
+    </div>
+    <button class="btn btn-gold" id="btn-enviar" onclick="exportar()" disabled>&#10003; Enviar respuestas</button>
+  </div>
+</div>
+
+<div class="float-counter" onclick="scrollToNext()">
+  <span id="fc-text">0 / 31</span>
+</div>
+
+<div class="done-overlay" id="done-overlay">
+  <div class="done-icon">&#10003;</div>
+  <div class="done-title">Cuestionario enviado</div>
+  <div class="done-sub" id="done-msg">Tus respuestas han sido guardadas correctamente.</div>
+  <div class="done-actions">
+    <button class="btn btn-ghost" onclick="document.getElementById('done-overlay').classList.remove('show')">Cerrar</button>
+  </div>
+</div>
+
+<div class="done-overlay" id="sin-codigo-overlay">
+  <div class="done-icon">&#9888;</div>
+  <div class="done-title">Enlace no válido</div>
+  <div class="done-sub">Este cuestionario requiere el enlace de invitación individual que te compartió tu organización. Si lo perdiste, pídele a tu consultor de EFICIENCIA que te lo reenvíe.</div>
+</div>
+
+<script>
+/*
+  QUESTIONS -- las 31 preguntas reales, texto verbatim de
+  docs/DOCUMENTO_TECNICO_ICE_IEH_v2.md (secciones 3.7, 4.7, 5.8, 6.7,
+  7.8), codigo/variable/tipo cruzados contra
+  motor-ice-ieh/motor-ice-ieh.js:57-99. 'tipo':'inversa' (COH-3, EQU-3)
+  no se marca visualmente para el empleado -- la recodificación es un
+  asunto de cálculo (motor-ice-ieh.js:266-268), no algo que deba sesgar
+  la respuesta mostrando "esta es una pregunta invertida".
+*/
+var BLOQUES = [
+  { n: 1, nombre: 'Estructura &#8596; Fortaleza' },
+  { n: 2, nombre: 'Intención &#8596; Coherencia' },
+  { n: 3, nombre: 'Impacto &#8596; Equilibrio' },
+  { n: 4, nombre: 'Nexo &#8596; Confianza' },
+  { n: 5, nombre: 'Integración &#8596; Actitud' }
+];
+
+var QUESTIONS = [
+  {p:1,  bloque:1, plano:'ICE', variable:'Estructura',   codigo:'EST-1', tipo:'normal', texto:'¿Cada Persona sabe lo que debe hacer y de qué es responsable?'},
+  {p:2,  bloque:1, plano:'ICE', variable:'Estructura',   codigo:'EST-2', tipo:'normal', texto:'¿Cada Persona sabe bien cómo debe trabajar con los demás?'},
+  {p:3,  bloque:1, plano:'ICE', variable:'Estructura',   codigo:'EST-3', tipo:'normal', texto:'¿La forma en que está organizada la empresa tiene en cuenta sus propias necesidades y también las de las Personas?'},
+  {p:4,  bloque:1, plano:'IEH', variable:'Fortaleza',    codigo:'FOR-1', tipo:'normal', texto:'¿Siento que esta empresa es para mí un lugar seguro?'},
+  {p:5,  bloque:1, plano:'IEH', variable:'Fortaleza',    codigo:'FOR-2', tipo:'normal', texto:'¿Siento que a esta empresa mis necesidades le importan?'},
+  {p:6,  bloque:1, plano:'IEH', variable:'Fortaleza',    codigo:'FOR-3', tipo:'normal', texto:'¿Siento que esta empresa me valora por lo que soy, y no solo por lo que hago?'},
+  {p:7,  bloque:1, plano:'IND', variable:'Estructura↔Fortaleza', codigo:'IND-EF', tipo:'eleccion5',
+    texto:'¿Cuál de estas afirmaciones se acerca más a lo que creo sobre esta empresa?',
+    opciones:[
+      'Está bien organizada, pero no me siento seguro, cuidado ni valorado.',
+      'Me acerco más a la situación 1.',
+      'No encuentro diferencia entre cómo está organizada y cómo me siento en ella.',
+      'Me acerco más a la situación 5.',
+      'Tiene problemas de organización, pero me siento seguro, cuidado y valorado.'
+    ]},
+
+  {p:8,  bloque:2, plano:'ICE', variable:'Intención',  codigo:'INE-1', tipo:'normal', texto:'La empresa está organizada para cumplir su propósito.'},
+  {p:9,  bloque:2, plano:'ICE', variable:'Intención',  codigo:'INE-2', tipo:'normal', texto:'¿Esta empresa me ha enseñado cómo actuar de acuerdo con su visión, principios y valores?'},
+  {p:10, bloque:2, plano:'ICE', variable:'Intención',  codigo:'INE-3', tipo:'normal', texto:'¿La identidad de esta empresa se nota en sus acciones?'},
+  {p:11, bloque:2, plano:'IEH', variable:'Coherencia', codigo:'COH-1', tipo:'normal', texto:'¿Lo que vivo en esta empresa refleja lo que ella dice ser?'},
+  {p:12, bloque:2, plano:'IEH', variable:'Coherencia', codigo:'COH-2', tipo:'normal', texto:'¿Reconozco que esta empresa actúa con integridad?'},
+  {p:13, bloque:2, plano:'IEH', variable:'Coherencia', codigo:'COH-3', tipo:'inversa', texto:'¿He recibido instrucciones que contradicen lo que la empresa declara?'},
+  {p:14, bloque:2, plano:'IND', variable:'Intención↔Coherencia', codigo:'IND-IC', tipo:'normal', texto:'¿Creo que lo que esta empresa dice sobre sí misma es cierto?'},
+
+  {p:15, bloque:3, plano:'ICE', variable:'Impacto',    codigo:'IMP-1', tipo:'normal', texto:'¿La forma en que funciona esta empresa me facilita el aprovechamiento del tiempo?'},
+  {p:16, bloque:3, plano:'ICE', variable:'Impacto',    codigo:'IMP-2', tipo:'normal', texto:'¿Las condiciones de trabajo me permiten enfocar mi energía en cumplir mis funciones?'},
+  {p:17, bloque:3, plano:'ICE', variable:'Impacto',    codigo:'IMP-3', tipo:'normal', texto:'¿Esta empresa genera condiciones que me permiten aprovechar lo mejor de mis capacidades?'},
+  {p:18, bloque:3, plano:'ICE', variable:'Impacto',    codigo:'IMP-4', tipo:'normal', texto:'¿Ser parte de esta empresa favorece el desarrollo de los aspectos relevantes de mi vida?'},
+  {p:19, bloque:3, plano:'IEH', variable:'Equilibrio', codigo:'EQU-1', tipo:'normal', texto:'¿La forma en que esta empresa me trata demuestra que reconoce lo que hago por ella?'},
+  {p:20, bloque:3, plano:'IEH', variable:'Equilibrio', codigo:'EQU-2', tipo:'normal', texto:'¿Lo que esta empresa me da es lo que realmente aspiro recibir?'},
+  {p:21, bloque:3, plano:'IEH', variable:'Equilibrio', codigo:'EQU-3', tipo:'inversa', texto:'¿Creo que esta empresa no me da lo suficiente por mi entrega y esfuerzo?'},
+
+  {p:22, bloque:4, plano:'ICE', variable:'Nexo',      codigo:'NEX-1', tipo:'normal', texto:'¿Esta empresa me ha enseñado lo que realmente es y lo que aspira lograr?'},
+  {p:23, bloque:4, plano:'ICE', variable:'Nexo',      codigo:'NEX-2', tipo:'normal', texto:'¿Entiendo lo importante que es ser parte de lo que esta empresa hace?'},
+  {p:24, bloque:4, plano:'ICE', variable:'Nexo',      codigo:'NEX-3', tipo:'normal', texto:'¿Me gusta contribuir al éxito de esta empresa?'},
+  {p:25, bloque:4, plano:'IEH', variable:'Confianza', codigo:'CNF-1', tipo:'normal', texto:'¿Lo que he vivido en esta empresa hace que me sienta feliz de ser parte de ella?'},
+  {p:26, bloque:4, plano:'IEH', variable:'Confianza', codigo:'CNF-2', tipo:'normal', texto:'¿Esta empresa me ha apoyado cuando la he necesitado?'},
+  {p:27, bloque:4, plano:'IEH', variable:'Confianza', codigo:'CNF-3', tipo:'normal', texto:'¿Siento que esta empresa es el lugar al que pertenezco?'},
+
+  {p:28, bloque:5, plano:'ICE', variable:'Integración', codigo:'ITG-1', tipo:'normal', texto:'¿He entendido que lo que hago en esta empresa puede mejorar la vida de mucha gente?'},
+  {p:29, bloque:5, plano:'ICE', variable:'Integración', codigo:'ITG-2', tipo:'normal', texto:'¿He descubierto cómo mi trabajo contribuye a hacer felices a otros?'},
+  {p:30, bloque:5, plano:'IEH', variable:'Actitud',      codigo:'ACT-1', tipo:'normal', texto:'¿Me siento orgulloso de dar lo mejor de mí cada día porque sé lo que significa?'},
+  {p:31, bloque:5, plano:'IEH', variable:'Actitud',      codigo:'ACT-2', tipo:'normal', texto:'¿Quiero que mi actitud haga que otras Personas reconozcan lo que esta empresa representa?'}
+];
+
+var answers = {};
+var answered = 0;
+var TOTAL = 31;
+
+function badgeClass(plano) {
+  if (plano === 'ICE') return 'badge-ice';
+  if (plano === 'IEH') return 'badge-ieh';
+  return 'badge-ind';
+}
+
+function renderQuestions() {
+  var cont = document.getElementById('questions');
+  var html = '';
+  var bloqueActual = 0;
+  QUESTIONS.forEach(function (q) {
+    if (q.bloque !== bloqueActual) {
+      bloqueActual = q.bloque;
+      var b = BLOQUES[bloqueActual - 1];
+      html += '<div class="block-hdr" id="block-' + bloqueActual + '"><div class="blk-num">Bloque ' + bloqueActual + ' / 5</div><div class="blk-name">' + b.nombre + '</div></div>';
+    }
+    html += '<div class="q-card" id="qcard-' + q.p + '">';
+    html += '<div class="q-hdr"><span class="q-n">P' + q.p + '</span><span class="q-badge ' + badgeClass(q.plano) + '">' + q.plano + ' &middot; ' + q.variable + '</span></div>';
+    html += '<div class="q-txt">' + q.texto + '</div>';
+    if (q.tipo === 'eleccion5') {
+      html += '<div class="choice-list">';
+      q.opciones.forEach(function (opt, i) {
+        var v = i + 1;
+        html += '<label class="choice-opt" id="opt-' + q.p + '-' + v + '">' +
+          '<input type="radio" name="q' + q.p + '" value="' + v + '" onchange="answer(' + q.p + ',' + v + ')">' +
+          '<span class="choice-n">' + v + '</span><span class="choice-txt">' + opt + '</span></label>';
+      });
+      html += '</div>';
+    } else {
+      html += '<div class="lik-wrap">';
+      for (var v2 = 1; v2 <= 5; v2++) {
+        html += '<label class="lik-lbl"><input type="radio" name="q' + q.p + '" value="' + v2 + '" onchange="answer(' + q.p + ',' + v2 + ')"><span class="lik-btn">' + v2 + '</span></label>';
+      }
+      html += '</div>';
+    }
+    html += '</div>';
+  });
+  cont.innerHTML = html;
+}
+
+function answer(qn, val) {
+  var was = (answers[qn] !== undefined);
+  answers[qn] = val;
+  if (!was) { answered++; updateProgress(); }
+  document.getElementById('qcard-' + qn).classList.add('answered');
+  var q = QUESTIONS[qn - 1];
+  if (q.tipo === 'eleccion5') {
+    for (var i = 1; i <= 5; i++) {
+      document.getElementById('opt-' + qn + '-' + i).classList.toggle('sel', i === val);
+    }
+  }
+}
+
+function updateProgress() {
+  var pct = answered / TOTAL;
+  document.getElementById('prog-fill').style.width = (pct * 100) + '%';
+  document.getElementById('prog-text').textContent = answered + ' / ' + TOTAL;
+  document.getElementById('fc-text').textContent = answered + ' / ' + TOTAL;
+  var btn = document.getElementById('btn-enviar');
+  var warn = document.getElementById('incomplete-warn');
+  if (answered === TOTAL) {
+    btn.disabled = false;
+    warn.style.display = 'none';
+  } else {
+    btn.disabled = true;
+    warn.style.display = 'block';
+    document.getElementById('missing-count').textContent = TOTAL - answered;
+  }
+}
+
+function scrollToNext() {
+  var all = document.querySelectorAll('.q-card');
+  for (var i = 0; i < all.length; i++) {
+    if (!all[i].classList.contains('answered')) {
+      all[i].scrollIntoView({behavior:'smooth', block:'center'});
+      return;
+    }
+  }
+}
+
+// período mensual 'YYYY-MM' -- convención ya usada en toda la verificación
+// end-to-end del Worker (calcular-ice-ieh), no un formato con CHECK real
+// en ice_ieh_respuestas.period todavía (032, "formato PENDIENTE DE
+// DECISIÓN") -- el empleado nunca lo escribe, se deriva de la fecha real.
+function periodoActual() {
+  return new Date().toISOString().slice(0, 7);
+}
+
+function exportar() {
+  if (answered !== TOTAL) return; // botón ya queda disabled, defensa doble
+  if (!CODIGO_INVITACION) {
+    document.getElementById('sin-codigo-overlay').classList.add('show');
+    return;
+  }
+  var respuestas = {};
+  for (var i = 1; i <= TOTAL; i++) respuestas['P' + i] = answers[i];
+
+  function mostrarOk() {
+    document.getElementById('done-msg').textContent = 'Tus respuestas han sido guardadas correctamente.';
+    document.getElementById('done-overlay').classList.add('show');
+  }
+  function mostrarError(detalle) {
+    document.getElementById('done-msg').textContent = 'No se pudo enviar. ' + (detalle || 'Verifica tu internet e intenta de nuevo.');
+    document.getElementById('done-overlay').classList.add('show');
+  }
+
+  // .schema('motores_eficiencia') -- SIN esto, supabase-js llama la RPC
+  // contra 'public' por defecto y PostgREST responde PGRST202 (mismo
+  // hallazgo real que exigió el header Content-Profile en
+  // src/lib/supabaseRpc.js del Worker -- aquí es el equivalente del
+  // lado del navegador, misma causa raíz).
+  supa.schema('motores_eficiencia').rpc('registrar_respuesta_ice_ieh', {
+    p_codigo: CODIGO_INVITACION,
+    p_respuestas: respuestas,
+    p_period: periodoActual()
+  }).then(function (res) {
+    if (res.error) {
+      if (/código de invitación/.test(res.error.message || '')) {
+        document.getElementById('sin-codigo-overlay').classList.add('show');
+        return;
+      }
+      mostrarError(res.error.message);
+      return;
+    }
+    mostrarOk();
+  }).catch(function (err) {
+    mostrarError(err && err.message);
+  });
+}
+</script>
+
+<script>
+// Proyecto Supabase de EFICIENCIA. La anon key es pública por diseño;
+// la protección real es RLS + las funciones SECURITY DEFINER que
+// exigen un código de invitación válido (034).
+var SUPA_URL = 'https://kapxcjehfaasttwfnnzq.supabase.co';
+var SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImthcHhjamVoZmFhc3R0d2ZubnpxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODYxMzQ1NjYsImV4cCI6MjEwMTcxMDU2Nn0.s0NC1ILswMQHPf-rsY1kvGSn0LpBSckNdlw2TvzMXws';
+var supa = supabase.createClient(SUPA_URL, SUPA_KEY);
+
+// Clave de localStorage DISTINTA de la del legacy (efi_codigo,
+// cuestionario.html/sdmo.html) -- deliberado, no un descuido: este
+// formulario apunta a motores_eficiencia, un sistema de invitaciones
+// separado (033) del legacy (invitaciones_individuales, 001). Compartir
+// la misma clave mezclaría dos códigos de identidad distintos en el
+// mismo navegador. sdmo_nuevo.html usa esta MISMA clave -- mismo
+// código sirve a los dos instrumentos nuevos (INVESTIGACION_
+// FORMULARIO_EMPLEADO_ICE_IEH_SDMO.md §1).
+var CLAVE_LOCALSTORAGE = 'me_codigo';
+
+(function () {
+  renderQuestions();
+  var params = new URLSearchParams(window.location.search);
+  var codigoUrl = params.get('codigo');
+  // localStorage puede lanzar SecurityError -- navegación privada,
+  // almacenamiento deshabilitado, ciertos navegadores embebidos (p.ej.
+  // el de WhatsApp) -- encontrado por ejecución real, no hipotético.
+  // Sin try/catch, la excepción abortaba el IIFE ANTES de asignar
+  // CODIGO_INVITACION, dejando el formulario detrás de "enlace no
+  // válido" aunque el código sí viniera en la URL.
+  var codigoGuardado = null;
+  try {
+    if (codigoUrl) localStorage.setItem(CLAVE_LOCALSTORAGE, codigoUrl);
+    codigoGuardado = localStorage.getItem(CLAVE_LOCALSTORAGE);
+  } catch (e) { /* almacenamiento no disponible -- se sigue solo con la URL */ }
+  window.CODIGO_INVITACION = codigoUrl || codigoGuardado || null;
+  if (!window.CODIGO_INVITACION) {
+    document.getElementById('sin-codigo-overlay').classList.add('show');
+  }
+  // Sin llamada de "cargar área" -- a diferencia del legacy
+  // (areas_por_codigo), node_id ya viene fijado en la invitación
+  // (generar_invitaciones_cuestionario, 034) -- el formulario se
+  // muestra de inmediato, nada que cargar antes.
+})();
+</script>
+</body>
+</html>

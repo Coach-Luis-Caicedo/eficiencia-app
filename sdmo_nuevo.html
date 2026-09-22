@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>EFICIENCIA — SDMO · Sensor Diario</title>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@600;700;800&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<style>
+/*
+  sdmo_nuevo.html -- formulario del empleado final para
+  motores_eficiencia.registrar_respuesta_sdmo (034), NO para el legacy
+  enviar_respuesta_sdmo (001).
+
+  Las 4 dimensiones y reactivos son los VIGENTES -- ACU/COM/INV/PEN
+  (ACTUAR/COMUNICAR/INVOLUCRARSE/PENSAR), docs/DOCUMENTO_TECNICO_SDMO_
+  IAO_v1.md §2.3-§2.4 -- NO las del legacy sdmo.html (Confianza/
+  Colaboración/Compromiso/Creatividad), nomenclatura EXPLÍCITAMENTE
+  descartada por el propio documento (§2.3: "esa nomenclatura queda
+  descartada... Confianza es una variable propia del IEH con una
+  definición distinta"). Solo el patrón de UI (tarjetas bipolares) se
+  toma del legacy como referencia -- el contenido es otro.
+*/
+:root{
+  --azul:#0D2340; --azul-l:#2563A8;
+  --paper:#F0EEF8; --rule:#C9C4E8;
+  --ink:#0D1B2A; --ink-m:#3D5A73; --ink-s:#7A97AD;
+  --dorado:#C9A227;
+  --r:10px; --shadow:0 2px 12px rgba(13,27,42,.08);
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{font-family:'DM Sans',sans-serif;background:var(--paper);color:var(--ink);font-size:15px;line-height:1.6;min-height:100vh}
+
+.site-header{background:var(--azul);padding:0;position:sticky;top:0;z-index:100}
+.header-inner{max-width:720px;margin:0 auto;display:flex;align-items:center;gap:16px;padding:14px 24px}
+.brand-mark{font-family:'Montserrat',sans-serif;font-weight:800;font-size:18px;line-height:1}
+.efi{color:var(--dorado)}.ciencia{color:#fff}
+.header-progress{flex:1;margin-left:8px}
+.prog-label{font-size:11px;color:rgba(255,255,255,.42);margin-bottom:5px;display:flex;justify-content:space-between}
+.prog-bar{height:4px;background:rgba(255,255,255,.12);border-radius:2px}
+.prog-fill{height:100%;background:var(--dorado);border-radius:2px;transition:width .4s ease}
+
+.wrap{max-width:720px;margin:0 auto;padding:0 20px}
+.intro-card{background:var(--azul);color:#fff;border-radius:16px;padding:26px 30px;margin:28px 0 20px;position:relative;overflow:hidden}
+.intro-card::before{content:'';position:absolute;top:-40px;right:-40px;width:160px;height:160px;border-radius:50%;background:radial-gradient(circle,rgba(201,162,39,.22) 0%,transparent 70%)}
+.intro-title{font-family:'Montserrat',sans-serif;font-size:22px;font-weight:700;margin-bottom:6px}
+.intro-desc{font-size:13px;color:rgba(255,255,255,.62);line-height:1.7;max-width:460px}
+.meta-pills{display:flex;gap:12px;margin-top:14px;flex-wrap:wrap}
+.meta-pill{background:rgba(255,255,255,.09);border:1px solid rgba(255,255,255,.15);border-radius:20px;padding:4px 12px;font-size:11px;color:rgba(255,255,255,.72)}
+
+.fg{display:flex;flex-direction:column;gap:5px}
+.fl{font-size:11px;font-weight:600;color:var(--ink-m);text-transform:uppercase;letter-spacing:.06em}
+.fi{padding:9px 13px;border:1.5px solid var(--rule);border-radius:8px;font-family:'DM Sans',sans-serif;font-size:14px;color:var(--ink);background:#fff;outline:none;width:100%}
+
+.q-card{background:#fff;border:1px solid var(--rule);border-radius:var(--r);padding:18px 22px;margin-bottom:8px;box-shadow:var(--shadow);transition:border-left-color .2s}
+.q-card.answered{border-left:3px solid var(--azul-l)}
+.q-card.skipped{border-left:3px solid var(--ink-s)}
+.q-hdr{display:flex;align-items:center;gap:8px;margin-bottom:10px}
+.q-n{font-family:'DM Mono',monospace;font-size:11px;font-weight:500;color:var(--ink-s)}
+.q-badge{font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;letter-spacing:.07em;text-transform:uppercase;background:#EAF5EF;color:#1A5C3A}
+.bip-row{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.bip-anc{font-size:12px;font-weight:500;color:var(--azul-l);flex:1;min-width:110px;line-height:1.4}
+.bip-l{text-align:right}.bip-r{text-align:left}
+.lik-wrap{display:flex;gap:6px}
+.lik-lbl{cursor:pointer}
+.lik-lbl input{display:none}
+.lik-btn{display:flex;align-items:center;justify-content:center;width:44px;height:44px;border-radius:8px;
+  border:1.5px solid var(--rule);background:#fff;font-family:'DM Mono',monospace;font-size:14px;
+  font-weight:700;color:var(--ink-m);cursor:pointer;transition:all .15s;user-select:none}
+.lik-lbl input:checked + .lik-btn{background:var(--azul);border-color:var(--azul);color:#fff;box-shadow:0 2px 8px rgba(13,35,64,.25)}
+.lik-btn:hover{border-color:var(--azul-l);color:var(--azul-l)}
+.skip-note{font-size:11px;color:var(--ink-s);margin-top:8px}
+
+.btn{padding:12px 28px;border-radius:8px;border:none;cursor:pointer;font-family:'Montserrat',sans-serif;font-weight:700;font-size:13px;transition:all .2s;letter-spacing:.04em;text-transform:uppercase}
+.btn-gold{background:var(--dorado);color:var(--azul)}
+.btn-gold:hover{background:#ddb22e;box-shadow:0 6px 20px rgba(201,162,39,.4);transform:translateY(-2px)}
+.btn-ghost{background:rgba(255,255,255,.1);color:#fff;border:1px solid rgba(255,255,255,.2)}
+.btn-ghost:hover{background:rgba(255,255,255,.18)}
+
+.submit-wrap{max-width:720px;margin:0 auto;padding:0 20px 60px}
+.submit-card{background:var(--azul);border-radius:16px;padding:26px 30px;text-align:center;color:#fff}
+.submit-card h3{font-family:'Montserrat',sans-serif;font-size:20px;font-weight:700;margin-bottom:8px}
+.submit-card p{font-size:14px;color:rgba(255,255,255,.6);margin-bottom:20px}
+
+.done-overlay{display:none;position:fixed;inset:0;background:var(--azul);z-index:600;align-items:center;justify-content:center;flex-direction:column;text-align:center;padding:40px}
+.done-overlay.show{display:flex}
+.done-icon{font-size:50px;color:var(--dorado);margin-bottom:18px}
+.done-title{font-family:'Montserrat',sans-serif;font-size:26px;color:var(--dorado);font-weight:800;margin-bottom:10px}
+.done-sub{font-size:14px;color:rgba(255,255,255,.65);max-width:440px;line-height:1.7;margin-bottom:26px}
+</style>
+</head>
+<body>
+
+<header class="site-header">
+  <div class="header-inner">
+    <div class="brand-mark"><span class="efi">EFI</span><span class="ciencia">CIENCIA</span></div>
+    <div class="header-progress">
+      <div class="prog-label"><span>Preguntas respondidas</span><span id="prog-text">0 / 4</span></div>
+      <div class="prog-bar"><div class="prog-fill" id="prog-fill" style="width:0%"></div></div>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+  <div class="intro-card">
+    <div class="intro-title">Sensor Diario de Modo Operativo</div>
+    <div class="intro-desc">4 preguntas sobre cómo viviste hoy tu trabajo. Cada una tiene dos extremos — marca el número que mejor refleja tu experiencia real de esta jornada. Puedes dejar alguna sin responder si no aplica.</div>
+    <div class="meta-pills">
+      <span class="meta-pill">4 preguntas</span>
+      <span class="meta-pill">&#8776; 30 segundos</span>
+      <span class="meta-pill">3 veces por semana</span>
+    </div>
+  </div>
+
+  <div style="background:#fff;border:1px solid var(--rule);border-radius:var(--r);padding:18px 22px;margin-bottom:18px;box-shadow:var(--shadow)">
+    <div style="font-family:'Montserrat',sans-serif;font-size:11px;font-weight:700;color:var(--azul);margin-bottom:12px;text-transform:uppercase;letter-spacing:.06em">Jornada</div>
+    <div class="fg"><label class="fl">Fecha</label><input type="date" class="fi" id="resp-fecha"></div>
+  </div>
+</div>
+
+<div class="wrap" id="questions"></div>
+
+<div class="submit-wrap" style="margin-top:20px">
+  <div class="submit-card">
+    <h3>Enviar jornada</h3>
+    <p>Envía tu registro del día — puede quedar parcial, ninguna pregunta es obligatoria.</p>
+    <button class="btn btn-gold" onclick="exportar()">&#10003; Enviar jornada</button>
+  </div>
+</div>
+
+<div class="done-overlay" id="done-overlay">
+  <div class="done-icon">&#10003;</div>
+  <div class="done-title">Jornada enviada</div>
+  <div class="done-sub" id="done-msg">Tu registro del día ha sido guardado correctamente.</div>
+  <div class="done-actions">
+    <button class="btn btn-ghost" onclick="document.getElementById('done-overlay').classList.remove('show')">Continuar</button>
+  </div>
+</div>
+
+<div class="done-overlay" id="sin-codigo-overlay">
+  <div class="done-icon">&#9888;</div>
+  <div class="done-title">Enlace no válido</div>
+  <div class="done-sub">Este sensor requiere el enlace de invitación individual que te compartió tu organización. Si lo perdiste, pídele a tu consultor de EFICIENCIA que te lo reenvíe.</div>
+</div>
+
+<script>
+/*
+  DIMENSIONES -- reactivos canónicos vigentes,
+  docs/DOCUMENTO_TECNICO_SDMO_IAO_v1.md:159-164 (tabla §2.4), verbatim.
+  Polo 1 / Polo 5 -- convención §2.5: "1 = máxima proximidad al primer
+  polo, 5 = máxima proximidad al segundo polo". Columna real
+  (motores_eficiencia.sdmo_respuestas.acu/com/inv/pen, 033) coincide
+  con el código de cada fila.
+*/
+var DIMENSIONES = [
+  { col: 'acu', nombre: 'ACU &middot; Actuar',       polo1: 'Hice lo que consideré que debía.', polo5: 'No hice algo que sabía que debía hacer.' },
+  { col: 'com', nombre: 'COM &middot; Comunicar',    polo1: 'Dije lo que creí importante.',      polo5: 'Me callé aunque sabía que era importante decirlo.' },
+  { col: 'inv', nombre: 'INV &middot; Involucrarse', polo1: 'Le puse corazón a lo que hice.',     polo5: 'Hice solo lo que me tocaba, nada más.' },
+  { col: 'pen', nombre: 'PEN &middot; Pensar',       polo1: 'Mi mente estaba clara.',             polo5: 'Me costó pensar con claridad.' }
+];
+
+var answers = {}; // col -> 1..5, SIN entrada = sin responder (nunca 0 ni un valor por defecto)
+var answered = 0;
+var TOTAL = 4;
+
+function renderQuestions() {
+  var cont = document.getElementById('questions');
+  var html = '';
+  DIMENSIONES.forEach(function (d, i) {
+    html += '<div class="q-card" id="qcard-' + d.col + '">';
+    html += '<div class="q-hdr"><span class="q-n">P' + (i + 1) + '</span><span class="q-badge">' + d.nombre + '</span></div>';
+    html += '<div class="bip-row">';
+    html += '<span class="bip-anc bip-l">' + d.polo1 + '</span>';
+    html += '<div class="lik-wrap">';
+    for (var v = 1; v <= 5; v++) {
+      html += '<label class="lik-lbl"><input type="radio" name="q_' + d.col + '" value="' + v + '" onchange="answer(\'' + d.col + '\',' + v + ')"><span class="lik-btn">' + v + '</span></label>';
+    }
+    html += '</div>';
+    html += '<span class="bip-anc bip-r">' + d.polo5 + '</span>';
+    html += '</div>';
+    html += '<div class="skip-note">Puedes dejarla sin responder si no aplica hoy.</div>';
+    html += '</div>';
+  });
+  cont.innerHTML = html;
+}
+
+function answer(col, val) {
+  var was = (answers[col] !== undefined);
+  answers[col] = val;
+  if (!was) { answered++; updateProgress(); }
+  document.getElementById('qcard-' + col).classList.add('answered');
+}
+
+function updateProgress() {
+  var pct = answered / TOTAL;
+  document.getElementById('prog-fill').style.width = (pct * 100) + '%';
+  document.getElementById('prog-text').textContent = answered + ' / ' + TOTAL;
+}
+
+document.addEventListener('DOMContentLoaded', function () {
+  document.getElementById('resp-fecha').value = new Date().toISOString().slice(0, 10);
+});
+
+function exportar() {
+  if (!CODIGO_INVITACION) {
+    document.getElementById('sin-codigo-overlay').classList.add('show');
+    return;
+  }
+  var jornada = document.getElementById('resp-fecha').value || new Date().toISOString().slice(0, 10);
+
+  function mostrarOk() {
+    document.getElementById('done-msg').textContent = 'Tu registro del día ha sido guardado correctamente.';
+    document.getElementById('done-overlay').classList.add('show');
+  }
+  function mostrarError(detalle) {
+    document.getElementById('done-msg').textContent = 'No se pudo enviar. ' + (detalle || 'Verifica tu internet e intenta de nuevo.');
+    document.getElementById('done-overlay').classList.add('show');
+  }
+
+  // Los 4 parámetros (p_acu/p_com/p_inv/p_pen) NO tienen DEFAULT en la
+  // función (034) -- se debe mandar `null` explícito para cada
+  // dimensión sin responder, nunca omitir la clave (PostgREST exige
+  // los parámetros nombrados declarados, sin default, presentes en el
+  // cuerpo). `|| null`, no `|| 0` -- 0 no es un valor válido de la
+  // escala 1-5 y jamás debe viajar como si lo fuera.
+  supa.schema('motores_eficiencia').rpc('registrar_respuesta_sdmo', {
+    p_codigo: CODIGO_INVITACION,
+    p_acu: answers.acu || null,
+    p_com: answers.com || null,
+    p_inv: answers.inv || null,
+    p_pen: answers.pen || null,
+    p_jornada: jornada
+  }).then(function (res) {
+    if (res.error) {
+      if (/código de invitación/.test(res.error.message || '')) {
+        document.getElementById('sin-codigo-overlay').classList.add('show');
+        return;
+      }
+      mostrarError(res.error.message);
+      return;
+    }
+    mostrarOk();
+  }).catch(function (err) {
+    mostrarError(err && err.message);
+  });
+}
+</script>
+
+<script>
+var SUPA_URL = 'https://kapxcjehfaasttwfnnzq.supabase.co';
+var SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImthcHhjamVoZmFhc3R0d2ZubnpxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODYxMzQ1NjYsImV4cCI6MjEwMTcxMDU2Nn0.s0NC1ILswMQHPf-rsY1kvGSn0LpBSckNdlw2TvzMXws';
+var supa = supabase.createClient(SUPA_URL, SUPA_KEY);
+
+// Misma clave que cuestionario_ice_ieh.html ('me_codigo') -- mismo
+// código sirve a los dos instrumentos nuevos (invitaciones_cuestionario,
+// 033, comparte code entre registrar_respuesta_ice_ieh y
+// registrar_respuesta_sdmo) -- DISTINTA de 'efi_codigo' (legacy).
+var CLAVE_LOCALSTORAGE = 'me_codigo';
+
+(function () {
+  renderQuestions();
+  var params = new URLSearchParams(window.location.search);
+  var codigoUrl = params.get('codigo');
+  // Mismo hallazgo real que cuestionario_ice_ieh.html: localStorage
+  // puede lanzar (navegación privada, almacenamiento deshabilitado,
+  // navegadores embebidos) -- try/catch evita que eso deje
+  // CODIGO_INVITACION sin asignar aunque venga en la URL.
+  var codigoGuardado = null;
+  try {
+    if (codigoUrl) localStorage.setItem(CLAVE_LOCALSTORAGE, codigoUrl);
+    codigoGuardado = localStorage.getItem(CLAVE_LOCALSTORAGE);
+  } catch (e) { /* almacenamiento no disponible -- se sigue solo con la URL */ }
+  window.CODIGO_INVITACION = codigoUrl || codigoGuardado || null;
+  if (!window.CODIGO_INVITACION) {
+    document.getElementById('sin-codigo-overlay').classList.add('show');
+  }
+})();
+</script>
+</body>
+</html>
