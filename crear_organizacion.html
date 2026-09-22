@@ -76,6 +76,32 @@ body{font-family:'DM Sans',sans-serif;background:var(--paper);color:var(--ink);f
 .btn-copy{flex-shrink:0;padding:8px 16px;font-size:11px;width:auto}
 .btn-copy.copied{background:var(--iehs);color:#fff}
 
+/* Selector de modo -- DISENO_CARGA_MASIVA_CSV.md §1 */
+.mode-toggle{display:flex;gap:8px;margin-bottom:22px}
+.mode-btn{flex:1;padding:10px 6px;border-radius:8px;border:1.5px solid var(--rule);background:#fff;
+  font-family:'Montserrat',sans-serif;font-weight:700;font-size:11.5px;letter-spacing:.04em;
+  text-transform:uppercase;cursor:pointer;color:var(--ink-m);transition:all .15s}
+.mode-btn:hover{border-color:var(--azul-l);color:var(--azul-l)}
+.mode-btn.active{background:var(--azul);border-color:var(--azul);color:#fff}
+
+/* Modo CSV -- estados de DISENO_CARGA_MASIVA_CSV.md §3 */
+.csv-hint code{background:var(--paper-w);padding:1px 5px;border-radius:4px;font-family:'DM Mono',monospace;font-size:11px}
+.csv-error-list{background:var(--err-lt);border:1px solid #e3b3b3;border-radius:8px;padding:12px 14px;
+  margin-bottom:16px;font-size:12.5px;color:var(--err);max-height:220px;overflow-y:auto}
+.csv-error-list .titulo{font-weight:700;margin-bottom:8px}
+.csv-error-item{font-family:'DM Mono',monospace;font-size:11px;line-height:1.6;word-break:break-all}
+.csv-error-item + .csv-error-item{margin-top:4px;padding-top:4px;border-top:1px solid #e3b3b3}
+.csv-lote-fallido{margin-bottom:10px;padding-bottom:10px;border-bottom:1px solid #e3b3b3}
+.csv-lote-fallido:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}
+.csv-lote-fallido .titulo{font-weight:700}
+.csv-lote-fallido .personas{font-family:'DM Mono',monospace;font-size:11px;word-break:break-all;margin:4px 0}
+.csv-lote-fallido .detalle{font-size:11.5px}
+
+.prog-wrap{margin-bottom:18px}
+.prog-label{font-size:12px;color:var(--ink-m);margin-bottom:6px;display:flex;justify-content:space-between}
+.prog-bar{height:6px;background:var(--paper-w);border-radius:3px;overflow:hidden}
+.prog-fill{height:100%;background:var(--dorado);border-radius:3px;transition:width .3s ease}
+
 .hidden{display:none}
 </style>
 </head>
@@ -126,10 +152,55 @@ body{font-family:'DM Sans',sans-serif;background:var(--paper);color:var(--ink);f
     <div class="step-title">Invitar a un empleado</div>
     <div class="step-desc">Identifica a la persona y el nodo/área al que pertenece -- quedan fijos en la invitación, la persona no los elige al responder.</div>
     <div class="org-pill" id="org-pill-2"></div>
-    <div class="err-box" id="invitacion-err"></div>
-    <div class="fg"><label class="fl">Identificador de la persona</label><input type="text" class="fi" id="inv-persona"><span class="fhint">Solo para ti -- ej. un nombre, un número de empleado. No se comparte con nadie más.</span></div>
-    <div class="fg"><label class="fl">Nodo / área</label><input type="text" class="fi" id="inv-node"></div>
-    <button class="btn btn-gold" id="btn-invitacion" onclick="generarInvitacion()">Generar invitación</button>
+
+    <div class="mode-toggle">
+      <button class="mode-btn active" id="modo-btn-persona" onclick="cambiarModo('persona')">Una persona</button>
+      <button class="mode-btn" id="modo-btn-csv" onclick="cambiarModo('csv')">Cargar CSV</button>
+    </div>
+
+    <!-- MODO: UNA PERSONA -- sin cambios respecto a la versión anterior -->
+    <div id="modo-persona">
+      <div class="err-box" id="invitacion-err"></div>
+      <div class="fg"><label class="fl">Identificador de la persona</label><input type="text" class="fi" id="inv-persona"><span class="fhint">Solo para ti -- ej. un nombre, un número de empleado. No se comparte con nadie más.</span></div>
+      <div class="fg"><label class="fl">Nodo / área</label><input type="text" class="fi" id="inv-node"></div>
+      <button class="btn btn-gold" id="btn-invitacion" onclick="generarInvitacion()">Generar invitación</button>
+    </div>
+
+    <!-- MODO: CARGAR CSV -- DISENO_CARGA_MASIVA_CSV.md -->
+    <div id="modo-csv" class="hidden">
+
+      <!-- Estado A/B: selector de archivo + error de encabezado -->
+      <div class="fg">
+        <label class="fl">Archivo CSV</label>
+        <input type="file" accept=".csv,.txt" class="fi" id="csv-file" onchange="onArchivoCSV(event)">
+        <span class="fhint csv-hint">Encabezado obligatorio en la primera línea: <code>persona_id,node_id</code>, una fila por persona.</span>
+      </div>
+      <div class="err-box" id="csv-encabezado-err"></div>
+
+      <!-- Estado C: resultado del parseo -->
+      <div id="csv-resultado-parseo" class="hidden">
+        <div class="ok-box" id="csv-resumen-validas"></div>
+        <div class="csv-error-list hidden" id="csv-errores-parseo"></div>
+        <button class="btn btn-gold" id="btn-csv-generar" onclick="iniciarCargaCSV()">Generar invitaciones</button>
+      </div>
+
+      <!-- Estado D: procesando -->
+      <div id="csv-procesando" class="hidden">
+        <div class="prog-wrap">
+          <div class="prog-label"><span id="csv-lote-texto">Lote 1 de 1</span><span id="csv-contador-texto">0 / 0 filas guardadas</span></div>
+          <div class="prog-bar"><div class="prog-fill" id="csv-prog-fill" style="width:0%"></div></div>
+        </div>
+      </div>
+
+      <!-- Estado E: terminado -->
+      <div id="csv-terminado" class="hidden">
+        <div class="ok-box" id="csv-resumen-final"></div>
+        <div class="csv-error-list hidden" id="csv-lotes-fallidos"></div>
+        <button class="btn btn-gold hidden" id="btn-csv-descargar" onclick="descargarResultadosCSV()">Descargar CSV de resultados</button>
+        <button class="btn btn-outline" onclick="reiniciarCSV()">Cargar otro archivo</button>
+      </div>
+
+    </div>
   </div>
 
   <!-- PASO 3 -- ENLACE LISTO -->
@@ -287,6 +358,235 @@ function volverAInvitacion() {
   document.getElementById('inv-node').value = '';
   ocultarError('invitacion-err');
   mostrarPaso('paso-invitacion');
+}
+
+// ── Paso 2, modo CSV -- DISENO_CARGA_MASIVA_CSV.md ──────────────────
+function cambiarModo(modo) {
+  document.getElementById('modo-btn-persona').classList.toggle('active', modo === 'persona');
+  document.getElementById('modo-btn-csv').classList.toggle('active', modo === 'csv');
+  document.getElementById('modo-persona').classList.toggle('hidden', modo !== 'persona');
+  document.getElementById('modo-csv').classList.toggle('hidden', modo !== 'csv');
+}
+
+var CSV_VALIDAS = [];        // {persona_id, node_id, linea}
+var CSV_GENERADAS = [];      // {persona_id, node_id, codigo} -- acumulador de éxito
+var CSV_LOTES_FALLIDOS = []; // {indice, filas, error}
+
+// parsearCSV -- DISENO_CARGA_MASIVA_CSV.md §2, verbatim. Sensible a
+// mayúsculas en persona_id/node_id (mismo criterio que la base de
+// datos, sin inventar una normalización que no existe en ningún otro
+// lugar del sistema); encabezado insensible a mayúsculas/espacios.
+function parsearCSV(texto) {
+  var lineas = texto.split(/\r\n|\n|\r/);
+  var header = (lineas[0] || '').split(',').map(function (s) { return s.trim().toLowerCase(); });
+  if (header.length !== 2 || header[0] !== 'persona_id' || header[1] !== 'node_id') {
+    return { encabezadoValido: false };
+  }
+  var validas = [];
+  var errores = [];
+  var vistos = {};
+  for (var i = 1; i < lineas.length; i++) {
+    var cruda = lineas[i];
+    if (cruda.trim() === '') continue; // fila vacía -- ignorada en silencio
+    var partes = cruda.split(',');
+    if (partes.length !== 2) {
+      errores.push({ linea: i + 1, contenido: cruda, motivo: 'no tiene exactamente 2 columnas' });
+      continue;
+    }
+    var persona_id = partes[0].trim();
+    var node_id = partes[1].trim();
+    if (!persona_id || !node_id) {
+      errores.push({ linea: i + 1, contenido: cruda, motivo: 'persona_id o node_id vacío' });
+      continue;
+    }
+    if (vistos.hasOwnProperty(persona_id)) {
+      errores.push({ linea: i + 1, contenido: cruda, motivo: 'persona_id duplicado en este archivo (primera vez en la línea ' + vistos[persona_id] + ')' });
+      continue;
+    }
+    vistos[persona_id] = i + 1;
+    validas.push({ persona_id: persona_id, node_id: node_id, linea: i + 1 });
+  }
+  return { encabezadoValido: true, validas: validas, errores: errores };
+}
+
+function onArchivoCSV(event) {
+  // Cualquier archivo nuevo reinicia todo el estado del modo CSV --
+  // incluido lo que haya quedado de una carga anterior en esta misma
+  // sesión (generadas/lotes fallidos), para no arrastrar resultados
+  // viejos si el consultor prueba con un segundo archivo sin pasar por
+  // "Cargar otro archivo".
+  document.getElementById('csv-encabezado-err').classList.remove('show');
+  document.getElementById('csv-resultado-parseo').classList.add('hidden');
+  document.getElementById('csv-procesando').classList.add('hidden');
+  document.getElementById('csv-terminado').classList.add('hidden');
+  CSV_VALIDAS = [];
+  CSV_GENERADAS = [];
+  CSV_LOTES_FALLIDOS = [];
+
+  var archivo = event.target.files[0];
+  if (!archivo) return;
+
+  var lector = new FileReader();
+  lector.onload = function (e) {
+    var resultado = parsearCSV(e.target.result);
+    if (!resultado.encabezadoValido) {
+      mostrarError('csv-encabezado-err', 'La primera línea del archivo debe ser exactamente "persona_id,node_id". Revisa el archivo e inténtalo de nuevo.');
+      return;
+    }
+    renderizarResultadoParseo(resultado);
+  };
+  lector.onerror = function () {
+    mostrarError('csv-encabezado-err', 'No se pudo leer el archivo. Intenta de nuevo.');
+  };
+  lector.readAsText(archivo);
+}
+
+function renderizarResultadoParseo(resultado) {
+  CSV_VALIDAS = resultado.validas;
+  var panel = document.getElementById('csv-resultado-parseo');
+  panel.classList.remove('hidden');
+
+  var resumen = document.getElementById('csv-resumen-validas');
+  if (CSV_VALIDAS.length === 0) {
+    resumen.textContent = 'Ninguna fila válida en este archivo.';
+  } else {
+    resumen.textContent = CSV_VALIDAS.length + ' fila' + (CSV_VALIDAS.length === 1 ? '' : 's') + ' lista' + (CSV_VALIDAS.length === 1 ? '' : 's') + ' para generar.';
+  }
+
+  var listaErr = document.getElementById('csv-errores-parseo');
+  if (resultado.errores.length > 0) {
+    var html = '<div class="titulo">' + resultado.errores.length + ' fila' + (resultado.errores.length === 1 ? '' : 's') + ' con error -- no se incluirán</div>';
+    resultado.errores.forEach(function (e) {
+      html += '<div class="csv-error-item">Línea ' + e.linea + ': "' + escaparHtml(e.contenido) + '" — ' + escaparHtml(e.motivo) + '</div>';
+    });
+    listaErr.innerHTML = html;
+    listaErr.classList.remove('hidden');
+  } else {
+    listaErr.classList.add('hidden');
+  }
+
+  document.getElementById('btn-csv-generar').disabled = (CSV_VALIDAS.length === 0);
+}
+
+function escaparHtml(s) {
+  var div = document.createElement('div');
+  div.textContent = s;
+  return div.innerHTML;
+}
+
+// iniciarCargaCSV -- troceo en lotes de 50, secuencial. Cada lote es su
+// propia llamada -- un choque en un lote revierte SOLO ese lote (INV
+// real: generar_invitaciones_cuestionario hace un único INSERT,
+// atómico -- INVESTIGACION_CARGA_MASIVA_INVITACIONES_CSV.md §1,
+// verificado con pglite antes de construir esto).
+async function iniciarCargaCSV() {
+  document.getElementById('csv-resultado-parseo').classList.add('hidden');
+  document.getElementById('csv-terminado').classList.add('hidden');
+  document.getElementById('csv-procesando').classList.remove('hidden');
+  document.getElementById('csv-file').disabled = true;
+  document.getElementById('modo-btn-persona').disabled = true;
+  document.getElementById('modo-btn-csv').disabled = true;
+
+  var TAM_LOTE = 50;
+  var lotes = [];
+  for (var i = 0; i < CSV_VALIDAS.length; i += TAM_LOTE) lotes.push(CSV_VALIDAS.slice(i, i + TAM_LOTE));
+
+  CSV_GENERADAS = [];
+  CSV_LOTES_FALLIDOS = [];
+
+  for (var l = 0; l < lotes.length; l++) {
+    actualizarProgresoCSV(l + 1, lotes.length, CSV_GENERADAS.length, CSV_VALIDAS.length);
+    var lote = lotes[l];
+    var asignaciones = lote.map(function (f) { return { persona_id: f.persona_id, node_id: f.node_id }; });
+    var res = await supa.schema('motores_eficiencia').rpc('generar_invitaciones_cuestionario', {
+      p_organization_id: ORG_ID,
+      p_asignaciones: asignaciones
+    });
+    if (res.error) {
+      CSV_LOTES_FALLIDOS.push({ indice: l + 1, filas: lote, error: res.error.message || 'error desconocido' });
+    } else {
+      CSV_GENERADAS = CSV_GENERADAS.concat(res.data);
+    }
+  }
+  actualizarProgresoCSV(lotes.length, lotes.length, CSV_GENERADAS.length, CSV_VALIDAS.length);
+
+  document.getElementById('csv-file').disabled = false;
+  document.getElementById('modo-btn-persona').disabled = false;
+  document.getElementById('modo-btn-csv').disabled = false;
+  mostrarResultadoFinalCSV();
+}
+
+function actualizarProgresoCSV(loteActual, totalLotes, guardadas, total) {
+  document.getElementById('csv-lote-texto').textContent = 'Lote ' + loteActual + ' de ' + totalLotes;
+  document.getElementById('csv-contador-texto').textContent = guardadas + ' / ' + total + ' filas guardadas';
+  var pct = totalLotes > 0 ? (loteActual / totalLotes) * 100 : 0;
+  document.getElementById('csv-prog-fill').style.width = pct + '%';
+}
+
+function mostrarResultadoFinalCSV() {
+  document.getElementById('csv-procesando').classList.add('hidden');
+  var panel = document.getElementById('csv-terminado');
+  panel.classList.remove('hidden');
+
+  document.getElementById('csv-resumen-final').textContent =
+    CSV_GENERADAS.length + ' de ' + CSV_VALIDAS.length + ' invitaciones generadas.';
+
+  var listaFallos = document.getElementById('csv-lotes-fallidos');
+  if (CSV_LOTES_FALLIDOS.length > 0) {
+    var html = '';
+    CSV_LOTES_FALLIDOS.forEach(function (lf) {
+      var personas = lf.filas.map(function (f) { return f.persona_id; }).join(', ');
+      html += '<div class="csv-lote-fallido">' +
+        '<div class="titulo">Lote ' + lf.indice + ' — ' + lf.filas.length + ' fila' + (lf.filas.length === 1 ? '' : 's') + ', ninguna se guardó.</div>' +
+        '<div class="personas">persona_id: ' + escaparHtml(personas) + '</div>' +
+        '<div class="detalle">Error: ' + escaparHtml(lf.error) + '</div>' +
+        '<div class="detalle">Revisa si alguno de estos identificadores ya tiene una invitación en esta organización, corrígelo, y vuelve a subir solo esas filas en un archivo nuevo.</div>' +
+        '</div>';
+    });
+    listaFallos.innerHTML = html;
+    listaFallos.classList.remove('hidden');
+  } else {
+    listaFallos.classList.add('hidden');
+  }
+
+  document.getElementById('btn-csv-descargar').classList.toggle('hidden', CSV_GENERADAS.length === 0);
+}
+
+// CSV de salida -- construido directo del acumulador, mismas columnas
+// que ya devuelve generar_invitaciones_cuestionario (034:36), sin
+// transformar nada (DISENO_CARGA_MASIVA_CSV.md §5).
+function construirCSVSalida(generadas) {
+  var lineas = ['persona_id,node_id,codigo'];
+  generadas.forEach(function (f) {
+    lineas.push([f.persona_id, f.node_id, f.codigo].join(','));
+  });
+  return lineas.join('\n');
+}
+
+function descargarResultadosCSV() {
+  var contenido = construirCSVSalida(CSV_GENERADAS);
+  var nombreOrg = (ORG_NOMBRE || 'organizacion').toLowerCase()
+    .replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '') || 'organizacion';
+  var blob = new Blob([contenido], { type: 'text/csv;charset=utf-8' });
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href = url;
+  a.download = 'invitaciones_' + nombreOrg + '.csv';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+function reiniciarCSV() {
+  document.getElementById('csv-file').value = '';
+  document.getElementById('csv-encabezado-err').classList.remove('show');
+  document.getElementById('csv-resultado-parseo').classList.add('hidden');
+  document.getElementById('csv-procesando').classList.add('hidden');
+  document.getElementById('csv-terminado').classList.add('hidden');
+  CSV_VALIDAS = [];
+  CSV_GENERADAS = [];
+  CSV_LOTES_FALLIDOS = [];
 }
 
 // clipboard puede fallar (permisos, contexto no seguro) -- mismo
