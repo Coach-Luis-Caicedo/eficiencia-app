@@ -105,6 +105,18 @@ body{font-family:'DM Sans',sans-serif;background:var(--paper);color:var(--ink);f
     <div class="step-desc">El nombre de la organización cliente. Puede repetirse -- no hay restricción de nombre único.</div>
     <div class="err-box" id="crear-org-err"></div>
     <div class="fg"><label class="fl">Nombre de la organización</label><input type="text" class="fi" id="org-nombre"></div>
+    <div class="fg">
+      <label class="fl">Sector (opcional)</label>
+      <select class="fi" id="org-sector">
+        <option value="">Sin especificar</option>
+        <option value="servicios_prof">Servicios profesionales</option>
+        <option value="manufactura">Manufactura</option>
+        <option value="finanzas_tech">Finanzas / Tecnología</option>
+        <option value="retail_logistica">Retail / Logística</option>
+        <option value="salud_educacion">Salud / Educación</option>
+      </select>
+      <span class="fhint">Provisional -- lista heredada del legacy, para las pruebas de hoy. No es la forma final (INVESTIGACION_PROTOCOLO_REGISTRO_MOTORES_EFICIENCIA.md §5).</span>
+    </div>
     <button class="btn btn-gold" id="btn-crear-org" onclick="crearOrganizacion()">Crear organización</button>
   </div>
 
@@ -208,9 +220,10 @@ function crearOrganizacion() {
     mostrarError('crear-org-err', 'El nombre de la organización es obligatorio.');
     return;
   }
+  var sector = document.getElementById('org-sector').value || null; // '' -> null, nunca una cadena vacía
   var btn = document.getElementById('btn-crear-org');
   btn.disabled = true;
-  supa.schema('motores_eficiencia').rpc('crear_organizacion', { p_nombre: nombre }).then(function (res) {
+  supa.schema('motores_eficiencia').rpc('crear_organizacion', { p_nombre: nombre, p_sector: sector }).then(function (res) {
     btn.disabled = false;
     if (res.error) {
       var m = res.error.message || '';
