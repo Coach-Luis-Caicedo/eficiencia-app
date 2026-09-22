@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>EFICIENCIA — Crear organización</title>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@600;700;800&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<style>
+/*
+  crear_organizacion.html -- primera pantalla del lado del consultor
+  para motores_eficiencia. Flujo lineal de 3 pasos (crear organización
+  -> generar invitación -> enlace listo), sin dashboard, sin lista de
+  organizaciones existentes -- alcance acotado a propósito
+  (INVESTIGACION_PANTALLA_CREAR_ORGANIZACION.md §4).
+
+  Login: mismo patrón que workbook.html (signInWithPassword), mismo
+  proyecto de Supabase. Los 2 RPC (crear_organizacion, 039;
+  generar_invitaciones_cuestionario, 034) viven en motores_eficiencia --
+  supa.schema('motores_eficiencia').rpc(...), mismo patrón ya verificado
+  en cuestionario_ice_ieh.html/sdmo_nuevo.html.
+*/
+:root{
+  --azul:#0D2340; --azul-m:#1B3A5C; --azul-l:#2563A8; --azul-bg:#D6E4F7;
+  --dorado:#C9A227; --dorado-lt:#FEF8E3;
+  --paper:#F7F4EF; --paper-w:#EDE8DF; --rule:#D6CEBE;
+  --ink:#0D1B2A; --ink-m:#3D5A73; --ink-s:#7A97AD;
+  --iehs:#1A5C3A; --iehs-lt:#EAF5EF;
+  --err:#A32D2D; --err-lt:#FBEAEA;
+  --r:10px; --shadow:0 2px 12px rgba(13,27,42,.08);
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'DM Sans',sans-serif;background:var(--paper);color:var(--ink);font-size:15px;line-height:1.6;min-height:100vh}
+
+.site-header{background:var(--azul);padding:14px 24px}
+.brand-mark{font-family:'Montserrat',sans-serif;font-weight:800;font-size:18px;line-height:1;max-width:520px;margin:0 auto}
+.efi{color:var(--dorado)}.ciencia{color:#fff}
+
+.wrap{max-width:520px;margin:0 auto;padding:40px 24px 80px}
+
+.step-card{background:#fff;border:1px solid var(--rule);border-radius:16px;padding:30px 32px;box-shadow:var(--shadow)}
+.step-eyebrow{font-family:'Montserrat',sans-serif;font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--azul-l);margin-bottom:8px}
+.step-title{font-family:'Montserrat',sans-serif;font-size:22px;font-weight:700;color:var(--azul);margin-bottom:8px}
+.step-desc{font-size:13.5px;color:var(--ink-m);line-height:1.6;margin-bottom:24px}
+
+.fg{display:flex;flex-direction:column;gap:6px;margin-bottom:16px}
+.fl{font-size:11px;font-weight:600;color:var(--ink-m);text-transform:uppercase;letter-spacing:.06em}
+.fi{padding:11px 14px;border:1.5px solid var(--rule);border-radius:8px;font-family:'DM Sans',sans-serif;
+    font-size:14px;color:var(--ink);background:#fff;outline:none;width:100%;transition:border-color .15s}
+.fi:focus{border-color:var(--azul-l);box-shadow:0 0 0 3px rgba(37,99,168,.08)}
+.fhint{font-size:11.5px;color:var(--ink-s)}
+
+.btn{padding:13px 24px;border-radius:8px;border:none;cursor:pointer;font-family:'Montserrat',sans-serif;
+     font-weight:700;font-size:13px;transition:all .2s;letter-spacing:.04em;text-transform:uppercase;width:100%}
+.btn-gold{background:var(--dorado);color:var(--azul)}
+.btn-gold:hover{background:#ddb22e;box-shadow:0 6px 20px rgba(201,162,39,.4)}
+.btn-gold:disabled{background:var(--rule);color:var(--ink-s);cursor:not-allowed;box-shadow:none}
+.btn-outline{background:#fff;color:var(--azul-l);border:1.5px solid var(--azul-l);margin-top:10px}
+.btn-outline:hover{background:var(--azul-bg)}
+
+.err-box{background:var(--err-lt);border:1px solid #e3b3b3;border-radius:8px;padding:12px 14px;
+  margin-bottom:16px;font-size:13px;color:var(--err);line-height:1.5;display:none}
+.err-box.show{display:block}
+
+.ok-box{background:var(--iehs-lt);border:1px solid #b7dcc5;border-radius:8px;padding:12px 14px;
+  margin-bottom:16px;font-size:13px;color:var(--iehs);line-height:1.5}
+
+.org-pill{display:inline-flex;align-items:center;gap:8px;background:var(--azul-bg);border-radius:20px;
+  padding:6px 14px;font-size:12.5px;color:var(--azul-l);font-weight:600;margin-bottom:20px}
+
+.link-card{background:var(--paper);border:1px solid var(--rule);border-radius:10px;padding:16px 18px;margin-bottom:14px}
+.link-label{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-m);margin-bottom:8px}
+.link-row{display:flex;gap:8px;align-items:center}
+.link-text{flex:1;font-family:'DM Mono',monospace;font-size:11.5px;color:var(--ink);background:#fff;
+  border:1px solid var(--rule);border-radius:6px;padding:8px 10px;overflow-x:auto;white-space:nowrap}
+.btn-copy{flex-shrink:0;padding:8px 16px;font-size:11px;width:auto}
+.btn-copy.copied{background:var(--iehs);color:#fff}
+
+.hidden{display:none}
+</style>
+</head>
+<body>
+
+<header class="site-header">
+  <div class="brand-mark"><span class="efi">EFI</span><span class="ciencia">CIENCIA</span></div>
+</header>
+
+<div class="wrap">
+
+  <!-- PASO 0 -- LOGIN -->
+  <div class="step-card" id="paso-login">
+    <div class="step-eyebrow">Acceso de consultor</div>
+    <div class="step-title">Iniciar sesión</div>
+    <div class="step-desc">Con tu cuenta de consultor de EFICIENCIA.</div>
+    <div class="err-box" id="login-err"></div>
+    <div class="fg"><label class="fl">Email</label><input type="email" class="fi" id="login-email"></div>
+    <div class="fg"><label class="fl">Contraseña</label><input type="password" class="fi" id="login-pass"></div>
+    <button class="btn btn-gold" id="btn-login" onclick="hacerLogin()">Iniciar sesión</button>
+  </div>
+
+  <!-- PASO 1 -- CREAR ORGANIZACIÓN -->
+  <div class="step-card hidden" id="paso-crear-org">
+    <div class="step-eyebrow">Paso 1 de 3</div>
+    <div class="step-title">Crear organización</div>
+    <div class="step-desc">El nombre de la organización cliente. Puede repetirse -- no hay restricción de nombre único.</div>
+    <div class="err-box" id="crear-org-err"></div>
+    <div class="fg"><label class="fl">Nombre de la organización</label><input type="text" class="fi" id="org-nombre"></div>
+    <button class="btn btn-gold" id="btn-crear-org" onclick="crearOrganizacion()">Crear organización</button>
+  </div>
+
+  <!-- PASO 2 -- GENERAR INVITACIÓN -->
+  <div class="step-card hidden" id="paso-invitacion">
+    <div class="step-eyebrow">Paso 2 de 3</div>
+    <div class="step-title">Invitar a un empleado</div>
+    <div class="step-desc">Identifica a la persona y el nodo/área al que pertenece -- quedan fijos en la invitación, la persona no los elige al responder.</div>
+    <div class="org-pill" id="org-pill-2"></div>
+    <div class="err-box" id="invitacion-err"></div>
+    <div class="fg"><label class="fl">Identificador de la persona</label><input type="text" class="fi" id="inv-persona"><span class="fhint">Solo para ti -- ej. un nombre, un número de empleado. No se comparte con nadie más.</span></div>
+    <div class="fg"><label class="fl">Nodo / área</label><input type="text" class="fi" id="inv-node"></div>
+    <button class="btn btn-gold" id="btn-invitacion" onclick="generarInvitacion()">Generar invitación</button>
+  </div>
+
+  <!-- PASO 3 -- ENLACE LISTO -->
+  <div class="step-card hidden" id="paso-enlace">
+    <div class="step-eyebrow">Paso 3 de 3</div>
+    <div class="step-title">Enlace listo</div>
+    <div class="ok-box">Comparte estos dos enlaces con la persona -- por WhatsApp, email, o el medio que prefieras. El mismo código sirve para los dos instrumentos.</div>
+    <div class="org-pill" id="org-pill-3"></div>
+
+    <div class="link-card">
+      <div class="link-label">Cuestionario ICE · IEH</div>
+      <div class="link-row">
+        <div class="link-text" id="link-ice-ieh"></div>
+        <button class="btn btn-copy btn-outline" onclick="copiarEnlace('link-ice-ieh', this)">Copiar</button>
+      </div>
+    </div>
+    <div class="link-card">
+      <div class="link-label">Sensor Diario (SDMO)</div>
+      <div class="link-row">
+        <div class="link-text" id="link-sdmo"></div>
+        <button class="btn btn-copy btn-outline" onclick="copiarEnlace('link-sdmo', this)">Copiar</button>
+      </div>
+    </div>
+
+    <button class="btn btn-outline" onclick="volverAInvitacion()">+ Generar otra invitación</button>
+  </div>
+
+</div>
+
+<script>
+var SUPA_URL = 'https://kapxcjehfaasttwfnnzq.supabase.co';
+var SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImthcHhjamVoZmFhc3R0d2ZubnpxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODYxMzQ1NjYsImV4cCI6MjEwMTcxMDU2Nn0.s0NC1ILswMQHPf-rsY1kvGSn0LpBSckNdlw2TvzMXws';
+var supa = supabase.createClient(SUPA_URL, SUPA_KEY);
+
+// Estado de navegación de esta sesión -- en memoria, NO en localStorage
+// (mismo criterio que S_ORG en workbook.html: es un dato de la sesión de
+// creación, no algo que deba sobrevivir un refresh).
+var ORG_ID = null;
+var ORG_NOMBRE = null;
+
+function mostrarPaso(id) {
+  ['paso-login', 'paso-crear-org', 'paso-invitacion', 'paso-enlace'].forEach(function (p) {
+    document.getElementById(p).classList.toggle('hidden', p !== id);
+  });
+}
+
+function mostrarError(elId, msg) {
+  var el = document.getElementById(elId);
+  el.textContent = msg;
+  el.classList.add('show');
+}
+function ocultarError(elId) {
+  document.getElementById(elId).classList.remove('show');
+}
+
+// ── Paso 0 -- login ──────────────────────────────────────────────────
+function hacerLogin() {
+  ocultarError('login-err');
+  var email = document.getElementById('login-email').value.trim();
+  var pass = document.getElementById('login-pass').value;
+  if (!email || !pass) {
+    mostrarError('login-err', 'Ingresa tu email y tu contraseña.');
+    return;
+  }
+  var btn = document.getElementById('btn-login');
+  btn.disabled = true;
+  supa.auth.signInWithPassword({ email: email, password: pass }).then(function (res) {
+    btn.disabled = false;
+    if (res.error) {
+      // Mismo mensaje sin importar la causa real (email no existe vs.
+      // contraseña incorrecta) -- no confirmar si un email existe.
+      mostrarError('login-err', 'No se pudo iniciar sesión. Verifica tu email y contraseña.');
+      return;
+    }
+    mostrarPaso('paso-crear-org');
+  });
+}
+
+// ── Paso 1 -- crear organización (039) ──────────────────────────────
+// Los 3 errores reales de motores_eficiencia.crear_organizacion(),
+// verbatim (039) -- verificados por ejecución real, incluido el caso
+// "autenticado pero no registrado como consultor" (código P0001,
+// confirmado con un usuario desechable real antes de construir esto).
+function crearOrganizacion() {
+  ocultarError('crear-org-err');
+  var nombre = document.getElementById('org-nombre').value.trim();
+  if (!nombre) {
+    mostrarError('crear-org-err', 'El nombre de la organización es obligatorio.');
+    return;
+  }
+  var btn = document.getElementById('btn-crear-org');
+  btn.disabled = true;
+  supa.schema('motores_eficiencia').rpc('crear_organizacion', { p_nombre: nombre }).then(function (res) {
+    btn.disabled = false;
+    if (res.error) {
+      var m = res.error.message || '';
+      if (/no está registrado como consultor/.test(m)) {
+        mostrarError('crear-org-err', 'Tu cuenta todavía no está habilitada como consultor. Contacta a tu administrador de EFICIENCIA.');
+      } else if (/no autenticado/.test(m)) {
+        // Sesión expiró entre el login y este paso -- volver al inicio.
+        mostrarPaso('paso-login');
+        mostrarError('login-err', 'Tu sesión expiró. Inicia sesión de nuevo.');
+      } else {
+        mostrarError('crear-org-err', m || 'No se pudo crear la organización. Intenta de nuevo.');
+      }
+      return;
+    }
+    ORG_ID = res.data;
+    ORG_NOMBRE = nombre;
+    document.getElementById('org-pill-2').textContent = ORG_NOMBRE;
+    mostrarPaso('paso-invitacion');
+  });
+}
+
+// ── Paso 2 -- generar invitación (034) ──────────────────────────────
+// p_asignaciones -- array jsonb de {persona_id, node_id} (034:33-61,
+// verificado verbatim y con ejecución real). Sin ON CONFLICT en el
+// INSERT (034:56-59) -- un persona_id repetido en la misma organización
+// da 23505 (unique_violation), no lo sobreescribe.
+function generarInvitacion() {
+  ocultarError('invitacion-err');
+  var persona = document.getElementById('inv-persona').value.trim();
+  var node = document.getElementById('inv-node').value.trim();
+  if (!persona || !node) {
+    mostrarError('invitacion-err', 'Completa el identificador de la persona y el nodo/área.');
+    return;
+  }
+  var btn = document.getElementById('btn-invitacion');
+  btn.disabled = true;
+  supa.schema('motores_eficiencia').rpc('generar_invitaciones_cuestionario', {
+    p_organization_id: ORG_ID,
+    p_asignaciones: [{ persona_id: persona, node_id: node }]
+  }).then(function (res) {
+    btn.disabled = false;
+    if (res.error) {
+      if (res.error.code === '23505') {
+        mostrarError('invitacion-err', 'Ya existe una invitación para ese identificador en esta organización.');
+      } else {
+        mostrarError('invitacion-err', res.error.message || 'No se pudo generar la invitación. Intenta de nuevo.');
+      }
+      return;
+    }
+    var codigo = res.data[0].codigo;
+    var base = window.location.href.replace(/crear_organizacion\.html.*$/, '');
+    document.getElementById('link-ice-ieh').textContent = base + 'cuestionario_ice_ieh.html?codigo=' + codigo;
+    document.getElementById('link-sdmo').textContent = base + 'sdmo_nuevo.html?codigo=' + codigo;
+    document.getElementById('org-pill-3').textContent = ORG_NOMBRE;
+    mostrarPaso('paso-enlace');
+  });
+}
+
+function volverAInvitacion() {
+  document.getElementById('inv-persona').value = '';
+  document.getElementById('inv-node').value = '';
+  ocultarError('invitacion-err');
+  mostrarPaso('paso-invitacion');
+}
+
+// clipboard puede fallar (permisos, contexto no seguro) -- mismo
+// hallazgo real que ya forzó el try/catch de localStorage en
+// cuestionario_ice_ieh.html/sdmo_nuevo.html.
+function copiarEnlace(elId, btn) {
+  var texto = document.getElementById(elId).textContent;
+  var marcarCopiado = function () {
+    var original = btn.textContent;
+    btn.textContent = '✓ Copiado';
+    btn.classList.add('copied');
+    setTimeout(function () { btn.textContent = original; btn.classList.remove('copied'); }, 2000);
+  };
+  try {
+    navigator.clipboard.writeText(texto).then(marcarCopiado, function () {
+      alert('No se pudo copiar automáticamente. Selecciona y copia el enlace manualmente.');
+    });
+  } catch (e) {
+    alert('No se pudo copiar automáticamente. Selecciona y copia el enlace manualmente.');
+  }
+}
+
+// Si ya hay sesión activa (supabase-js persiste el token en
+// localStorage por defecto), saltar directo al Paso 1.
+supa.auth.getSession().then(function (res) {
+  if (res.data && res.data.session) {
+    mostrarPaso('paso-crear-org');
+  }
+});
+</script>
+</body>
+</html>
