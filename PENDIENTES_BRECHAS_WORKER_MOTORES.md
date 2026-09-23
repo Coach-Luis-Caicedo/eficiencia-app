@@ -17,7 +17,44 @@ la encontró.
 
 ## 1. FPV — `CENSAL`/`INFERENCIAL`/ponderación inalcanzables
 
-**Estado: PENDIENTE, bloqueante para dar por completa la simulación de FPV.**
+**Estado: RESUELTO — 2026-09-23, migración `043_config_posicion_fpv.sql`
+(commit `be7a2e5`).** Última de las 3 brechas de esta ronda. Ver el
+hallazgo original más abajo, sin editar, para no perder el rastro.
+
+**Resolución aplicada**: tabla `motores_eficiencia.fpv_config_posicion`
+(llave `(organization_id, posicion, period)` — mismo precedente que
+`fpv_respuestas`, `032`, ya estableció: el motor no tiene concepto de
+período propio, pero cada corrida corresponde a una ronda de
+recolección distinta; columnas aplanadas, no `jsonb` — `diseno`/
+`ponderacion` son formas fijas sin variantes condicionales, decisión
+documentada en `INVESTIGACION_POSICIONES_FPV.md`), función
+`registrar_config_posicion_fpv` (upsert) y `leer_config_posiciones_fpv`
+(filtro exacto por período). `src/motores/fpv.js` gana
+`ensamblarPosiciones()` (reconstruye la forma anidada que `runFPV`
+exige) y `calcularFpv()` ya recibe `filasConfig`; `src/worker.js`
+extendido con la llamada RPC nueva. Hallazgo secundario real durante la
+investigación: `ponderacion` ni siquiera está validada por
+`motor-fpv/contratos.js` (Fase 0) — solo se usa en `runFPV.js`, defecto
+del validador del motor, fuera de alcance de este round. Diseño completo
+en `DISENO_CONFIG_POSICION_FPV.md`.
+
+Verificado con `pglite` bajo `SET ROLE authenticated` real (11/11
+asserts, más verificación independiente de Luis: 8/8) y con la suite
+completa de `worker.test.mjs` (40/40 — incluye una aserción que confirma
+la ponderación activada de punta a punta,
+`meta.posiciones.CONSUMIDOR.ponderado === true`, no solo que la llamada
+RPC ocurrió; misma clase de regresión de mock detectada y corregida que
+en `042`). Aplicado y verificado en Supabase con las 4 consultas
+manuales del propio archivo de migración.
+
+**Con esto, las 3 brechas Worker↔motor de esta ronda (PIIO, CFF, FPV)
+quedan cerradas.**
+
+<details>
+<summary>Hallazgo original (histórico, sin editar)</summary>
+
+**Estado original: PENDIENTE, bloqueante para dar por completa la
+simulación de FPV.**
 
 **Encontrado en**: `INVESTIGACION_SIMULACION_FPV.md` §3, ronda del script
 de simulación de organizaciones de prueba.
@@ -54,6 +91,8 @@ NE/NR, muestra completa/parcial, posición vacía) siguen siendo válidos y
 se construirán, pero **además**, no en lugar de, los escenarios que
 ejerciten `CENSAL`/`INFERENCIAL`/ponderación una vez que el Worker los
 soporte.
+
+</details>
 
 ---
 
