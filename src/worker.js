@@ -100,8 +100,9 @@ async function calcularCffHandler(request, env) {
 
   const nodeHierarchy = await rpc(env, jwt, 'leer_node_hierarchy_cff', { p_organization_id: organization_id });
   const eventos = await rpc(env, jwt, 'leer_eventos_cff', { p_organization_id: organization_id, p_period_start: caso.period_start, p_period_end: caso.period_end });
+  const relaciones = await rpc(env, jwt, 'leer_relaciones_cff', { p_organization_id: organization_id, p_period_start: caso.period_start, p_period_end: caso.period_end });
 
-  return Response.json(calcularCff(eventos, caso, nodeHierarchy, organization_id, [caso.period_start], opts || {}));
+  return Response.json(calcularCff(eventos, caso, nodeHierarchy, relaciones, organization_id, [caso.period_start], opts || {}));
 }
 
 async function calcularIfdHandler(request, env) {

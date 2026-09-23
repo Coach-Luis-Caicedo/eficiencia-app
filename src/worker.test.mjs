@@ -211,9 +211,19 @@ const run = async () => {
     { organization_id: 'org-1', node_id: 'NODO1', parent_id: 'ORG' }
     // NODO_FUERA deliberadamente NO está en la jerarquía -- C2 (en NODO_FUERA) debe quedar excluido.
   ];
+  // Sin relaciones declaradas para este caso -- escenario real legítimo
+  // (leer_relaciones_cff, 042). LLAMADAS_RPC se limpia y se revisa abajo
+  // para confirmar que el handler sí la invoca con el mismo rango de
+  // período que leer_eventos_cff, no que el pipeline la omite en
+  // silencio.
+  RPC_RESPUESTAS.leer_relaciones_cff = [];
+  LLAMADAS_RPC.length = 0;
   res = await worker.fetch(mockRequest('calcular-cff', { body: { organization_id: 'org-1', cff_case_id: 'CASO-2026-01' } }), ENV, {});
   const cuerpoCff = await res.json();
   ok(res.status === 200, 'calcular-cff con caso ya declarado -> 200 -- ya NO exige sobreCaso externo');
+  const llamadaRelaciones = LLAMADAS_RPC.find(function (l) { return l.nombreRpc === 'leer_relaciones_cff'; });
+  ok(!!llamadaRelaciones && llamadaRelaciones.body.p_period_start === '2026-01' && llamadaRelaciones.body.p_period_end === '2026-01',
+    'leer_relaciones_cff SÍ se invoca, con el mismo rango de período que leer_eventos_cff -- no se omite en silencio');
   // runCFF() devuelve { result, run, trace, _meta } -- no un objeto plano.
   ok(cuerpoCff && cuerpoCff.result && typeof cuerpoCff.result.calculation_status === 'string',
     'devuelve CFF_RESULT con calculation_status -- runCFF corrió de verdad, no un eco');

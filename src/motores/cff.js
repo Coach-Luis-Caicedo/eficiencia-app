@@ -1,10 +1,9 @@
 /**
  * src/motores/cff.js -- flujo puro de motor-cff
  * (DISENO_WORKER_EJECUCION_MOTORES.md §4.5, cerrado con
- * DISENO_SOBRE_CASO_CFF.md). `relaciones` viaja vacío -- sin
- * ESQUEMA_RELATIONSHIP formal que transcribir todavía
- * (DISENO_INTEGRADO_TABLAS_ENTRADA_5_MOTORES.md §4, cierre) -- no se
- * fabrica contenido para ese campo.
+ * DISENO_SOBRE_CASO_CFF.md). `relaciones` ya viaja con datos reales,
+ * leídos vía motores_eficiencia.leer_relaciones_cff() (042, cierra
+ * PENDIENTES_BRECHAS_WORKER_MOTORES.md §2 -- DISENO_RELACIONES_CFF.md).
  *
  * `calcularCff` YA NO exige `sobreCaso` como parámetro externo sin
  * resolver -- lo arma internamente a partir de:
@@ -149,15 +148,19 @@ function resolverSenalesComponente(componenteCrudo, nodeSetResuelto) {
 }
 
 /**
- * calcularCff(eventosConComponentes, casoDeclarado, nodeHierarchy, organizationId, periods, opciones) -> CFF_RESULT
+ * calcularCff(eventosConComponentes, casoDeclarado, nodeHierarchy, relacionesCrudas, organizationId, periods, opciones) -> CFF_RESULT
  *
  * `eventosConComponentes` = salida de motores_eficiencia.leer_eventos_cff().
  * `casoDeclarado` = salida de motores_eficiencia.leer_caso_cff() (036) --
  *   UNA fila (un caso ya declarado por un analista vía registrar_caso_cff).
  * `nodeHierarchy` = salida de motores_eficiencia.leer_node_hierarchy_cff()
  *   (036) -- forma {node_id, parent_id} que consolidarPeriodoYAlcance exige.
+ * `relacionesCrudas` = salida de motores_eficiencia.leer_relaciones_cff()
+ *   (042) -- array de ECONOMIC_RELATION, snake_case directo, sin mapeo
+ *   de claves (a diferencia de casoDeclarado -- verificado en
+ *   motor-cff/relaciones.js, INVESTIGACION_RELACIONES_CFF.md §2).
  */
-function calcularCff(eventosConComponentes, casoDeclarado, nodeHierarchy, organizationId, periods, opciones) {
+function calcularCff(eventosConComponentes, casoDeclarado, nodeHierarchy, relacionesCrudas, organizationId, periods, opciones) {
   const sobreCasoDeclarado = mapearCasoDeclaradoASobreCaso(casoDeclarado);
 
   // node_set: si quedó NULL (default mecánico pedido, Luis confirmación
@@ -183,7 +186,7 @@ function calcularCff(eventosConComponentes, casoDeclarado, nodeHierarchy, organi
     {},
     sobreCasoDeclarado,
     genealogia,
-    { nodeHierarchy: nodeHierarchy, eventos: eventosConSenales, relaciones: [] }
+    { nodeHierarchy: nodeHierarchy, eventos: eventosConSenales, relaciones: relacionesCrudas || [] }
   );
 
   return runCFF(caso);
