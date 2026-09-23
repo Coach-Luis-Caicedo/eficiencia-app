@@ -79,7 +79,8 @@ async function calcularFpvHandler(request, env) {
   const jwt = extraerJWT(request);
   const { organization_id, period } = await leerParams(request);
   const filas = await rpc(env, jwt, 'leer_respuestas_fpv', { p_organization_id: organization_id, p_period: period });
-  return Response.json(calcularFpv(filas));
+  const filasConfig = await rpc(env, jwt, 'leer_config_posiciones_fpv', { p_organization_id: organization_id, p_period: period });
+  return Response.json(calcularFpv(filas, filasConfig));
 }
 
 /**

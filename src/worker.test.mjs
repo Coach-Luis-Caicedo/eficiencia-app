@@ -138,11 +138,26 @@ const run = async () => {
   console.log('\n── 7. calcular-fpv ──');
   // ═══════════════════════════════════════════════════════════════
   RPC_RESPUESTAS.leer_respuestas_fpv = [
-    { organization_id: 'org-1', persona_id: 'p1', posicion: 'CONSUMIDOR', period: '2026-01', f: '3', p: 'NE', v: 'NR', peso: null }
+    { organization_id: 'org-1', persona_id: 'p1', posicion: 'CONSUMIDOR', period: '2026-01', f: '3', p: 'NE', v: 'NR', peso: 2 }
   ];
+  // Config real de posición -- confirma que posiciones.<POS> SÍ llega a
+  // runFPV (043, cierra PENDIENTES_BRECHAS_WORKER_MOTORES.md §1), no que
+  // se sigue mandando vacío en silencio.
+  RPC_RESPUESTAS.leer_config_posiciones_fpv = [
+    { organization_id: 'org-1', posicion: 'CONSUMIDOR', period: '2026-01', n_elegibles: 50,
+      diseno_probabilistico: true, diseno_modelo_documentado: false, ponderacion_metodologia: 'inverso de probabilidad' }
+  ];
+  LLAMADAS_RPC.length = 0;
   res = await worker.fetch(mockRequest('calcular-fpv?organization_id=org-1&period=2026-01'), ENV, {});
   const cuerpoFpv = await res.json();
   ok(res.status === 200 && cuerpoFpv.ok === true, 'calcular-fpv responde 200, runFPV ok:true');
+  const llamadaConfigFpv = LLAMADAS_RPC.find(function (l) { return l.nombreRpc === 'leer_config_posiciones_fpv'; });
+  ok(!!llamadaConfigFpv && llamadaConfigFpv.body.p_period === '2026-01',
+    'leer_config_posiciones_fpv SÍ se invoca, con el mismo período que leer_respuestas_fpv');
+  ok(cuerpoFpv.output.posiciones.CONSUMIDOR.sensores.F.CV !== undefined,
+    'CONSUMIDOR con N_elegibles/diseno declarados -- coberturaSensor() corrió con la cobertura real, no con diseno/N_elegibles ausentes');
+  ok(cuerpoFpv.output.meta.posiciones.CONSUMIDOR.ponderado === true,
+    'meta.posiciones.CONSUMIDOR.ponderado === true -- la ponderación (043) SÍ se activó, runFPV.js:98 encontró `pond` no-null');
 
   // ═══════════════════════════════════════════════════════════════
   console.log('\n── 8. calcular-cff -- anidado (evento+componentes) de punta a punta ──');
