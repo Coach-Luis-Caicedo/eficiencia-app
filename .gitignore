@@ -1,3 +1,10 @@
 _referencia/
 .wrangler/
 .dev.vars
+.claude/settings.local.json
+.claude/scheduled_tasks.lock
+supabase/.temp/
+__pycache__/
+desktop.ini
+files.zip
+Presentación-EFICIENCIA.pptx
