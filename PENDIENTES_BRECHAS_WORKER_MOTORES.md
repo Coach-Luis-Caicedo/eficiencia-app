@@ -1016,3 +1016,47 @@ tenga las variables.
 3. Como *secrets* (`wrangler secret put`), que persisten entre despliegues.
 
 </details>
+
+---
+
+## 13. Base de datos — `cff_relaciones` y `fpv_config_posicion` no tienen RLS activado (las otras 20 tablas del esquema sí)
+
+**Estado: PENDIENTE. Encontrado 2026-09-26** al verificar 030–044 contra
+producción para reparar el historial (§14). **Prioridad baja: sin exposición
+hoy.**
+
+**Verificado por consulta a producción**: `relrowsecurity = false` solo en
+`cff_relaciones` (042) y `fpv_config_posicion` (043); las otras 20 tablas del
+esquema `motores_eficiencia` lo tienen en `true`. Ni `042` ni `043` hacen
+`ENABLE ROW LEVEL SECURITY`: solo `REVOKE ALL ... FROM PUBLIC` (`042:77`,
+`043:44`) — producción coincide con las migraciones, no hay migración a
+medias. `anon`/`authenticated` no tienen `SELECT`/`INSERT` en ninguna de las
+dos (`has_table_privilege` = false), el esquema no está expuesto en la API y el
+acceso es solo por funciones `SECURITY DEFINER`, así que hoy no se puede leer.
+
+**Riesgo**: defensa en profundidad — un `GRANT` futuro por error dejaría esas
+dos tablas legibles entre organizaciones, sin la segunda barrera que sí tienen
+las demás. **Arreglo propuesto (no ejecutado)**: migración con `ALTER TABLE ...
+ENABLE ROW LEVEL SECURITY` en ambas (sin políticas = nada legible salvo el
+dueño/`SECURITY DEFINER`, mismo criterio que las otras).
+
+---
+
+## 14. Base de datos — historial de migraciones remoto vacío (RESUELTO en parte 2026-09-26)
+
+**Estado: `030`–`044` REPARADAS; `001`–`029` y `045` siguen sin registrar.**
+
+`supabase_migrations.schema_migrations` estaba vacío del todo. Con Luis
+(2026-09-26) se aplicó `044` (`db query --linked -f`, nunca `db push`) y se
+verificó antes de reparar migración por migración (030–044) contra el esquema
+real: tablas y columnas, índices, vistas, constraints, `GRANT`s y el cuerpo de
+las 33 funciones (idéntico al del archivo, o redefinido por una posterior y
+verificado allí). Explicadas por diseño las 6 discrepancias automáticas
+(`032` `period` eliminada por `033`, que la reemplaza por `jornada`; las PK
+recreadas por `033`/`041`; los `GRANT anon` de las 3 funciones `registrar_
+respuesta_*` de `034`, que son las únicas 3 con `anon`, `public` = ninguna).
+Luego `supabase migration repair --status applied 030 … 044`.
+
+**Sigue abierto**: `001`–`029` no están en el historial remoto ni se verificó
+su efecto (fuera del alcance pedido): un `db push` intentaría correrlas.
+`045` no está aplicada (Luis: sigue pendiente).
