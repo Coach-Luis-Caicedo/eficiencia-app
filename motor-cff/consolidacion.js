@@ -152,6 +152,7 @@ function _nuevoContexto(entrada) {
     permiteInclusion: {},    // id → boolean  (lo ESCRIBE paso 4, lo LEE paso 5)
     motivoNoInclusion: {},   // id → motivo
     excluidoPorRelacionRiesgo: {},  // id → relation_type (§ INV-CFF-20 / Paso 3)
+    diagnosticos: {},        // id → { destino, valor } de los EXPOSURE/UNRESOLVED en alcance (Paso 6; cost_reconciliation)
     alcanceClasificacion: null,
     admisibles: [],
     excluidos: [],           // [{ component_id, motivo, categoria }]
@@ -396,6 +397,7 @@ function _paso6Sumar(ctx) {
     //     flag a nivel de resultado.
     var relRiesgo = ctx.excluidoPorRelacionRiesgo[c.component_id];
     if (relRiesgo) {
+      ctx.diagnosticos[c.component_id] = { destino: 'RELACION_RIESGO', valor: val };
       ctx.flags.push('COMPONENTE_' + estado + ':"' + c.component_id + '" excluido por relación ' + relRiesgo +
         ' con riesgo de solapamiento — NO se suma a exposure_total ni a unresolved_impact_total (INV-CFF-20). ' +
         'Ya registrado como excluido; visible por cobertura degradada y este flag.');
@@ -404,6 +406,7 @@ function _paso6Sumar(ctx) {
 
     // (b) doble falla EXPOSURE + UNRESOLVED (Opción D)
     if (esExposure && esUnresolved) {
+      ctx.diagnosticos[c.component_id] = { destino: 'DOBLE_FALLA', valor: val };
       ctx.flags.push('COMPONENTE_EXPOSURE_Y_UNRESOLVED:"' + c.component_id + '" no sumado a exposure_total ni a ' +
         'unresolved_impact_total (Opción D, §20 + INV-CFF-55/50) — visible por cobertura degradada y este flag.');
       _registrarExclusion(ctx, c.component_id,
@@ -414,6 +417,7 @@ function _paso6Sumar(ctx) {
     }
 
     // (c) exposición / impacto no resuelto, limpio de solapamiento
+    ctx.diagnosticos[c.component_id] = { destino: esExposure ? 'EXPOSURE' : 'UNRESOLVED', valor: val };
     if (esExposure) ctx.exposure_total += val;
     else ctx.unresolved_impact_total += val;
   });
@@ -511,6 +515,10 @@ function consolidarPeriodoYAlcance(entrada) {
     seleccionados: ctx.admisibles.map(function (c) {
       return { component_id: c.component_id, valor: ctx.valores[c.component_id] };
     }),
+    // Destino de cada EXPOSURE/UNRESOLVED en alcance (EXPOSURE | UNRESOLVED | DOBLE_FALLA |
+    // RELACION_RIESGO) con su valor: fuente única de cost_reconciliation.
+    diagnosticos: ctx.diagnosticos,
+    valores: ctx.valores, // id -> valor efectivo (normalizado, tras la transformacion temporal)
     coverageInput: {
       componentes_candidatos: ctx.componentes.length,
       componentes_admisibles: ctx.admisibles.length,

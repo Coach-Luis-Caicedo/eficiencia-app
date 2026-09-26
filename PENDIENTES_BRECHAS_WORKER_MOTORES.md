@@ -553,10 +553,13 @@ Supabase (toca producción; espera el OK de Luis).** Perfiles corregidos en
   rango no consolidable), con la causa
   (`C: OPERACIONAL_NO_EVALUABLE (LOST_CAPACITY_SIN_RECONSTRUCCION)`). El desglose
   por categoría (opción 1) queda como mejora futura explícita, NO hecho.
-- **Q4** (sin cifra, SIN centinela): regla 7b del contrato —
-  `monetization_status='N_A'` puede no traer ninguna representación de valor
-  (`original_value` ni rango); con cualquier otro estado la cifra sigue siendo
-  obligatoria. En `runCFF` es un "sin cifra declarado": no es error de datos, no
+- **Q4** (sin cifra, SIN centinela): regla 7b del contrato, en las DOS
+  direcciones (ronda del 2026-09-26, `db5bd09`) — `monetization_status='N_A'`
+  y la cifra son mutuamente excluyentes: con `N_A` NO hay `original_value` ni
+  rango; con cualquier otro estado la cifra sigue siendo obligatoria. Antes de
+  prohibirlo se contó en producción: **0 filas `N_A` (12 componentes), 0 filas
+  violan el CHECK nuevo**; `045` impone ambas direcciones (pglite 9 asserts,
+  sigue SIN aplicar). En `runCFF` es un "sin cifra declarado": no es error de datos, no
   se consolida ni se suma, no se inventa 0, sale como warning
   `COMPONENTE_SIN_CIFRA_DECLARADA` y figura en `limitations`
   (`MONETIZACION_NO_OBSERVADA_NI_ESTIMADA (SIN_CIFRA_DECLARADA)`); la cobertura
@@ -1060,3 +1063,31 @@ Luego `supabase migration repair --status applied 030 … 044`.
 **Sigue abierto**: `001`–`029` no están en el historial remoto ni se verificó
 su efecto (fuera del alcance pedido): un `db push` intentaría correrlas.
 `045` no está aplicada (Luis: sigue pendiente).
+
+---
+
+## 15. CFF — `cost_reconciliation`: la categoría "otras causas" no es derivable hoy (declarada, no resuelta)
+
+**Estado: `cost_reconciliation` CONSTRUIDA (2026-09-26); la categoría "otras
+causas" sale con `monto: null`, `derivable: false` y una nota. PENDIENTE de
+captura para poder llenarla.**
+
+`UNRESOLVED` (§11.3) cubre a la vez "evidencia insuficiente" (atribución
+pendiente) y "explicación alternativa dominante" (otras causas). La diferencia
+solo existe en la dimensión `alternative_explanation` de `attribution_dimensions`,
+y `cff_event_components` no la guarda (no hay columna; por el Worker
+`attribution_status` llega siempre ya resuelto). Decisión de Luis: no se toca el
+esquema en esta ronda, no se fusiona con "atribución pendiente" y no se deja
+vacía sin explicación. Queda ligada a la interfaz de captura propia de CFF
+(hoy no existe: `MAPEO_ENTRADA_DATOS_WORKBOOK_NUEVO.md`): cuando se construya,
+agregar `attribution_dimensions` (o al menos `alternative_explanation`), persistirla
+y llenar la categoría.
+
+**Cruces que el documento no define** (verificados contra el texto; van en
+`sin_categoria_definida` con `monto: null` y la cifra aparte, no en "otras
+causas"): EXPOSURE + UNRESOLVED (doble falla; el documento no lo define y la
+falla es en AMBOS ejes), atribución `N_A` con monetización OBSERVED/ESTIMATED
+(§11 solo define CONFIRMED/SUPPORTED/UNRESOLVED; §18 exige CONFIRMED/SUPPORTED).
+El cruce monetización `N_A` × CONFIRMED/SUPPORTED sí va a "efectos sin
+valoración" (§10 define `N_A` sin atribución y "Calidad de monetización ≠ calidad
+de atribución").

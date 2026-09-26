@@ -424,6 +424,110 @@ var rQ4err = R.runCFF(casoValido({ eventos: [eventoValido({ components: [
 ok(rQ4err.result.errors.some(function (e) { return e.code === 'COMPONENTE_SIN_VALOR' && e.ref === 'C_falta'; }), 'Q4: OBSERVED sin valor sigue siendo COMPONENTE_SIN_VALOR (la excepción es solo N_A)');
 
 // ═══════════════════════════════════════════════════════════════════════
+seccion('cost_reconciliation — 5 categorías + lo que el documento no define (PENDIENTES §7)');
+// ═══════════════════════════════════════════════════════════════════════
+// Cada componente cae en EXACTAMENTE una categoría; los montos salen de los totales que el motor ya
+// calcula. Las reglas de clasificación se prueban con la matriz COMPLETA monetización x atribución.
+function reconDe(comps, extra) {
+  return R.runCFF(casoValido(Object.assign({ eventos: [eventoValido({ components: [compValida({ component_id: 'BASE', original_value: 1000 })].concat(comps) })] }, extra || {}))).result.cost_reconciliation;
+}
+function enDonde(rec, id) {
+  var sitios = [];
+  var c = rec.categorias, s = rec.sin_categoria_definida;
+  if (c.efectos_sin_valoracion.componentes.some(function (x) { return x.component_id === id; })) sitios.push('efectos_sin_valoracion');
+  if (s.doble_falla_exposure_unresolved.componentes.indexOf(id) !== -1) sitios.push('doble_falla');
+  if (s.atribucion_na.componentes.indexOf(id) !== -1) sitios.push('atribucion_na');
+  if (rec.excluidos_por_consolidacion.componentes.some(function (x) { return x.component_id === id; })) sitios.push('excluidos_por_consolidacion');
+  return sitios;
+}
+var esperado = {
+  'OBSERVED|CONFIRMED': 'costo', 'OBSERVED|SUPPORTED': 'costo', 'OBSERVED|UNRESOLVED': 'pendiente', 'OBSERVED|N_A': 'atribucion_na',
+  'ESTIMATED|CONFIRMED': 'costo', 'ESTIMATED|SUPPORTED': 'costo', 'ESTIMATED|UNRESOLVED': 'pendiente', 'ESTIMATED|N_A': 'atribucion_na',
+  'EXPOSURE|CONFIRMED': 'exposicion', 'EXPOSURE|SUPPORTED': 'exposicion', 'EXPOSURE|UNRESOLVED': 'doble_falla', 'EXPOSURE|N_A': 'exposicion',
+  'N_A|CONFIRMED': 'efectos_sin_valoracion', 'N_A|SUPPORTED': 'efectos_sin_valoracion', 'N_A|UNRESOLVED': 'efectos_sin_valoracion', 'N_A|N_A': 'efectos_sin_valoracion'
+};
+['OBSERVED', 'ESTIMATED', 'EXPOSURE', 'N_A'].forEach(function (mon) {
+  ['CONFIRMED', 'SUPPORTED', 'UNRESOLVED', 'N_A'].forEach(function (att) {
+    var comp = mon === 'N_A' ? sinValor({ component_id: 'X', monetization_status: mon, attribution_status: att })
+      : compValida({ component_id: 'X', original_value: 100, monetization_status: mon, attribution_status: att });
+    var rec = reconDe([comp]);
+    var clave = mon + '|' + att, esp = esperado[clave];
+    var nCosto = rec.categorias.costo_atribuido.n, nPend = rec.categorias.atribucion_pendiente.n, nExp = rec.categorias.exposicion.n;
+    var real;
+    if (nCosto === 2) real = 'costo';                       // BASE + X
+    else if (nPend === 1) real = 'pendiente';
+    else if (nExp === 1) real = 'exposicion';
+    else { var sit = enDonde(rec, 'X'); real = sit.length === 1 ? sit[0] : 'AMBIGUO:' + sit.join('+'); }
+    eq(real, esp, 'matriz ' + clave + ' → ' + esp);
+    ok(rec.verificacion.cuadra && rec.verificacion.componentes_considerados === 2, 'matriz ' + clave + ' — partición exhaustiva (cuadra, 2 componentes)');
+  });
+});
+
+// montos = los totales que el motor ya calcula (la reconciliación no calcula nada nuevo)
+var rMontos = R.runCFF(casoValido({ eventos: [eventoValido({ components: [
+  compValida({ component_id: 'A', original_value: 1000 }),
+  compValida({ component_id: 'P', original_value: 200, attribution_status: 'UNRESOLVED' }),
+  compValida({ component_id: 'E', original_value: 500, monetization_status: 'EXPOSURE' }),
+  compValida({ component_id: 'D', original_value: 70, monetization_status: 'EXPOSURE', attribution_status: 'UNRESOLVED' }),
+  compValida({ component_id: 'Z', original_value: 33, attribution_status: 'N_A' })
+] })] })).result;
+var cr = rMontos.cost_reconciliation;
+near(cr.categorias.costo_atribuido.monto, rMontos.cff_total, 'monto costo_atribuido = cff_total');
+near(cr.categorias.atribucion_pendiente.monto, rMontos.unresolved_impact_total, 'monto atribucion_pendiente = unresolved_impact_total (200)');
+near(cr.categorias.exposicion.monto, rMontos.exposure_total, 'monto exposicion = exposure_total (500)');
+near(cr.sin_categoria_definida.doble_falla_exposure_unresolved.suma_cifras_declaradas, 70, 'doble falla: la cifra declarada (70) se muestra, no queda invisible');
+eq(cr.sin_categoria_definida.doble_falla_exposure_unresolved.monto, null, 'doble falla: monto = null (el documento no define el cruce)');
+near(cr.sin_categoria_definida.atribucion_na.suma_cifras_declaradas, 33, 'atribución N_A: la cifra declarada (33) se muestra');
+eq(cr.sin_categoria_definida.atribucion_na.monto, null, 'atribución N_A: monto = null (el documento no la define)');
+ok(!/1000|200|500/.test(JSON.stringify([cr.sin_categoria_definida.doble_falla_exposure_unresolved, cr.sin_categoria_definida.atribucion_na])), 'las cifras de otras categorías no se cuelan en las categorías sin definición');
+
+// otras_causas: visible, no derivable, sin fusionar con atribución pendiente
+eq(cr.categorias.otras_causas.monto, null, 'otras_causas: monto = null (no derivable)');
+eq(cr.categorias.otras_causas.derivable, false, 'otras_causas: derivable = false, explícito');
+ok(/no distingue esta causa dentro de UNRESOLVED/.test(cr.categorias.otras_causas.nota), 'otras_causas: nota explícita de por qué no es derivable');
+ok(cr.categorias.atribucion_pendiente.n === 1, 'otras_causas NO se fusiona con atribucion_pendiente (P sigue solo en pendiente)');
+
+// alcance (Q1): fuera de node_set no se clasifica, se cuenta aparte
+var rFuera = reconDe([compValida({ component_id: 'F', original_value: 999, monetization_status: 'EXPOSURE', scope_valid: false })]);
+eq(rFuera.fuera_de_alcance.n, 1, 'fuera de alcance: contado aparte');
+eq(rFuera.categorias.exposicion.n, 0, 'fuera de alcance: NO cuenta como exposición');
+ok(rFuera.verificacion.cuadra, 'fuera de alcance: la partición sigue cuadrando');
+
+// excluidos por la consolidación (duplicado sin resolver): con cifra pero no suman
+var rDupRec = reconDe([compValida({ component_id: 'DA', original_value: 4000 }), compValida({ component_id: 'DB', original_value: 4000 })],
+  { relaciones: [{ relation_type: 'DUPLICATE', component_a_id: 'DA', component_b_id: 'DB', resolution_status: 'UNRESOLVED' }] });
+eq(rDupRec.excluidos_por_consolidacion.componentes.map(function (x) { return x.component_id; }), ['DA', 'DB'], 'duplicado sin resolver → excluidos_por_consolidacion (no costo perdido)');
+ok(rDupRec.categorias.costo_atribuido.n === 1 && rDupRec.verificacion.cuadra, 'duplicado: solo BASE en costo y la partición cuadra');
+
+// EXPOSURE duplicados con relación de riesgo (INV-CFF-20): ni a exposición (no se cuenta dos veces) ni se pierden
+var rRiesgo = reconDe([compValida({ component_id: 'RA', original_value: 6000, monetization_status: 'EXPOSURE' }), compValida({ component_id: 'RB', original_value: 6000, monetization_status: 'EXPOSURE' })],
+  { relaciones: [{ relation_type: 'DUPLICATE', component_a_id: 'RA', component_b_id: 'RB', resolution_status: 'UNRESOLVED' }] });
+eq(rRiesgo.excluidos_por_consolidacion.componentes, [{ component_id: 'RA', categoria: 'RELACION_ECONOMICA_NO_PERMITE_INCLUSION' }, { component_id: 'RB', categoria: 'RELACION_ECONOMICA_NO_PERMITE_INCLUSION' }],
+  'EXPOSURE duplicados sin resolver → excluidos_por_consolidacion (no se cuentan dos veces en exposición)');
+ok(rRiesgo.categorias.exposicion.n === 0 && rRiesgo.categorias.exposicion.monto === 0 && rRiesgo.verificacion.cuadra, 'y no aparecen en exposición (monto 0) y la partición cuadra');
+
+// efectos sin valoración: con causa donde existe (LOST_CAPACITY) y "sin cifra" declarado
+var rEf = reconDe([compValida({ component_id: 'LC', original_value: 300, primary_mechanism: 'LOST_CAPACITY', resource_type: 'AUSENTISMO' }),
+  sinValor({ component_id: 'SC', monetization_status: 'N_A' })]);
+eq(rEf.categorias.efectos_sin_valoracion.componentes, [{ component_id: 'LC', causa: 'LOST_CAPACITY_SIN_RECONSTRUCCION' }, { component_id: 'SC', causa: 'SIN_CIFRA_DECLARADA' }],
+  'efectos_sin_valoracion: LOST_CAPACITY con su causa fina; N_A sin cifra como SIN_CIFRA_DECLARADA (la causa por la que no hay base no se guarda)');
+// defensa: un N_A que llegue CON cifra (el contrato ya lo marca inválido) igual no suma ni se pierde
+var rNaCifra = reconDe([compValida({ component_id: 'NC', original_value: 555, monetization_status: 'N_A' })]);
+eq(rNaCifra.categorias.efectos_sin_valoracion.componentes, [{ component_id: 'NC', causa: 'MONETIZACION_N_A' }], 'N_A con cifra (contrato inválido): clasificado en efectos_sin_valoracion, causa MONETIZACION_N_A');
+ok(rNaCifra.categorias.costo_atribuido.n === 1 && rNaCifra.verificacion.cuadra, 'N_A con cifra: no entra a costo_atribuido y la partición cuadra');
+eq(rEf.categorias.efectos_sin_valoracion.monto, null, 'efectos_sin_valoracion: monto = null (sin cifra por definición)');
+
+// INSUFFICIENT (Q5): costo sin monto, pero la partición cuadra y no desaparecen componentes
+var rIns = R.runCFF(casoValido({ coberturaSeniales: { tratamientoEconomicoSuficiente: false, dependeDeEstimacionesDebiles: false, asignacionesLimitadas: false, baseDefendibleParaCifraConsolidada: false } })).result.cost_reconciliation;
+eq(rIns.categorias.costo_atribuido.monto, null, 'INSUFFICIENT: costo_atribuido.monto = null (mismo criterio que cff_total, Q5)');
+ok(/INSUFFICIENT/.test(rIns.categorias.costo_atribuido.nota) && rIns.verificacion.cuadra, 'INSUFFICIENT: con nota y la partición sigue cuadrando');
+
+// determinismo y forma
+var recA = JSON.stringify(reconDe([sinValor({ component_id: 'S1', monetization_status: 'N_A' }), compValida({ component_id: 'S2', original_value: 5, monetization_status: 'EXPOSURE' })]));
+var recB = JSON.stringify(reconDe([compValida({ component_id: 'S2', original_value: 5, monetization_status: 'EXPOSURE' }), sinValor({ component_id: 'S1', monetization_status: 'N_A' })]));
+eq(recA, recB, 'determinista: el orden de entrada de los componentes no cambia la reconciliación');
+
+// ═══════════════════════════════════════════════════════════════════════
 // El documento define exposure_total solo como campo de CFF_RESULT (que lleva
 // node_set) y no respalda un total "amplio": un componente fuera del alcance no
 // suma a ningún total, igual que cff_total.

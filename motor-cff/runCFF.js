@@ -72,6 +72,7 @@ var atribucion = require('./atribucion');
 var moneda = require('./moneda');
 var consolidacion = require('./consolidacion');
 var cobertura = require('./cobertura');
+var reconciliacion = require('./reconciliacion');
 var estados = require('./estados');
 
 var MONETIZACION_ADMISIBLE = ['OBSERVED', 'ESTIMATED'];
@@ -357,7 +358,7 @@ function runCFF(caso) {
       reporting_currency: caso.reporting_currency, valuation_basis: caso.valuation_basis,
       confirmed_observed: 0, confirmed_estimated: 0, supported_observed: 0, supported_estimated: 0,
       cff_confirmed: 0, cff_supported_additional: 0, cff_total: 0,
-      exposure_total: 0, unresolved_impact_total: 0, flags: [], seleccionados: [],
+      exposure_total: 0, unresolved_impact_total: 0, flags: [], seleccionados: [], diagnosticos: {}, valores: {},
       coverageInput: { componentes_candidatos: 0, componentes_admisibles: 0, componentes_excluidos: [] }
     };
   } else {
@@ -518,6 +519,11 @@ function runCFF(caso) {
     exposure_total: cons.exposure_total,
     unresolved_impact_total: cons.unresolved_impact_total,
     coverage: coverage,
+    // Reorganización de lo ya calculado en 5 categorías + lo que el documento no define (PENDIENTES §7).
+    cost_reconciliation: reconciliacion.construirReconciliacion({
+      resueltos: resueltos, cons: cons, errores: errores, cffTotal: cffTotalFinal,
+      exposureTotal: cons.exposure_total, unresolvedTotal: cons.unresolved_impact_total
+    }),
     event_profile: perfilSiHayCifra(perfilPor(seleccionadosFinales.map(function (c) {
       return { event_id: c.event_id, v: valorDe(c) };
     }), 'event_id', function (c) { return c.v; })),

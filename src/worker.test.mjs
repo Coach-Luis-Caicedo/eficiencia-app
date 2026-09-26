@@ -302,6 +302,13 @@ const run = async () => {
     JSON.stringify(cuerpoCff.result.coverage.limitations).indexOf('C3: MONETIZACION_NO_OBSERVADA_NI_ESTIMADA (SIN_CIFRA_DECLARADA)') !== -1 &&
     !cuerpoCff.result.errors.some(function (e) { return e.ref === 'C3'; }),
     'C3 (N_A, valores null desde la BD) -> "sin cifra" declarado: warning + limitations, SIN error de datos, sin sumar (Q4, 045)');
+  const rec = cuerpoCff.result.cost_reconciliation;
+  ok(rec && rec.verificacion.cuadra && rec.verificacion.componentes_considerados === 3 &&
+    rec.categorias.costo_atribuido.monto === 100 && rec.categorias.costo_atribuido.n === 1 &&
+    rec.fuera_de_alcance.n === 1 && rec.categorias.efectos_sin_valoracion.n === 1 &&
+    rec.categorias.efectos_sin_valoracion.componentes[0].component_id === 'C3' &&
+    rec.categorias.otras_causas.monto === null && rec.categorias.otras_causas.derivable === false,
+    'cost_reconciliation llega por el Worker: C1 costo (100), C2 fuera de alcance, C3 efectos sin valoración, otras_causas no derivable, partición cuadra');
   ok(JSON.stringify(cuerpoCff.result.coverage.limitations).indexOf('C2') !== -1,
     'la exclusión de C2 queda visible con motivo en coverage.limitations -- scope_valid=false lo excluyó, no lo escondió');
 

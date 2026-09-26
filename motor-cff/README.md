@@ -1129,6 +1129,25 @@ historial no exija rastrear tres mensajes de commit por separado.
 | `monetizacion.js` + `contratos.js` — compuertas §8.3/§8.4 + regla 10 (`salary_basis_kind`) | Fase 1 (§8) | el mapeo de cobertura de Fase 5 reveló que Fase 1 construyó solo el gate de §8.2; §8.3 y §8.4 no tenían enforcement | `204fc88` |
 | `runCFF.js` — 4ª entrada al roll-up de cobertura | Fase 4b-iv (§24) | las 3 capas de S3 no veían las exclusiones de la etapa de consolidación → `overall_coverage_status` no degradaba (inconsistente con la Opción D ya cerrada); verificado `FULL → PARTIAL` en el caso de 2 duplicados material | `fix(motor-cff): Fase 5` |
 
+### Reaperturas posteriores a la Fase 5 (ronda de integración con el Worker, 2026-09-26)
+
+Registradas en `PENDIENTES_BRECHAS_WORKER_MOTORES.md` §7; cada una con su decisión de Luis.
+
+| Qué se reabrió | Por qué | Commit |
+|---|---|---|
+| `runCFF.js` + `consolidacion.js` — los 4 perfiles se arman desde lo que la consolidación seleccionó (`seleccionados`) | INV-CFF-70 solo se probaba sin exclusiones: transferencia interna, fuera de alcance, `CONTAINS FULL` y `DUPLICATE` inflaban los perfiles | `96bc500` |
+| `consolidacion.js` — `exposure_total`/`unresolved_impact_total` respetan `node_set`; `runCFF.js` — `limitations` incluye descartes previos a la consolidación; `contratos.js` regla 9 extendida (cuadrantes, subtotales y perfiles vacíos con `INSUFFICIENT`) | Q1/Q3/Q5; el documento no respalda un `exposure_total` "amplio" | `8b3e121` |
+| `contratos.js` regla 7b — con `monetization_status=N_A` NO hay `original_value` ni rango; sin `N_A`, la cifra es obligatoria | Q4: "detectado, no cuantificado" sin valor centinela; `N_A` = "sin base para valorar" (§10, AC20) | `c60c5d8`, `db5bd09` |
+| `reconciliacion.js` (nuevo) + `cost_reconciliation` en `CFF_RESULT` | Estructura de 5 categorías pedida por la auditoría; no calcula montos nuevos, reorganiza los totales existentes | ver `git log` |
+
+`cost_reconciliation` (`reconciliacion.js`, cabecera con la cita y el campo que alimenta cada categoría): costo atribuido
+(`cff_total`), atribución pendiente (`unresolved_impact_total`, AC42), exposición (`exposure_total`, AC41), efectos sin
+valoración (`N_A` + descartes previos) y **otras causas — declarada NO derivable** (`monto: null` + nota: §11.3 usa
+`UNRESOLVED` para evidencia insuficiente y para explicación alternativa dominante, y la dimensión no se persiste). El
+documento no define EXPOSURE+UNRESOLVED ni la atribución `N_A`: van en `sin_categoria_definida` con `monto: null` y la
+cifra declarada aparte. Los excluidos por la consolidación y los fuera de alcance se listan aparte para que la partición
+sea exhaustiva (`verificacion.cuadra`).
+
 ## Estado consolidado — `motor-cff` completo (Fases 0-5)
 
 | Fase | Archivos | Asserts | Commit |
