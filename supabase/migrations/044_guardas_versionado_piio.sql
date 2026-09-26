@@ -16,19 +16,23 @@
 --   (intervalo INVERTIDO) SIN error. 3 filas corruptas en la prueba.
 --   (Producción verificada limpia: 0 filas invertidas al escribir esto.)
 --
--- Esta migración NO cambia ninguna semántica: solo rechaza, con la causa
--- explícita, lo que ya era inválido. Sigue abierta (para Luis) la pregunta
--- de si active_to de node_hierarchy es "último período inclusivo" (como
--- valid_to de las otras dos tablas, y como cierra registrar_nodo_piio) o
--- "fin exclusivo": con el CHECK estricto actual, una versión de nodo de UN
--- SOLO período no es representable, y la guarda de nodos lo dice así.
+-- SEMÁNTICA DECIDIDA (Luis, 2026-09-26): node_hierarchy.active_to es FIN
+-- EXCLUSIVO -- la versión rige en [active_from, active_to). Se cierra la
+-- versión abierta con active_to = active_from de la nueva, y el CHECK
+-- estricto de 031 (active_from < active_to) se mantiene: ahora SÍ admite una
+-- versión de un solo período. metric_definitions y reference_specs siguen
+-- INCLUSIVOS (valid_to = último período; `_vigente` de motor-piio/
+-- referencias.js compara con valid_to inclusivo). Producción no tiene filas
+-- de nodo cerradas (verificado), así que el cambio no deja datos con la
+-- convención anterior; 041 cerraba con "período anterior" (inclusivo) y esta
+-- migración lo reemplaza.
 -- ══════════════════════════════════════════════════════════════════
 
 -- ══════════════════════════════════════════════════════════════════
 -- 1. registrar_nodo_piio
--- La condición replica EXACTAMENTE la del CHECK de 031: la versión abierta
--- se cierra con active_to = período anterior al nuevo active_from
--- (inclusivo), y el CHECK exige active_from < active_to.
+-- active_to EXCLUSIVO: la abierta se cierra con active_to = nuevo
+-- active_from; para que el CHECK (active_from < active_to) se cumpla, el
+-- nuevo active_from debe ser ESTRICTAMENTE posterior al de la abierta.
 -- ══════════════════════════════════════════════════════════════════
 CREATE OR REPLACE FUNCTION motores_eficiencia.registrar_nodo_piio(
   p_organization_id  uuid,
@@ -40,7 +44,6 @@ DECLARE
   v_node_id        text := p_nodo->>'node_id';
   v_active_from    text := p_nodo->>'active_from';
   v_abierta_desde  text;
-  v_cierre         text;
 BEGIN
   IF auth.uid() IS NULL THEN RAISE EXCEPTION 'no autenticado'; END IF;
   IF NOT EXISTS (SELECT 1 FROM consultor_organizacion
@@ -51,15 +54,13 @@ BEGIN
   FROM motores_eficiencia.node_hierarchy
   WHERE organization_id = p_organization_id AND node_id = v_node_id AND active_to IS NULL;
 
-  v_cierre := to_char((to_date(v_active_from || '-01', 'YYYY-MM-DD') - interval '1 month'), 'YYYY-MM');
-
-  IF v_abierta_desde IS NOT NULL AND v_cierre <= v_abierta_desde THEN
-    RAISE EXCEPTION 'nodo "%": no se puede registrar una versión desde % -- la versión vigente empezó en %, y cerrarla el período anterior (%) deja active_to <= active_from, que node_hierarchy no admite (CHECK active_from < active_to, 031). La nueva versión debe empezar al menos 2 períodos después de la vigente: una versión de un solo período no es representable con este esquema.',
-      v_node_id, v_active_from, v_abierta_desde, v_cierre;
+  IF v_abierta_desde IS NOT NULL AND v_active_from <= v_abierta_desde THEN
+    RAISE EXCEPTION 'nodo "%": no se puede registrar una versión desde % -- la versión vigente empezó en %; la nueva debe empezar estrictamente después (active_to es fin exclusivo y node_hierarchy exige active_from < active_to, 031).',
+      v_node_id, v_active_from, v_abierta_desde;
   END IF;
 
   UPDATE motores_eficiencia.node_hierarchy
-  SET active_to = v_cierre
+  SET active_to = v_active_from
   WHERE organization_id = p_organization_id AND node_id = v_node_id AND active_to IS NULL;
 
   INSERT INTO motores_eficiencia.node_hierarchy

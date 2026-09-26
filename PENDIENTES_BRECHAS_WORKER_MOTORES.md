@@ -317,10 +317,9 @@ ruta de exportación de provisionales hacia CFF/IFD.
 
 ## 5. PIIO — `registrar_nodo_piio` rechaza una versión con `active_from` anterior a la versión abierta, con un mensaje que no lo explica
 
-**Estado: MIGRACIÓN `044` CONSTRUIDA Y VERIFICADA (pglite, rol
-`authenticated`, 36/36; regresión de `041` 32/32) — SIN APLICAR en
-Supabase, SIN COMITEAR. Alcance real mayor que el original; una parte
-queda como decisión de Luis.** Hallazgo original más abajo, sin editar.
+**Estado: MIGRACIÓN `044` AJUSTADA A LA DECISIÓN DE LUIS (`active_to`
+EXCLUSIVO, 2026-09-26) Y VERIFICADA (pglite, rol `authenticated`, 41/41) —
+SIN APLICAR en Supabase (falta el OK de Luis; toca producción).** Hallazgo original más abajo, sin editar.
 
 **Caracterizado por ejecución (2026-09-26)** — `registrar_nodo_piio`,
 `registrar_metric_definition_piio` y `registrar_reference_spec_piio`
@@ -353,20 +352,21 @@ comparten el patrón de cierre automático y se comportan distinto:
    ningún otro lugar del motor ni de las funciones (solo `IS NULL` en la
    vista vigente), así que hoy es inocuo, pero la semántica está sin decidir.
 
-**Lo que hace `044` (sin cambiar ninguna semántica)**: guarda con mensaje
-explícito en las 3 funciones — la nueva versión debe empezar estrictamente
-después de la abierta; para nodos, la guarda replica la condición exacta del
-`CHECK` y dice que una versión de un solo período no es representable. Los
-casos válidos siguen aceptándose (verificado, incl. cierres exactos y los
-32 asserts de `041`).
+**DECISIÓN DE LUIS (2026-09-26): `node_hierarchy.active_to` es FIN
+EXCLUSIVO** (la versión rige en `[active_from, active_to)`); se mantiene el
+`CHECK` estricto `active_from < active_to` (coherente con `config.js:214`).
+`metric_definitions`/`reference_specs` siguen INCLUSIVAS (`_vigente` usa
+`valid_to` inclusivo). Producción no tenía filas de nodo cerradas
+(verificado), así que no hay datos con la convención inclusiva de `041`.
 
-**Decisión de Luis (no resuelta, no tocada)**: ¿`active_to` de
-`node_hierarchy` es "último período inclusivo" (como `valid_to` de las otras
-dos tablas y como cierra la función) o "fin exclusivo"? Si es inclusivo, el
-`CHECK` debería ser `<=` (y el motor, `config.js:214`, marcaría de
-`DEGRADED` un nodo de un solo período). Si es exclusivo, la función debería
-cerrar con `active_to` = nuevo `active_from`. Hoy `044` solo hace explícito
-el límite.
+**Lo que hace `044`**: `registrar_nodo_piio` cierra la abierta con
+`active_to = active_from` de la nueva y exige `active_from` estrictamente
+posterior al de la abierta (mensaje explícito; una versión de un solo
+período YA es representable — verificado: `[2026-04,2026-05)`); las otras
+dos funciones exigen que la nueva empiece estrictamente después de la
+abierta / de la que reemplaza, con causa explícita. Los casos válidos siguen
+aceptándose y los cierres quedan exactos (nodo: `active_from` de la nueva;
+métrica/referencia: período anterior).
 
 **Observación adicional, sin cambio**: `registrar_reference_spec_piio` con
 `supersedes` apuntando a una versión que **no existe** inserta igual y no
