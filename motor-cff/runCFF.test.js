@@ -359,6 +359,57 @@ var rSt = R.runCFF(casoValido({ eventos: [eventoValido({ components: [
 cuadraTodo(rSt, 620, '(f) STOCK con transformación validada: el perfil usa el valor sumado (120), no original_value (0)');
 
 // ═══════════════════════════════════════════════════════════════════════
+seccion('exposure_total / unresolved_impact_total respetan node_set (PENDIENTES §7 Q1)');
+// ═══════════════════════════════════════════════════════════════════════
+seccion('Q5 — con cobertura INSUFFICIENT: cuadrantes, subtotales y perfiles también vacíos (PENDIENTES §7)');
+// ═══════════════════════════════════════════════════════════════════════
+var rQ5 = R.runCFF(casoValido({
+  coberturaSeniales: { tratamientoEconomicoSuficiente: false, dependeDeEstimacionesDebiles: false, asignacionesLimitadas: false, baseDefendibleParaCifraConsolidada: false }
+}));
+var resQ5 = rQ5.result;
+eq(resQ5.cff_total, null, 'Q5: cff_total = null');
+['confirmed_observed', 'confirmed_estimated', 'supported_observed', 'supported_estimated', 'cff_confirmed', 'cff_supported_additional'].forEach(function (k) {
+  eq(resQ5[k], null, 'Q5: ' + k + ' = null (no una cifra parcial junto a un total N_A)');
+});
+['event_profile', 'mechanism_profile', 'financial_nature_profile', 'node_profile'].forEach(function (k) {
+  eq(resQ5[k], [], 'Q5: ' + k + ' vacío');
+});
+ok(rQ5._meta.contratoResultValido, 'Q5: el CFF_RESULT con cuadrantes null VALIDA (regla 9 extendida)  [' + rQ5._meta.contratoResultProblemas.join('; ') + ']');
+// contraste: cuadrante null FUERA del caso N_A → el contrato lo rechaza
+var q5malo = JSON.parse(JSON.stringify(rSc.result));
+q5malo.confirmed_observed = null;
+ok(!contratos.validarCFFResult(q5malo).valido, 'Q5: confirmed_observed=null con cobertura no insuficiente → el contrato lo RECHAZA');
+// y sin insuficiencia las cifras siguen presentes
+ok(typeof rSc.result.confirmed_observed === 'number' && rSc.result.event_profile.length > 0, 'Q5: sin insuficiencia, cuadrantes y perfiles siguen poblados');
+
+// ═══════════════════════════════════════════════════════════════════════
+seccion('Q3 — coverage.limitations incluye lo descartado antes de la consolidación (PENDIENTES §7)');
+// ═══════════════════════════════════════════════════════════════════════
+var rQ3 = R.runCFF(casoValido({ eventos: [eventoValido({ components: [
+  compValida({ component_id: 'C_ok', original_value: 1000 }),
+  compValida({ component_id: 'C_lc', original_value: 300, primary_mechanism: 'LOST_CAPACITY', resource_type: 'AUSENTISMO' })
+] })] }));
+var lim = rQ3.result.coverage.limitations;
+ok(lim.some(function (x) { return x.indexOf('C_lc') === 0 && x.indexOf('LOST_CAPACITY_SIN_RECONSTRUCCION') !== -1; }),
+  'Q3: LOST_CAPACITY sin reconstrucción figura en limitations con su causa  [' + JSON.stringify(lim) + ']');
+ok(!lim.some(function (x) { return x.indexOf('C_ok') === 0; }), 'Q3: el componente consolidado NO figura');
+
+// ═══════════════════════════════════════════════════════════════════════
+// El documento define exposure_total solo como campo de CFF_RESULT (que lleva
+// node_set) y no respalda un total "amplio": un componente fuera del alcance no
+// suma a ningún total, igual que cff_total.
+var rQ1 = R.runCFF(casoValido({ eventos: [eventoValido({ components: [
+  compValida({ component_id: 'C_ok', original_value: 1000 }),
+  compValida({ component_id: 'C_exp_dentro', original_value: 500, monetization_status: 'EXPOSURE' }),
+  compValida({ component_id: 'C_exp_fuera', original_value: 999, monetization_status: 'EXPOSURE', scope_valid: false }),
+  compValida({ component_id: 'C_unr_dentro', original_value: 200, attribution_status: 'UNRESOLVED' }),
+  compValida({ component_id: 'C_unr_fuera', original_value: 777, attribution_status: 'UNRESOLVED', scope_valid: false })
+] })] }));
+near(rQ1.result.exposure_total, 500, 'Q1: exposure_total = solo la EXPOSURE dentro del alcance (500, no 1499)');
+near(rQ1.result.unresolved_impact_total, 200, 'Q1: unresolved_impact_total = solo la UNRESOLVED dentro del alcance (200, no 977)');
+near(rQ1.result.cff_total, 1000, 'Q1: cff_total no cambia');
+
+// ═══════════════════════════════════════════════════════════════════════
 seccion('Mutaciones — ejecutadas como paso de Bash aparte (ver mensaje de cierre)');
 // ═══════════════════════════════════════════════════════════════════════
 console.log('  1. AC51: inyectar un valor no determinista (Math.random) en un campo del CFF_RESULT →');

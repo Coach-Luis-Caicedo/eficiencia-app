@@ -446,6 +446,16 @@ function runCFF(caso) {
   var seleccionadosFinales = paraConsolidar.filter(function (c) { return valorSeleccionado[c.component_id] !== undefined; });
   var valorDe = function (c) { return valorSeleccionado[c.component_id]; };
 
+  // Componentes que se descartaron ANTES de la consolidación (sin valor, FX faltante,
+  // LOST_CAPACITY sin reconstrucción, rango no consolidable): la consolidación no los ve, así
+  // que cons.coverageInput no los trae; sin esto no figuraban en `limitations` (PENDIENTES §7 Q3).
+  // Se nombra la causa con el código de error del componente.
+  var exclusionesPreConsolidacion = resueltos.filter(function (c) { return c._excluidoValor; }).map(function (c) {
+    var causas = unicosOrdenados(errores.filter(function (e) { return e.layer === 'component' && e.ref === c.component_id; })
+      .map(function (e) { return e.code; }));
+    return { component_id: c.component_id, categoria: 'OPERACIONAL_NO_EVALUABLE' + (causas.length ? ' (' + causas.join(', ') + ')' : '') };
+  });
+
   // S8 — CFF_COVERAGE
   var coverage = {
     case_scope: caso.scope,
@@ -460,9 +470,15 @@ function runCFF(caso) {
     monetization_coverage_status: covMonetizacion.coverage_status,
     attribution_coverage_status: covAtribucion.coverage_status,
     overall_coverage_status: overallCoverage,
-    limitations: ordenarPor(cons.coverageInput.componentes_excluidos, 'component_id')
+    limitations: ordenarPor(cons.coverageInput.componentes_excluidos.concat(exclusionesPreConsolidacion), 'component_id')
       .map(function (x) { return x.component_id + ': ' + x.categoria; })
   };
+
+  // Q5 (PENDIENTES §7): con cobertura INSUFFICIENT no hay cifra defendible; el total va null
+  // y también los cuadrantes, sus subtotales y los perfiles (vacíos), no una cifra parcial.
+  var sinCifra = overallCoverage === 'INSUFFICIENT';
+  var nulaSiSinCifra = function (v) { return sinCifra ? null : v; };
+  var perfilSiHayCifra = function (p) { return sinCifra ? [] : p; };
 
   // S8 — CFF_RESULT completo
   var result = {
@@ -476,25 +492,25 @@ function runCFF(caso) {
     node_set: (caso.node_set || []).slice().sort(),
     reporting_currency: caso.reporting_currency,
     valuation_basis: caso.valuation_basis,
-    confirmed_observed: cons.confirmed_observed,
-    confirmed_estimated: cons.confirmed_estimated,
-    supported_observed: cons.supported_observed,
-    supported_estimated: cons.supported_estimated,
-    cff_confirmed: cons.cff_confirmed,
-    cff_supported_additional: cons.cff_supported_additional,
+    confirmed_observed: nulaSiSinCifra(cons.confirmed_observed),
+    confirmed_estimated: nulaSiSinCifra(cons.confirmed_estimated),
+    supported_observed: nulaSiSinCifra(cons.supported_observed),
+    supported_estimated: nulaSiSinCifra(cons.supported_estimated),
+    cff_confirmed: nulaSiSinCifra(cons.cff_confirmed),
+    cff_supported_additional: nulaSiSinCifra(cons.cff_supported_additional),
     cff_total: cffTotalFinal,
     exposure_total: cons.exposure_total,
     unresolved_impact_total: cons.unresolved_impact_total,
     coverage: coverage,
-    event_profile: perfilPor(seleccionadosFinales.map(function (c) {
+    event_profile: perfilSiHayCifra(perfilPor(seleccionadosFinales.map(function (c) {
       return { event_id: c.event_id, v: valorDe(c) };
-    }), 'event_id', function (c) { return c.v; }),
-    mechanism_profile: perfilPor(seleccionadosFinales, 'primary_mechanism', valorDe),
-    financial_nature_profile: perfilPor(seleccionadosFinales, 'financial_nature', valorDe),
-    node_profile: perfilPor(seleccionadosFinales.map(function (c) {
+    }), 'event_id', function (c) { return c.v; })),
+    mechanism_profile: perfilSiHayCifra(perfilPor(seleccionadosFinales, 'primary_mechanism', valorDe)),
+    financial_nature_profile: perfilSiHayCifra(perfilPor(seleccionadosFinales, 'financial_nature', valorDe)),
+    node_profile: perfilSiHayCifra(perfilPor(seleccionadosFinales.map(function (c) {
       var ev = caso.eventos.filter(function (e) { return e.event_id === c.event_id; })[0];
       return { node_id: ev ? ev.node_id : '(sin nodo)', v: valorDe(c) };
-    }), 'node_id', function (c) { return c.v; }),
+    }), 'node_id', function (c) { return c.v; })),
     calculation_status: calculationStatus,
     warnings: ordenarPor(warnings.concat(cons.flags.map(function (f) { return { code: 'CONSOLIDACION', detalle: f }; })), 'detalle'),
     errors: ordenarPor(errores, 'code'),

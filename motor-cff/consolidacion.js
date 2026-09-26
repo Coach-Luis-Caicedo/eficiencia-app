@@ -376,6 +376,11 @@ function _paso6Sumar(ctx) {
   ctx.componentes.forEach(function (c) {
     var val = ctx.valores[c.component_id];
     if (val === undefined) return; // sin valor resuelto (temporalmente excluido)
+    // Fuera del node_set del caso: no es del alcance del resultado, tampoco para los
+    // totales de diagnóstico (PENDIENTES §7 Q1, decisión de Luis; el documento define
+    // exposure_total solo como campo de CFF_RESULT, que lleva node_set, y no respalda un
+    // total "amplio"). Ya queda registrado como excluido por admisibilidad (scope_valid).
+    if (c.scope_valid !== true) return;
     var esExposure = c.monetization_status === 'EXPOSURE';
     var esUnresolved = c.attribution_status === 'UNRESOLVED';
     if (!esExposure && !esUnresolved) return;

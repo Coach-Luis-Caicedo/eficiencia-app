@@ -78,6 +78,10 @@
  *      CFF_RESULT que no puede validar su propio contrato justo en el caso
  *      más importante de manejar bien (ausencia de evidencia) es peor que
  *      una regla condicional más.
+ *      Extensión (PENDIENTES §7 Q5, decisión de Luis): en ese mismo caso los
+ *      4 cuadrantes y cff_confirmed / cff_supported_additional también son
+ *      null y los 4 perfiles van vacíos — no una cifra parcial junto a un
+ *      total N_A.
  *
  * ── Regla condicional 10 (Fase 5 — §8.4/§9, aprobada por Luis) ──────────
  *
@@ -470,12 +474,12 @@ var ESQUEMA_CFF_RESULT = [
   { name: 'node_set', required: true, type: 'array' },
   { name: 'reporting_currency', required: true, type: 'string' },
   { name: 'valuation_basis', required: true, type: 'string', enum: 'VALUATION_BASIS' },
-  { name: 'confirmed_observed', required: true, type: 'number' },
-  { name: 'confirmed_estimated', required: true, type: 'number' },
-  { name: 'supported_observed', required: true, type: 'number' },
-  { name: 'supported_estimated', required: true, type: 'number' },
-  { name: 'cff_confirmed', required: true, type: 'number' },
-  { name: 'cff_supported_additional', required: true, type: 'number' },
+  { name: 'confirmed_observed', required: false, type: 'number' }, // nulable SII insuficiencia — regla 9 (PENDIENTES §7 Q5)
+  { name: 'confirmed_estimated', required: false, type: 'number' }, // nulable SII insuficiencia — regla 9 (PENDIENTES §7 Q5)
+  { name: 'supported_observed', required: false, type: 'number' }, // nulable SII insuficiencia — regla 9 (PENDIENTES §7 Q5)
+  { name: 'supported_estimated', required: false, type: 'number' }, // nulable SII insuficiencia — regla 9 (PENDIENTES §7 Q5)
+  { name: 'cff_confirmed', required: false, type: 'number' }, // nulable SII insuficiencia — regla 9 (PENDIENTES §7 Q5)
+  { name: 'cff_supported_additional', required: false, type: 'number' }, // nulable SII insuficiencia — regla 9 (PENDIENTES §7 Q5)
   // cff_total: condicionalmente nulable — ver regla 9 en la cabecera y la
   // verificación extra en validarCFFResult(). Aquí required:false para que
   // un null no dispare "faltante" automáticamente; la condición real la
@@ -495,6 +499,8 @@ var ESQUEMA_CFF_RESULT = [
   { name: 'dependency_refs', required: true, type: 'array' },
   { name: 'calculated_at', required: true, type: 'string' }
 ];
+var CAMPOS_NULABLES_POR_INSUFICIENCIA = ['confirmed_observed', 'confirmed_estimated', 'supported_observed', 'supported_estimated',
+  'cff_confirmed', 'cff_supported_additional'];
 function validarCFFResult(obj) {
   var base = validarObjeto(ESQUEMA_CFF_RESULT, obj);
   if (!obj || typeof obj !== 'object') return base;
@@ -503,6 +509,16 @@ function validarCFFResult(obj) {
   var ct = obj.cff_total;
   var esInsuficiencia = obj.calculation_status === 'INVALID' &&
     obj.coverage && obj.coverage.overall_coverage_status === 'INSUFFICIENT';
+  // Los 4 cuadrantes y sus 2 subtotales derivan de la misma cifra que cff_total: con
+  // insuficiencia van null también (no una cifra parcial junto a un total N_A).
+  CAMPOS_NULABLES_POR_INSUFICIENCIA.forEach(function (campo) {
+    var v = obj[campo];
+    if (v === null || v === undefined) {
+      if (!esInsuficiencia) extra.push(campo + ': null/ausente solo se admite en el caso N_A (INVALID + INSUFFICIENT); en otro caso debe ser number.');
+    } else if (typeof v !== 'number') {
+      extra.push(campo + ': se esperaba number o null-por-insuficiencia, llegó ' + typeof v);
+    }
+  });
   if (ct === null || ct === undefined) {
     if (!esInsuficiencia) {
       extra.push('cff_total: null/ausente solo se admite si calculation_status==="INVALID" Y ' +
