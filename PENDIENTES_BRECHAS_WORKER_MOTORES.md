@@ -531,12 +531,16 @@ sin resolver, y no lo toca esta ronda.
 
 ---
 
-## 7. CFF — hallazgos de visibilidad de costo y perfiles que no cuadran (código resuelto; migración 045 pendiente de aplicar)
+## 7. CFF — hallazgos de visibilidad de costo y perfiles que no cuadran (RESUELTO 2026-09-26; migración 045 aplicada)
 
-**Estado: CÓDIGO RESUELTO (2026-09-26) — falta APLICAR la migración `045` en
-Supabase (toca producción; espera el OK de Luis).** Perfiles corregidos en
-`96bc500`; Q1/Q3/Q5 en `8b3e121`; Q4 en el commit que sigue a este texto
-(código + `045` sin aplicar). Hallazgo original más abajo, sin editar.
+**Estado: RESUELTO (2026-09-26) — `045` APLICADA en producción.** Perfiles
+`96bc500`; Q1/Q3/Q5 `8b3e121`; Q4 `c60c5d8` + `db5bd09`; `cost_reconciliation`
+`436a530` (§15). `045` aplicada con `db query --linked -f`; el `CHECK` viejo
+(`cff_event_components_check`) se reemplazó por
+`cff_event_components_valor_o_sin_cifra`; verificada por comportamiento en
+producción en una transacción con rollback (N_A sin cifra acepta, N_A con valor
+rechaza, OBSERVED sin cifra rechaza, ESTIMATED con rango acepta; 0 filas
+persistidas) y registrada con `migration repair --status applied 045`. Hallazgo original más abajo, sin editar.
 
 **Decisiones de Luis (2026-09-26) y cómo quedaron**:
 - **Q1** (¿un componente fuera de `node_set` suma a `exposure_total`?): antes
@@ -1047,7 +1051,7 @@ dueño/`SECURITY DEFINER`, mismo criterio que las otras).
 
 ## 14. Base de datos — historial de migraciones remoto vacío (RESUELTO en parte 2026-09-26)
 
-**Estado: `030`–`044` REPARADAS; `001`–`029` y `045` siguen sin registrar.**
+**Estado: `030`–`045` REPARADAS; `001`–`029` siguen sin registrar.**
 
 `supabase_migrations.schema_migrations` estaba vacío del todo. Con Luis
 (2026-09-26) se aplicó `044` (`db query --linked -f`, nunca `db push`) y se
@@ -1062,7 +1066,7 @@ Luego `supabase migration repair --status applied 030 … 044`.
 
 **Sigue abierto**: `001`–`029` no están en el historial remoto ni se verificó
 su efecto (fuera del alcance pedido): un `db push` intentaría correrlas.
-`045` no está aplicada (Luis: sigue pendiente).
+`045` se aplicó y registró después (2026-09-26).
 
 ---
 
