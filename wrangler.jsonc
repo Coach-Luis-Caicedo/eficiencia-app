@@ -5,5 +5,9 @@
   "assets": {
     "directory": ".",
     "binding": "ASSETS"
+  },
+  "vars": {
+    "SUPABASE_URL": "https://kapxcjehfaasttwfnnzq.supabase.co",
+    "SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImthcHhjamVoZmFhc3R0d2ZubnpxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODYxMzQ1NjYsImV4cCI6MjEwMTcxMDU2Nn0.s0NC1ILswMQHPf-rsY1kvGSn0LpBSckNdlw2TvzMXws"
   }
 }
