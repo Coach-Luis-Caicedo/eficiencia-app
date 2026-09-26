@@ -531,11 +531,53 @@ sin resolver, y no lo toca esta ronda.
 
 ---
 
-## 7. CFF — hallazgos de visibilidad de costo y perfiles que no cuadran (en decisión de Luis, no cerrados)
+## 7. CFF — hallazgos de visibilidad de costo y perfiles que no cuadran (código resuelto; migración 045 pendiente de aplicar)
 
-**Estado: PARTE DE LOS PERFILES CORREGIDA (2026-09-26, sin comitear);
-quedan 4 preguntas de política abiertas para Luis.** Hallazgo original
-más abajo, sin editar.
+**Estado: CÓDIGO RESUELTO (2026-09-26) — falta APLICAR la migración `045` en
+Supabase (toca producción; espera el OK de Luis).** Perfiles corregidos en
+`96bc500`; Q1/Q3/Q5 en `8b3e121`; Q4 en el commit que sigue a este texto
+(código + `045` sin aplicar). Hallazgo original más abajo, sin editar.
+
+**Decisiones de Luis (2026-09-26) y cómo quedaron**:
+- **Q1** (¿un componente fuera de `node_set` suma a `exposure_total`?): antes
+  de cambiar, se buscó en el documento técnico (`FINAL_v2`, texto extraído)
+  respaldo para "dos totales con propósitos distintos". **No hay**: el
+  documento nombra `exposure_total?`/`unresolved_impact_total?` solo como campos
+  opcionales de `CFF_RESULT` (que lleva `node_set`) y de EXPOSURE dice
+  únicamente "fuera de CFF consolidado / visible" (§10, §19, `INV-CFF-07`,
+  `AC41`); no define su fórmula ni un alcance amplio. Por tanto
+  `exposure_total` y `unresolved_impact_total` respetan `node_set` como
+  `cff_total`: un componente con `scope_valid=false` no suma a ninguno.
+- **Q3 (opción 2)**: `coverage.limitations` incluye lo descartado antes de la
+  consolidación (sin valor, FX faltante, `LOST_CAPACITY_SIN_RECONSTRUCCION`,
+  rango no consolidable), con la causa
+  (`C: OPERACIONAL_NO_EVALUABLE (LOST_CAPACITY_SIN_RECONSTRUCCION)`). El desglose
+  por categoría (opción 1) queda como mejora futura explícita, NO hecho.
+- **Q4** (sin cifra, SIN centinela): regla 7b del contrato —
+  `monetization_status='N_A'` puede no traer ninguna representación de valor
+  (`original_value` ni rango); con cualquier otro estado la cifra sigue siendo
+  obligatoria. En `runCFF` es un "sin cifra declarado": no es error de datos, no
+  se consolida ni se suma, no se inventa 0, sale como warning
+  `COMPONENTE_SIN_CIFRA_DECLARADA` y figura en `limitations`
+  (`MONETIZACION_NO_OBSERVADA_NI_ESTIMADA (SIN_CIFRA_DECLARADA)`); la cobertura
+  global es idéntica a la del modo anterior con cifra de relleno descartada
+  (test). **Interpretación mía a confirmar**: la "declaración explícita" es el
+  propio `N_A` (vocabulario existente, sin columna nueva), no un campo aparte.
+  **Migración `045`** (`supabase/migrations/045_cff_componente_sin_cifra.sql`):
+  reemplaza el `CHECK` de 032 (localizado por su definición, no por nombre
+  autogenerado) por `cff_event_components_valor_o_sin_cifra`, que agrega la
+  rama N_A sin valores. Verificada con pglite (7 asserts + los INSERT aceptados),
+  **SIN APLICAR**.
+- **Q5**: con cobertura `INSUFFICIENT` los 4 cuadrantes, `cff_confirmed` y
+  `cff_supported_additional` van `null` y los 4 perfiles vacíos; la regla 9 del
+  contrato se extiende (nulables solo en `INVALID` + `INSUFFICIENT`, un `null`
+  fuera de ese caso se rechaza). `exposure_total`/`unresolved_impact_total`
+  NO se tocan (no estaban en la decisión).
+
+**Verificación**: `motor-cff` 631 asserts (569 base + 30 perfiles + 19 Q1/Q3/Q5 +
+13 Q4), revertir los fuentes de cada bloque hace fallar los tests nuevos;
+`motor-piio` 872; `worker.test.mjs` 50/50 (incluye C3 "sin cifra" con nulls
+desde la BD).
 
 **Causa raíz única (verificada por ejecución, no por lectura)**:
 `runCFF.js` armaba los 4 perfiles con `admisiblesFinales`, filtrado solo

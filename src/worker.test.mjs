@@ -223,6 +223,19 @@ const run = async () => {
         valuation_role: 'PRIMARY', economic_scope: 'NODE', counterparty_scope: 'INTERNAL',
         include_in_cff: true, dependency_refs: [], flags: [], input_variables: [],
         es_transferencia_interna_pura: false
+      },
+      {
+        // "sin cifra" explícito (PENDIENTES §7 Q4, migración 045): N_A, los 3 valores null tal cual llegan de la BD
+        organization_id: 'org-1', component_id: 'C3', event_id: 'EV1', phenomenon_id: 'FEN1', node_id: 'NODO1',
+        consequence_id: 'CONS3', primary_mechanism: 'LOST_CAPACITY', financial_nature: 'INCREMENTAL_COST',
+        resource_type: 'horas', quantity: 10, unit: 'horas', temporal_nature: 'PERIOD_FLOW',
+        source_frequency: 'mensual', calculation_frequency: 'mensual', aggregation_frequency: 'mensual',
+        calculation_mode: 'DIRECT_VALUE', monetary_basis_id: 'MB1',
+        original_value: null, original_value_min: null, original_value_max: null, original_currency: 'COP',
+        valuation_basis: 'NOMINAL', monetization_status: 'N_A', attribution_status: 'CONFIRMED',
+        valuation_role: 'PRIMARY', economic_scope: 'NODE', counterparty_scope: 'INTERNAL',
+        include_in_cff: true, dependency_refs: [], flags: [], input_variables: [],
+        es_transferencia_interna_pura: false
       }
     ]
   }];
@@ -285,6 +298,10 @@ const run = async () => {
   // la suma (cff_total, ya verificado arriba).
   ok(cuerpoCff.trace.component_ids.indexOf('C2') !== -1,
     'C2 sigue en trace.component_ids -- trazabilidad no oculta lo excluido, solo lo saca de la suma');
+  ok(cuerpoCff.result.warnings.some(function (w) { return w.code === 'COMPONENTE_SIN_CIFRA_DECLARADA' && w.ref === 'C3'; }) &&
+    JSON.stringify(cuerpoCff.result.coverage.limitations).indexOf('C3: MONETIZACION_NO_OBSERVADA_NI_ESTIMADA (SIN_CIFRA_DECLARADA)') !== -1 &&
+    !cuerpoCff.result.errors.some(function (e) { return e.ref === 'C3'; }),
+    'C3 (N_A, valores null desde la BD) -> "sin cifra" declarado: warning + limitations, SIN error de datos, sin sumar (Q4, 045)');
   ok(JSON.stringify(cuerpoCff.result.coverage.limitations).indexOf('C2') !== -1,
     'la exclusión de C2 queda visible con motivo en coverage.limitations -- scope_valid=false lo excluyó, no lo escondió');
 

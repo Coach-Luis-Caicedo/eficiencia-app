@@ -148,6 +148,15 @@ ok(C.validarEconomicComponent(componenteRango({ original_value_min: 900, origina
   'solo rango completo (sin original_value), con monetization_status=ESTIMATED → válido');
 ok(!C.validarEconomicComponent(componenteRango({ original_value_min: 900 })).valido,
   'solo original_value_min sin original_value_max → inválido (rango incompleto)');
+// Regla 7b (Q4, PENDIENTES §7): "sin cifra" explícito solo con monetization_status=N_A, sin valor centinela.
+ok(C.validarEconomicComponent(componenteRango({ monetization_status: 'N_A' })).valido,
+  'Q4: monetization_status=N_A sin original_value ni rango → válido ("detectado, no cuantificado")');
+['OBSERVED', 'ESTIMATED', 'EXPOSURE'].forEach(function (st) {
+  ok(!C.validarEconomicComponent(componenteRango({ monetization_status: st })).valido,
+    'Q4: monetization_status=' + st + ' sin cifra → sigue INVÁLIDO (solo N_A admite sin cifra)');
+});
+ok(!C.validarEconomicComponent(componenteRango({ monetization_status: 'N_A', original_value_min: 900 })).valido,
+  'Q4: N_A con rango incompleto sigue inválido (la excepción no relaja el rango)');
 ok(!C.validarEconomicComponent(componenteBase({ original_value_min: 900, original_value_max: 1100 })).valido,
   'original_value (del caso base) + rango completo a la vez → inválido (mutuamente excluyentes)');
 

@@ -195,6 +195,15 @@ function resolverComponente(ev, c, caso, errores, warnings) {
     } else {
       out.valor = r.valor;
     }
+  } else if (c.monetization_status === 'N_A' && c.original_value == null &&
+             c.original_value_min == null && c.original_value_max == null) {
+    // "Sin cifra" explícito (PENDIENTES §7 Q4): impacto detectado, no cuantificado. No es un
+    // error de datos ni lleva valor: no se consolida, no se suma, no se inventa 0; cuenta como
+    // material sin evaluación monetaria (cobertura) y figura en limitations.
+    out._sinCifra = true;
+    out.valor = undefined;
+    warnings.push({ code: 'COMPONENTE_SIN_CIFRA_DECLARADA', layer: 'component', ref: c.component_id,
+      detalle: 'monetization_status=N_A sin original_value ni rango: impacto detectado y no cuantificado; no entra a ningún total.' });
   } else {
     errores.push({ code: 'COMPONENTE_SIN_VALOR', severity: 'DEGRADED', layer: 'component', ref: c.component_id,
       detalle: 'no trae original_value numérico ni datos UNIT_RATE (calculation_mode+monetary_basis+quantity).' });
@@ -234,6 +243,7 @@ function resolverComponente(ev, c, caso, errores, warnings) {
   // ORIGINAL se preserva en _originalValue/_originalCurrency + fx para la
   // trazabilidad (§17: "los valores normalizados nunca reemplazan el valor
   // original") — `valor` es solo la cifra de trabajo de la consolidación.
+  if (out._sinCifra) return out; // sin valor no hay nada que normalizar
   out._originalValue = out.valor;
   out._originalCurrency = c.original_currency;
   if (c.original_currency !== caso.reporting_currency) {
@@ -338,7 +348,7 @@ function runCFF(caso) {
     });
   });
 
-  var paraConsolidar = resueltos.filter(function (c) { return !c._excluidoValor; });
+  var paraConsolidar = resueltos.filter(function (c) { return !c._excluidoValor && !c._sinCifra; });
 
   // S4 — consolidación (§19) — delega el pipeline de 6 pasos
   var cons;
@@ -454,6 +464,12 @@ function runCFF(caso) {
     var causas = unicosOrdenados(errores.filter(function (e) { return e.layer === 'component' && e.ref === c.component_id; })
       .map(function (e) { return e.code; }));
     return { component_id: c.component_id, categoria: 'OPERACIONAL_NO_EVALUABLE' + (causas.length ? ' (' + causas.join(', ') + ')' : '') };
+  });
+
+  // Q4: los "sin cifra" declarados no pasan por la consolidación pero SÍ son material no evaluado
+  // monetariamente: figuran en limitations con su motivo.
+  resueltos.filter(function (c) { return c._sinCifra; }).forEach(function (c) {
+    exclusionesPreConsolidacion.push({ component_id: c.component_id, categoria: 'MONETIZACION_NO_OBSERVADA_NI_ESTIMADA (SIN_CIFRA_DECLARADA)' });
   });
 
   // S8 — CFF_COVERAGE

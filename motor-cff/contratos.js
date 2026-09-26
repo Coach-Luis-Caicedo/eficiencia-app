@@ -56,6 +56,10 @@
  *      solo trae rango (nunca se promedia, nunca se elige un extremo —
  *      motor-cff/monetizacion.js). original_value_min/max también son
  *      campos NUEVOS, no están en el §22.2 literal.
+ *   7b. (Q4, PENDIENTES §7) Excepción a 7: con monetization_status='N_A' el
+ *      componente PUEDE no traer ninguna representación de valor ("detectado,
+ *      no cuantificado"). El motor lo trata como material NO evaluado
+ *      monetariamente (cobertura, limitations) y nunca lo suma ni inventa 0.
  *   8. Cuando original_value_min/max están presentes (resultado en rango),
  *      monetization_status NO puede ser OBSERVED — un valor con
  *      incertidumbre estructural no es "observado" en el sentido de §10.
@@ -274,8 +278,12 @@ function reglasCondicionalesEconomicComponent(obj) {
     if (tieneValor && tieneRangoCompleto) {
       extra.push('original_value y original_value_min/max son mutuamente excluyentes — no declarar ambos, no promediar (mismo principio que MONETARY_BASIS.basis_value, §9)');
     }
-    if (!tieneValor && !tieneRangoCompleto) {
-      extra.push('debe declararse original_value, o original_value_min y original_value_max — ninguna representación de valor presente');
+    // Regla 7b (PENDIENTES §7 Q4, decisión de Luis): "sin cifra" explícito, SIN valor
+    // centinela. monetization_status='N_A' ("no existe base suficiente para clasificar
+    // monetización", §10) admite no traer ninguna representación de valor: el impacto se
+    // detectó pero no se cuantificó. Con cualquier otro estado la cifra sigue siendo obligatoria.
+    if (!tieneValor && !tieneRangoCompleto && !tieneMin && !tieneMax && obj.monetization_status !== 'N_A') {
+      extra.push('debe declararse original_value, o original_value_min y original_value_max — ninguna representación de valor presente (solo monetization_status=N_A admite "sin cifra" explícita)');
     }
     // Regla 8 (Fase 1): un resultado en rango no puede declararse OBSERVED.
     // Ver también motor-cff/monetizacion.js (aplicarResultadoAComponente) —

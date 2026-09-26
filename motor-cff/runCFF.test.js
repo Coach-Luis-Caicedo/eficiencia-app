@@ -395,6 +395,35 @@ ok(lim.some(function (x) { return x.indexOf('C_lc') === 0 && x.indexOf('LOST_CAP
 ok(!lim.some(function (x) { return x.indexOf('C_ok') === 0; }), 'Q3: el componente consolidado NO figura');
 
 // ═══════════════════════════════════════════════════════════════════════
+seccion('Q4 — "sin cifra" explícito (monetization_status=N_A sin valor), sin centinela (PENDIENTES §7)');
+// ═══════════════════════════════════════════════════════════════════════
+function sinValor(o) { var c = compValida(o); delete c.original_value; return c; }
+var rQ4 = R.runCFF(casoValido({ eventos: [eventoValido({ components: [
+  compValida({ component_id: 'C_ok', original_value: 1000 }),
+  sinValor({ component_id: 'C_sin_cifra', monetization_status: 'N_A' })
+] })] }));
+near(rQ4.result.cff_total, 1000, 'Q4: el "sin cifra" no suma ni resta: cff_total = 1000');
+ok(!rQ4.result.errors.some(function (e) { return e.ref === 'C_sin_cifra'; }), 'Q4: NO es un error de datos (antes: COMPONENTE_SIN_VALOR)');
+ok(rQ4.result.warnings.some(function (w) { return w.code === 'COMPONENTE_SIN_CIFRA_DECLARADA' && w.ref === 'C_sin_cifra'; }), 'Q4: queda declarado como warning COMPONENTE_SIN_CIFRA_DECLARADA');
+ok(rQ4.result.coverage.limitations.some(function (x) { return x.indexOf('C_sin_cifra') === 0 && x.indexOf('SIN_CIFRA_DECLARADA') !== -1; }),
+  'Q4: figura en coverage.limitations  [' + JSON.stringify(rQ4.result.coverage.limitations) + ']');
+ok(!rQ4.result.event_profile.some(function (x) { return JSON.stringify(x).indexOf('C_sin_cifra') !== -1; }), 'Q4: no aparece en perfiles');
+// equivalencia con el modo anterior (cifra de relleno que el motor descartaba): misma cobertura global
+var rQ4viejo = R.runCFF(casoValido({ eventos: [eventoValido({ components: [
+  compValida({ component_id: 'C_ok', original_value: 1000 }),
+  compValida({ component_id: 'C_sin_cifra', original_value: 12345, monetization_status: 'N_A' })
+] })] }));
+eq(rQ4.result.coverage.overall_coverage_status, rQ4viejo.result.coverage.overall_coverage_status,
+  'Q4: la cobertura global es la MISMA que con la cifra de relleno que ya se descartaba (' + rQ4viejo.result.coverage.overall_coverage_status + ')');
+near(rQ4.result.cff_total, rQ4viejo.result.cff_total, 'Q4: y el mismo cff_total');
+// solo con otro estado, sigue siendo error de datos
+var rQ4err = R.runCFF(casoValido({ eventos: [eventoValido({ components: [
+  compValida({ component_id: 'C_ok', original_value: 1000 }),
+  sinValor({ component_id: 'C_falta', monetization_status: 'OBSERVED' })
+] })] }));
+ok(rQ4err.result.errors.some(function (e) { return e.code === 'COMPONENTE_SIN_VALOR' && e.ref === 'C_falta'; }), 'Q4: OBSERVED sin valor sigue siendo COMPONENTE_SIN_VALOR (la excepción es solo N_A)');
+
+// ═══════════════════════════════════════════════════════════════════════
 // El documento define exposure_total solo como campo de CFF_RESULT (que lleva
 // node_set) y no respalda un total "amplio": un componente fuera del alcance no
 // suma a ningún total, igual que cff_total.
