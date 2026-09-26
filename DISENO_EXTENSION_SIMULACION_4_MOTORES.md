@@ -323,3 +323,48 @@ exactos de §2 — ninguna organización lleva las 4, por diseño (§1/§2).
 ¿Apruebas este diseño (la integración en las 5 organizaciones
 existentes, el mapeo motor→organización→escenario de §2, y el volumen
 estimado de §3) antes de que escriba el script real?
+
+
+---
+
+## 5. Correcciones tras la mini-prueba contra producción (2026-09-25)
+
+La mini-prueba (`scripts/escenarios_4_motores.mjs` contra 2 organizaciones
+desechables) confirmó los escenarios y obligó a corregir el diseño en 4
+puntos. Se listan aquí para que el diseño no contradiga lo construido.
+
+1. **Un caso CFF por (organización, período), no por organización.**
+   `leer_eventos_cff` filtra por rango de período, **no por caso**: dos
+   casos del mismo período verían los mismos eventos. Los escenarios 2
+   (fuera de alcance) y 6 (cobertura insuficiente) de Alerta son
+   incompatibles en un solo caso (el 6 volvería `cff_total = null` para
+   todo), así que van en períodos distintos (`2026-06` y `2026-07`).
+   Pequeña usa `node_set = NULL` (escenario 4); Sana y Alerta declaran
+   `node_set` explícito.
+2. **El fenómeno `PIIO_COMPATIBLE_PROVISIONAL` sale de esta ronda**:
+   `phenomenon_catalog` no tiene columna `status`
+   (`PENDIENTES_BRECHAS_WORKER_MOTORES.md` §4). En su lugar, Sana cubre
+   `CONTINUOUS` + `BRIDGED` con regla + `NEW_SERIES`, y Deterioro cubre
+   `CONTINUOUS` + `BRIDGED` **sin** regla; los 4 casos de
+   `continuity_mode` siguen representados entre las dos.
+3. **`PIIO` no se puede calcular por el Worker con datos reales**:
+   `leer_datos_piio` no devuelve `ruleset_version` y el motor queda
+   `BLOCKED` (`PENDIENTES_BRECHAS_WORKER_MOTORES.md` §6). La
+   simulación solo **escribe** datos, así que no le afecta; pero la
+   verificación de PIIO del script inyecta `ruleset_version` en memoria
+   y lo declara explícitamente.
+4. **Estructura de archivos**: los escenarios viven en un módulo aparte
+   (`scripts/escenarios_4_motores.mjs`) que recibe `rpc`/`conLimite`
+   por parámetro, en vez de todo en un solo archivo (§4 original), para
+   poder probarlos contra una organización desechable sin correr las 5
+   organizaciones. `simular_organizaciones.mjs` los importa y aísla el
+   fallo por motor (un motor que falla no borra el `ICE-IEH` ya escrito).
+
+**Resultado de la mini-prueba** (14 + 14 aserciones sobre 2 organizaciones
+desechables): `CFF` (`cff_total` exacto en los 4 casos: 4800 / 500 / 700 /
+`null` con `INVALID`+`INSUFFICIENT`), `IFD` (8 de 8 niveles exactos,
+`S0`..`S3`, roll-up presente), `FPV` (`CENSAL`, `INFERENCIAL`, ponderado,
+polarización `H=100`, `NE` vs `NR` con `CE` distinto, muestra parcial
+`Ncfg<nv`, posición vacía `NO_CALCULABLE`), `PIIO` (cascada de 5 niveles
+completa; Sana estable `F`, Deterioro `F→D`; trayectoria `N_A` para
+`NEW_SERIES` y `BRIDGED` sin regla).

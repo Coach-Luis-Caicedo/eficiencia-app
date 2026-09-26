@@ -196,9 +196,12 @@ authenticated` real — 32 asserts, 0 fallos — y aplicado/verificado en
 Supabase. Diseño completo en `DISENO_FUNCIONES_ESCRITURA_PIIO.md`.
 
 **De las 3 brechas de esta ronda, quedan pendientes únicamente `FPV`
-(§1) y `CFF` (§2)** — el hallazgo secundario no bloqueante de PIIO
-(4 campos de calibración que `leer_datos_piio()` no pasa) sigue sin
-cerrar, señalado abajo, pero no bloquea la simulación.
+(§1) y `CFF` (§2)** — ~~el hallazgo secundario no bloqueante de PIIO
+(4 campos de calibración que `leer_datos_piio()` no pasa)~~ —
+**CORRECCIÓN 2026-09-25: ese hallazgo estaba mal clasificado.** De esos
+4 campos, `ruleset_version` **sí bloquea** (`PIIO_INPUT` lo exige, sin
+respaldo): verificado por ejecución contra producción, ver §6. El
+resto de este párrafo sigue vigente para los otros 3 campos.
 
 <details>
 <summary>Hallazgo original (histórico, sin editar)</summary>
@@ -271,3 +274,185 @@ la ronda de simulación, no una parte.
 </details>
 
 ---
+
+
+---
+
+## 4. PIIO — `phenomenon_catalog` no tiene columna `status`: el escenario `PIIO_COMPATIBLE_PROVISIONAL` es inalcanzable
+
+**Estado: PENDIENTE. Encontrado 2026-09-25** al diseñar la mini-prueba
+de `PIIO` del script de simulación (`DISENO_EXTENSION_SIMULACION_4_MOTORES.md`
+§2.4). **Prioridad baja-media** (una rama del motor, no el flujo central).
+
+**Hallazgo exacto, verificado**:
+- `motor-piio/runPIIO.js:219` y `:448` leen `phenSpec.status ===
+  'PIIO_COMPATIBLE_PROVISIONAL'`: un fenómeno provisional se excluye de
+  `EFO` con un `WARNING` (AC63 / INV-69) y se resuelve aparte para
+  exportación a CFF/IFD.
+- El propio motor lo documenta (`runPIIO.js:49-52`): *"PHENOMENON_SPEC no
+  tiene campo `status` en el esquema de Fase 0 → se lee `phenSpec.status`,
+  sin validar... Sin reabrir Fase 0."*
+- `motores_eficiencia.phenomenon_catalog` (`030:143-165`) **no tiene
+  columna `status`**, y `leer_datos_piio()` (`035:201-202`) arma el
+  catálogo con `to_jsonb(f)` de esa tabla — el campo nunca llega al
+  motor. `registrar_fenomeno_piio` (`041`) tampoco puede escribirlo.
+
+**Consecuencia**: por la aplicación no existe forma de declarar un
+fenómeno provisional. Toda la rama AC63/INV-69 (exclusión de `EFO` +
+resolución aparte para exportación) es **inalcanzable** desde datos
+reales, aunque el motor la implemente y la pruebe con fixtures.
+
+**Resolución (para decidir, no ejecutada)**: agregar `status text`
+(nullable) a `phenomenon_catalog` y a la lista explícita de columnas del
+`ON CONFLICT DO UPDATE` de `registrar_fenomeno_piio`. **Pregunta abierta
+antes de diseñar**: el motor solo conoce un valor
+(`PIIO_COMPATIBLE_PROVISIONAL`); no hay enum de otros valores en
+`contratos.js`/`enums.js` — no se inventa un `CHECK` sin definirlo.
+
+**Bloquea**: el escenario de fenómeno provisional del script de
+simulación (queda fuera de esta ronda, sin sustituto sintético) y la
+ruta de exportación de provisionales hacia CFF/IFD.
+
+---
+
+## 5. PIIO — `registrar_nodo_piio` rechaza una versión con `active_from` anterior a la versión abierta, con un mensaje que no lo explica
+
+**Estado: PENDIENTE. Encontrado 2026-09-25** en la mini-prueba contra
+producción (organización desechable). **Prioridad baja.**
+
+**Reproducción exacta**: el nodo `ORG` tenía `v1` abierto con
+`active_from='2026-09'`. Se llamó `registrar_nodo_piio` con `ORG` `v2` y
+`active_from='2026-04'` (retroactivo). La función cierra la versión
+abierta con `active_to = <período anterior a active_from de la nueva>` =
+`2026-03`, que es **anterior al `active_from` de `v1`** (`2026-09`) →
+viola el `CHECK` de `node_hierarchy` (`23514`):
+`new row for relation "node_hierarchy" violates check constraint
+"node_hierarchy_check"`. Toda la llamada revierte (no se inserta `v2`,
+no queda dato corrupto).
+
+**Qué está mal**: el rechazo es correcto en sustancia (no se puede
+cerrar una versión antes de que empiece), pero el mensaje es el del
+`CHECK` crudo, sin decir "la nueva versión debe empezar después del
+`active_from` de la versión abierta". Quien llame la función no puede
+saber por qué falló.
+
+**Pregunta abierta de semántica (para decidir)**: ¿se quiere solo
+un mensaje claro (`RAISE EXCEPTION` con la causa antes del `UPDATE`) o
+soportar versiones retroactivas (reescribir historia)? Lo segundo es
+distinto y más grande.
+
+**No probado, señalado por honestidad**: las otras funciones
+append-only con cierre automático (`registrar_metric_definition_piio`,
+`registrar_reference_spec_piio`) usan el mismo patrón; **no verifiqué**
+si sufren la misma situación (depende de si sus tablas tienen un `CHECK`
+`valid_to >= valid_from`).
+
+**Bloquea**: nada de la simulación (las organizaciones nuevas nunca
+registran versiones retroactivas); es de calidad de errores y
+robustez.
+
+---
+
+## 6. PIIO — `leer_datos_piio()` no devuelve `ruleset_version`: `calcular-piio` queda `BLOCKED` con datos reales
+
+**Estado: PENDIENTE. BLOQUEANTE. Encontrado 2026-09-25** en la
+mini-prueba de `PIIO` contra producción. **Corrige una clasificación
+errónea mía** del §3 de este archivo y de
+`INVESTIGACION_SIMULACION_PIIO.md` §2, donde `ruleset_version` figuraba
+como calibración opcional "con respaldo seguro al default global". **No
+lo tiene.**
+
+**Error exacto** (`calcularPiio` sobre lo que devuelve `leer_datos_piio`
+en producción): `run_status: BLOCKED`, un solo finding
+`FORMA_INVALIDA / BLOCKING / GLOBAL`: *"PIIO_INPUT no pasa la validación
+de forma de Fase 0: falta ruleset_version"*. Cero `kpi_states`, cero
+`efo_states`.
+
+**Por qué no se vio antes** (corregido tras verificarlo por ejecución;
+una primera versión de este párrafo afirmaba lo contrario y era
+incorrecta): `src/worker.test.mjs:285-292` (sección 10) mockea
+`leer_datos_piio` con catálogos **vacíos y sin `ruleset_version`**, y su
+única aserción es `res.status === 200 && cuerpoPiio.piio_run`. Esos
+mismos datos, ejecutados por `calcularPiio`, devuelven **`run_status:
+BLOCKED`** con el mismo error (`falta ruleset_version`) — pero un
+resultado `BLOCKED` **también trae `piio_run`**, así que la aserción
+pasa. **El test lleva todo este tiempo recibiendo un `BLOCKED` y
+dándolo por bueno**: el defecto no es un mock que oculta el campo, es
+una aserción demasiado débil que no distingue una corrida completa de
+una bloqueada. Al cerrar esta brecha, esa aserción también hay que
+endurecerla (`run_status !== 'BLOCKED'`).
+
+**Diagnóstico confirmado por ejecución** (solo en memoria, sin escribir
+nada): al inyectar `ruleset_version` a los mismos datos reales leídos,
+`calcularPiio` pasa a `COMPLETED`, un solo `WARNING`
+(`NODE_SCOPE: SEGMENT_ONLY_NO_ELEVA`), 18 `kpi_states`, 18
+`evidence_groups`, 18 `phenomenon_states`, 12 `domain_states`, 6
+`efo_states` — la cascada de 5 niveles llega hasta el final con datos
+escritos por las funciones de `041`. **Es decir, `ruleset_version` es el
+único bloqueo de esos datos**, y `041` funciona.
+
+**Resolución (para decidir, no ejecutada)**: dos vías con precedente en
+esta base — (a) constante en `src/motores/piio.js` (como
+`RULESET_VERSION_CFF` en `src/motores/cff.js`); (b) que `leer_datos_piio`
+lo devuelva desde una fuente persistida. `motor-piio/runPIIO.js` trata
+`ruleset_version` como **insumo externo** (versión de reglas que produce
+la corrida, entra al fingerprint de `calculation_version`), no como una
+constante del motor — por eso no es obvio que (a) sea equivalente al
+caso de CFF. Decisión de Luis.
+
+**Bloquea**: `calcular-piio` **completo contra datos reales** (hoy no
+puede devolver ningún resultado que no sea `BLOCKED`), y con él la
+simulación de PIIO.
+
+---
+
+## 7. CFF — hallazgos de visibilidad de costo y perfiles que no cuadran (en decisión de Luis, no cerrados)
+
+**Estado: EN INVESTIGACIÓN / DECISIÓN PENDIENTE.** Detalle completo y
+evidencia en `INVESTIGACION_COSTO_NO_ATRIBUIBLE_CFF.md` (§1 y §6). Se
+registra aquí solo para que no se pierda entre sesiones:
+- `event_profile`/`mechanism_profile`/`financial_nature_profile`/
+  `node_profile` **no cuadran con `cff_total`** en 4 de 4 tipos de
+  exclusión probados (transferencia interna, fuera de alcance, `CONTAINS
+  FULL`, `DUPLICATE` sin resolver — este último reporta 2000 mientras
+  `cff_total` es `null`). El documento técnico no lo exige
+  literalmente, pero el test propio del motor (`runCFF.test.js:223-231`,
+  "INV-70") sí lo afirma.
+- ~900 de 3.899 en la matriz (componentes `EXPOSURE`+`UNRESOLVED`,
+  `N_A`, `LOST_CAPACITY` sin reconstrucción) no aparecen en ningún
+  total agregado; `LOST_CAPACITY_SIN_RECONSTRUCCION` ni siquiera figura
+  en `coverage.limitations`.
+- El contrato de entrada no permite declarar un impacto detectado pero
+  sin cifra.
+
+
+---
+
+## 8. PIIO — la alerta `BRIDGE_SIN_REGLA` se calcula pero no llega a ninguna salida (observación, sin decidir si es defecto)
+
+**Estado: OBSERVACIÓN. Encontrada 2026-09-25** en la mini-prueba de
+`PIIO` (organización desechable, `continuity_mode` = `BRIDGED` **sin**
+`bridge_rule`). **No es un hueco del Worker**: es del propio motor, y no
+sé si el documento técnico de `PIIO` exige que esa alerta se muestre.
+
+**Verificado por ejecución** (`calcularPiio` sobre datos reales de
+producción):
+- `BRIDGED` **con** regla → la serie se une: `traj` calculada
+  (`STABLE`).
+- `BRIDGED` **sin** regla → se trata como `NEW_SERIES`: `traj = N_A` y
+  flag `NEW_REGIME` (comportamiento correcto según AC15/INV-PIIO-29).
+- `NEW_SERIES` real → **el mismo** `traj = N_A` + `NEW_REGIME`.
+
+**Lo que falta**: `motor-piio/referencias.js:156` (`continuidadDefinicion`)
+devuelve `flags: ['BRIDGE_SIN_REGLA']` para el caso sin regla, pero
+`kpiState.js:117` solo lee `puede_unir_serie`; el flag **se descarta**
+(`grep BRIDGE_SIN_REGLA` solo lo encuentra en `referencias.js` y sus
+tests). Resultado: en la salida **no hay forma de distinguir** un
+`BRIDGED` mal declarado (falta la regla) de una `NEW_SERIES` legítima —
+ambos aparecen idénticos. `INVESTIGACION_SIMULACION_PIIO.md` §3 y
+`contratos.js:135` hablan de "la alerta `BRIDGE_SIN_REGLA`", pero esa
+alerta no existe en ninguna salida.
+
+**Pregunta abierta (para Luis)**: ¿el documento técnico de `PIIO`
+exige mostrar esa advertencia? Si sí, es un defecto del motor; si no,
+es una mejora de visibilidad.
