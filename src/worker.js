@@ -36,6 +36,16 @@ class RespuestaError extends Error {
   }
 }
 
+// Último día REAL del mes de un período 'YYYY-MM' (28/29/30/31). Un '-31'
+// fijo es una fecha inexistente en febrero/abril/junio/septiembre/noviembre
+// y la base la rechaza (22008) -- PENDIENTES_BRECHAS_WORKER_MOTORES.md §11.
+function ultimoDiaDelMes(period) {
+  const m = /^(\d{4})-(0[1-9]|1[0-2])$/.exec(String(period));
+  if (!m) throw new RespuestaError(400, 'period debe tener la forma YYYY-MM, llegó "' + period + '"');
+  const dia = new Date(Date.UTC(Number(m[1]), Number(m[2]), 0)).getUTCDate();
+  return period + '-' + String(dia).padStart(2, '0');
+}
+
 function extraerJWT(request) {
   const auth = request.headers.get('Authorization') || '';
   const m = auth.match(/^Bearer (.+)$/);
@@ -139,7 +149,7 @@ async function calcularAieHandler(request, env) {
     const filasIceIeh = await rpc(env, jwt, 'leer_respuestas_ice_ieh', { p_organization_id: organization_id, p_period: period });
     cfg.push(calcularIao(filasIceIeh, opts || {}).organizacion.iaoOrg);
 
-    const filasSdmo = await rpc(env, jwt, 'leer_respuestas_sdmo', { p_organization_id: organization_id, p_desde: period + '-01', p_hasta: period + '-31' });
+    const filasSdmo = await rpc(env, jwt, 'leer_respuestas_sdmo', { p_organization_id: organization_id, p_desde: period + '-01', p_hasta: ultimoDiaDelMes(period) });
     dyn.push(calcularSdmo(filasSdmo, opts || {}).organizacion.nivelColectivo);
 
     ops.push(null); // pendiente real -- DISEÑO §7

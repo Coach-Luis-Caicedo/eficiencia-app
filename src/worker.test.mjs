@@ -21,6 +21,9 @@
 import worker from './worker.js';
 
 let _ok = 0, _fail = 0;
+function eqLista(real, esperado, label) {
+  ok(JSON.stringify(real) === JSON.stringify(esperado), label + (JSON.stringify(real) === JSON.stringify(esperado) ? '' : '  [real=' + JSON.stringify(real) + ']'));
+}
 function ok(cond, label) {
   if (cond) { _ok++; console.log('  ✓ ' + label); }
   else { _fail++; console.log('  ✗ FALLA: ' + label); }
@@ -30,10 +33,29 @@ function ok(cond, label) {
 const RPC_RESPUESTAS = {}; // se llena por cada test antes de invocar el handler
 const LLAMADAS_RPC = [];   // registro de qué se llamó, para verificar el flujo
 
+// El mock valida las fechas como lo haría Postgres (columnas `date`): un
+// 'YYYY-MM-DD' inexistente (p. ej. 2026-04-31) se rechaza con 22008. Sin
+// esto el mock aceptaba cualquier cadena y un bug de construcción de
+// fechas en un handler pasaba los tests (PENDIENTES_BRECHAS_WORKER_MOTORES.md
+// §11: calcular-aie mandaba period + '-31'). Aplica a TODOS los handlers.
+function fechaInexistente(valor) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(valor);
+  if (!m) return false;
+  const [a, mes, d] = [Number(m[1]), Number(m[2]), Number(m[3])];
+  const f = new Date(Date.UTC(a, mes - 1, d));
+  return f.getUTCFullYear() !== a || f.getUTCMonth() !== mes - 1 || f.getUTCDate() !== d;
+}
+
 globalThis.fetch = async (url, opts) => {
   const nombreRpc = String(url).split('/rest/v1/rpc/')[1];
   const body = JSON.parse(opts.body);
   LLAMADAS_RPC.push({ nombreRpc, body, authorization: opts.headers.Authorization });
+
+  for (const v of Object.values(body)) {
+    if (typeof v === 'string' && fechaInexistente(v)) {
+      return { ok: false, status: 400, text: async () => JSON.stringify({ code: '22008', message: 'date/time field value out of range: "' + v + '"' }) };
+    }
+  }
 
   if (!(nombreRpc in RPC_RESPUESTAS)) {
     return { ok: false, status: 500, text: async () => 'RPC no mockeada: ' + nombreRpc };
@@ -321,6 +343,27 @@ const run = async () => {
   ok(Array.isArray(cuerpoAie) && cuerpoAie.length === 2, 'runCase() devolvió 2 filas, una por período de la serie');
   ok(cuerpoAie[0].t === 0 && cuerpoAie[1].t === 1, 'las filas de runCase() vienen en orden (t=0, t=1)');
   ok(typeof cuerpoAie[1].AIE_2F === 'string', 'la segunda fila (con historia suficiente) trae una clasificación AIE_2F real');
+
+  // PENDIENTES_BRECHAS_WORKER_MOTORES.md §11: p_hasta debe ser el ÚLTIMO DÍA
+  // REAL del mes, no period + '-31' (fecha inexistente en 5 meses).
+  const hastasSdmo = () => LLAMADAS_RPC.filter((l) => l.nombreRpc === 'leer_respuestas_sdmo').map((l) => l.body.p_hasta);
+  eqLista(hastasSdmo(), ['2026-01-31', '2026-02-28'], 'calcular-aie: p_hasta = 2026-01-31 y 2026-02-28 (febrero no bisiesto)');
+
+  LLAMADAS_RPC.length = 0;
+  res = await worker.fetch(mockRequest('calcular-aie', { body: { organization_id: 'org-1', periods: ['2026-04', '2028-02', '2026-11'], opts: optsDePrueba } }), ENV, {});
+  ok(res.status === 200, 'calcular-aie con meses de 30 días y febrero bisiesto responde 200 (antes: 22008 "2026-04-31")');
+  eqLista(hastasSdmo(), ['2026-04-30', '2028-02-29', '2026-11-30'], 'calcular-aie: p_hasta = 2026-04-30, 2028-02-29 (bisiesto), 2026-11-30');
+  eqLista(LLAMADAS_RPC.filter((l) => l.nombreRpc === 'leer_respuestas_sdmo').map((l) => l.body.p_desde), ['2026-04-01', '2028-02-01', '2026-11-01'], 'calcular-aie: p_desde = día 1 de cada mes');
+
+  LLAMADAS_RPC.length = 0;
+  res = await worker.fetch(mockRequest('calcular-aie', { body: { organization_id: 'org-1', periods: ['2026-13'], opts: optsDePrueba } }), ENV, {});
+  ok(res.status === 400, 'calcular-aie con period mal formado (2026-13) -> 400, no llega a la base');
+  ok(LLAMADAS_RPC.filter((l) => l.nombreRpc === 'leer_respuestas_sdmo').length === 0, 'calcular-aie con period inválido no llama a leer_respuestas_sdmo');
+
+  // El propio mock ahora rechaza fechas inexistentes como Postgres -- así una
+  // regresión de este tipo en CUALQUIER handler falla aquí, no en producción.
+  res = await worker.fetch(mockRequest('calcular-sdmo', { body: { organization_id: 'org-1', desde: '2026-04-01', hasta: '2026-04-31', opts: optsDePrueba } }), ENV, {});
+  ok(res.status !== 200, 'el mock rechaza una fecha inexistente (2026-04-31) también en calcular-sdmo, como la base real');
 
   // ═══════════════════════════════════════════════════════════════
   console.log('\n' + '═'.repeat(74));
