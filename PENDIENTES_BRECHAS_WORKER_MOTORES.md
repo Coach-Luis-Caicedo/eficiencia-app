@@ -719,3 +719,97 @@ contenga uno de esos meses (con los 6 períodos de la simulación,
 2026-04..2026-09, contiene 3: abril, junio, septiembre).
 
 </details>
+
+
+---
+
+## 12. Despliegue — el Worker desplegado no ve `SUPABASE_URL` en tiempo de ejecución: todos los `/api/calcular-*` dan 500 con JWT válido
+
+**Estado: RESUELTO en producción — 2026-09-26 20:33 UTC, commit
+`3f670f4`** (push 20:32:01 UTC, despliegue activo a los ~40 s).
+**Causa raíz de por qué las variables configuradas en Cloudflare no
+llegaban al Worker: SIN CONFIRMAR** (pendiente de Luis, ver abajo).
+
+**Resolución aplicada**: `SUPABASE_URL` y `SUPABASE_ANON_KEY` declaradas en
+`vars` de `wrangler.jsonc`, dentro del repo, para que viajen con el código
+al Worker correcto en cada despliegue sin depender del panel. Ambas son
+públicas por diseño (la clave se comprobó `role=anon`, no `service_role`;
+ya estaban en los `.html` y en `scripts/`). `wrangler.jsonc` no se sirve
+públicamente (`404`, cubierto por la lista blanca de `.assetsignore`).
+
+**Verificación por HTTP real contra el Worker DESPLEGADO, JWT real,
+2026-09-26 20:33:05 UTC**: **21 de 21** en
+`eficiencia-app.coach-luiscaicedo.workers.dev` y **21 de 21** en
+`eficiencia.com.co` (antes: 1 de 21). Los 8 endpoints responden `200` con
+resultados correctos sobre las 5 organizaciones de simulación: ICE-IEH 25
+filas, IAO, SDMO, FPV `CENSAL`/ponderado, CFF `cff_total = 4800`, IFD 8
+EPDs con roll-up, PIIO `COMPLETED` con `ruleset_version = PIIO-v1.1`, AIE
+de abril a septiembre en las 5 organizaciones (sin el `22008` de §11), y
+`period = 2026-13` → `400`. Exposición pública reverificada tras el
+redeploy: `wrangler.jsonc`, `motor-*/`, `DOCUMENTO_MARCO`,
+`PENDIENTES_*`, `.dev.vars` y `src/` → `404`; `/`, `workbook.html` y el
+logo → `200`, en ambos dominios.
+
+**Causa raíz real: SIN CONFIRMAR.** Dos explicaciones posibles, ninguna
+verificada, y **mi hipótesis inicial probablemente era la equivocada**:
+- (mía, descartable si eran *secrets*) un `wrangler deploy` reemplaza las
+  variables de texto plano del panel al no haber `vars`/`keep_vars`. Los
+  *secrets* no se borran así.
+- (más probable según Luis) las variables/secrets se configuraron en **otro
+  proyecto o entorno de Cloudflare** (la cuenta tiene varios Workers) y
+  nunca estuvieron en el que sirve `eficiencia-app`.
+Para confirmarla, Luis puede mirar en cuál de los proyectos quedaron; no
+hace falta para que funcione (ya está resuelto), solo para dejar la causa
+real documentada. **Ojo**: si en algún Worker quedaron secrets con estos
+nombres, conviene retirarlos de donde no correspondan.
+
+<details>
+<summary>Hallazgo original (histórico, sin editar)</summary>
+
+
+**Estado: PENDIENTE. BLOQUEANTE para usar el Worker en producción.
+Encontrado 2026-09-26 20:16 UTC** al verificar los 8 endpoints por HTTP
+real con un JWT real del consultor de simulación.
+
+**Error exacto** (respuesta del sitio desplegado
+`eficiencia-app.coach-luiscaicedo.workers.dev`, JWT válido, cualquier
+endpoint): `500 error interno: Invalid URL:
+undefined/rest/v1/rpc/leer_respuestas_fpv` (y `..._ice_ieh`, `..._sdmo`
+según el endpoint). Es decir, `env.SUPABASE_URL` llega **`undefined`** al
+código (`src/lib/supabaseRpc.js` arma la URL con `env.SUPABASE_URL`).
+Sin JWT sigue dando `401` (correcto). Resultado por HTTP desplegado:
+1 de 21 comprobaciones; las 20 restantes son ese mismo `500`.
+
+**Contradice** lo informado por Luis (variables configuradas en
+Cloudflare): pueden estar puestas en un lugar que el Worker desplegado no
+lee (otro Worker/entorno, o nombre distinto), o haberse perdido en el
+despliegue. **No lo puedo ver**: no tengo acceso al panel de Cloudflare.
+
+**Hipótesis, NO verificada**: `wrangler.jsonc` no declara `vars` ni
+`keep_vars`; según la documentación de wrangler, un `wrangler deploy`
+reemplaza las variables de texto plano configuradas en el panel por las
+del archivo de configuración salvo que se use `keep_vars`. Si Luis las
+puso como variables de texto plano en el panel, el despliegue automático
+del push de las 19:42 UTC pudo haberlas borrado. Los *secrets* no se
+borran así. Habría que confirmar en el panel qué hay y de qué tipo es.
+
+**Lo que SÍ está verificado del código** (mismo `src/worker.js` de `main`,
+ejecutado en local con `SUPABASE_URL`/`SUPABASE_ANON_KEY` reales, JWT real,
+Supabase real; **no es el Worker desplegado**): 21 de 21 — los 8 endpoints
+responden `200` con resultados correctos sobre las 5 organizaciones de
+simulación (ICE-IEH 25 filas, IAO, SDMO, FPV `CENSAL`/ponderado, CFF
+`cff_total = 4800`, IFD 8 EPDs con roll-up, PIIO `COMPLETED` con
+`ruleset_version = PIIO-v1.1`, AIE de abril a septiembre sin `22008` en
+las 5 organizaciones, y `2026-13` → `400`). Es decir: el arreglo de §11
+está verificado contra la base real; lo que falta es que el **despliegue**
+tenga las variables.
+
+**Opciones (para decidir, no ejecutadas)**:
+1. Declarar `vars` en `wrangler.jsonc` (`SUPABASE_URL`, `SUPABASE_ANON_KEY`).
+   Ambas son **públicas por diseño** (ya están en los `.html` y en
+   `scripts/`); la protección real es RLS + funciones `SECURITY DEFINER`.
+   Ventaja: versionado y sobrevive a cada despliegue automático.
+2. Mantenerlas solo en el panel y agregar `keep_vars: true`.
+3. Como *secrets* (`wrangler secret put`), que persisten entre despliegues.
+
+</details>
