@@ -1,10 +1,6 @@
-.git/
-.claude/
-.wrangler/
-_referencia/
-supabase/
-node_modules/
-files.zip
-*.docx
-*.pptx
-src/
+# Lista BLANCA: se ignora todo por defecto y solo se publica lo listado.
+# Un archivo nuevo en el repo queda privado salvo que se agregue aqui.
+*
+!*.html
+!assets/
+!assets/**
