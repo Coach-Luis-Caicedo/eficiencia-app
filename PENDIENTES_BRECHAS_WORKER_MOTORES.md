@@ -317,6 +317,65 @@ ruta de exportación de provisionales hacia CFF/IFD.
 
 ## 5. PIIO — `registrar_nodo_piio` rechaza una versión con `active_from` anterior a la versión abierta, con un mensaje que no lo explica
 
+**Estado: MIGRACIÓN `044` CONSTRUIDA Y VERIFICADA (pglite, rol
+`authenticated`, 36/36; regresión de `041` 32/32) — SIN APLICAR en
+Supabase, SIN COMITEAR. Alcance real mayor que el original; una parte
+queda como decisión de Luis.** Hallazgo original más abajo, sin editar.
+
+**Caracterizado por ejecución (2026-09-26)** — `registrar_nodo_piio`,
+`registrar_metric_definition_piio` y `registrar_reference_spec_piio`
+comparten el patrón de cierre automático y se comportan distinto:
+
+| Caso | `node_hierarchy` | `metric_definitions` | `reference_specs` |
+|---|---|---|---|
+| versión retroactiva (empieza antes que la abierta) | rechaza, mensaje crudo del `CHECK` | **ACEPTA en silencio, deja `valid_to < valid_from`** | **ACEPTA en silencio, intervalo invertido** |
+| mismo período que la abierta | rechaza, crudo | **ACEPTA en silencio, invertido** | (ídem) |
+| versión anterior de UN solo período | **rechaza, crudo** | acepta (válido) | acepta (válido) |
+
+**Dos hallazgos nuevos, más graves que el original**:
+1. **Datos corruptos en silencio**: `metric_definitions` y `reference_specs`
+   no tienen ningún `CHECK` sobre `valid_to`; una versión retroactiva o del
+   mismo período dejaba la anterior con `valid_to < valid_from` sin error
+   (3 filas invertidas en la prueba). Efecto real, verificado leyendo el
+   motor: en `reference_specs` un intervalo invertido **nunca aplica**
+   (`_vigente`, `referencias.js:42-46`, exige `valid_from <= period <=
+   valid_to`, `valid_to` inclusivo) — la referencia dejaría de resolverse;
+   en `metric_definitions` el motor **no lee** `valid_from`/`valid_to`
+   (`_resolverMetricDef` resuelve por `(id, definition_version)`), así que
+   allí es dato corrupto pero inerte. **Producción verificada limpia**: 0 filas
+   invertidas en las 3 tablas al 2026-09-26.
+2. **Una versión de nodo de UN solo período es irrepresentable**: el
+   `CHECK` de `031` es `active_from < active_to` **estricto** (copia la
+   validación del motor, `config.js:214`, por decisión consciente de `031`),
+   pero `registrar_nodo_piio` cierra con `active_to` = período anterior al
+   nuevo (inclusivo). Una versión válida (existió solo en abril, cambia en
+   mayo) da `active_to = active_from` y se rechaza. `active_to` no se lee en
+   ningún otro lugar del motor ni de las funciones (solo `IS NULL` en la
+   vista vigente), así que hoy es inocuo, pero la semántica está sin decidir.
+
+**Lo que hace `044` (sin cambiar ninguna semántica)**: guarda con mensaje
+explícito en las 3 funciones — la nueva versión debe empezar estrictamente
+después de la abierta; para nodos, la guarda replica la condición exacta del
+`CHECK` y dice que una versión de un solo período no es representable. Los
+casos válidos siguen aceptándose (verificado, incl. cierres exactos y los
+32 asserts de `041`).
+
+**Decisión de Luis (no resuelta, no tocada)**: ¿`active_to` de
+`node_hierarchy` es "último período inclusivo" (como `valid_to` de las otras
+dos tablas y como cierra la función) o "fin exclusivo"? Si es inclusivo, el
+`CHECK` debería ser `<=` (y el motor, `config.js:214`, marcaría de
+`DEGRADED` un nodo de un solo período). Si es exclusivo, la función debería
+cerrar con `active_to` = nuevo `active_from`. Hoy `044` solo hace explícito
+el límite.
+
+**Observación adicional, sin cambio**: `registrar_reference_spec_piio` con
+`supersedes` apuntando a una versión que **no existe** inserta igual y no
+cierra nada, en silencio (comportamiento de `041`, verificado, caso R5).
+
+<details>
+<summary>Hallazgo original (histórico, sin editar)</summary>
+
+
 **Estado: PENDIENTE. Encontrado 2026-09-25** en la mini-prueba contra
 producción (organización desechable). **Prioridad baja.**
 
@@ -352,6 +411,8 @@ registran versiones retroactivas); es de calidad de errores y
 robustez.
 
 ---
+
+</details>
 
 ## 6. PIIO — `leer_datos_piio()` no devuelve `ruleset_version`: `calcular-piio` queda `BLOCKED` con datos reales
 
@@ -472,6 +533,48 @@ sin resolver, y no lo toca esta ronda.
 
 ## 7. CFF — hallazgos de visibilidad de costo y perfiles que no cuadran (en decisión de Luis, no cerrados)
 
+**Estado: PARTE DE LOS PERFILES CORREGIDA (2026-09-26, sin comitear);
+quedan 4 preguntas de política abiertas para Luis.** Hallazgo original
+más abajo, sin editar.
+
+**Causa raíz única (verificada por ejecución, no por lectura)**:
+`runCFF.js` armaba los 4 perfiles con `admisiblesFinales`, filtrado solo
+por estado de monetización/atribución, sin mirar qué componentes eligió la
+consolidación ni con qué valor los sumó. Todo componente excluido en
+consolidación (alcance, relación, transferencia interna, costo compartido)
+pero con estados admisibles entraba igual. Ejecutado antes del cambio:
+transferencia interna 1100 vs 1000, fuera de alcance 1900 vs 1000,
+`CONTAINS FULL` 1400 vs 1000, `DUPLICATE` 2000 vs `null`.
+
+**Corrección** (no toca `§18` ni `§22`; `cff_total`, los cuadrantes y
+`coverage` no cambian): `consolidacion.js` devuelve además `seleccionados`
+(`component_id` + el valor exacto sumado, ya normalizado y tras la
+transformación temporal); `runCFF.js` construye los perfiles solo desde
+ahí. `admisiblesFinales` se conserva sin cambio porque alimenta
+`coverage.attributable_events` (pinneado por test). Resultado: los 4
+perfiles suman `cff_total` en los 4 tipos de exclusión; en `DUPLICATE` sin
+resolver pasan de 2000 (doble conteo) a vacíos, coherente con `null`.
+
+**Verificación**: `runCFF.test.js` gana la sección "INV-CFF-70 con
+exclusiones" (transferencia interna, fuera de alcance, `CONTAINS FULL`,
+`DUPLICATE`, todo excluido, valor STOCK→flujo): **30 asserts nuevos**;
+suite de `motor-cff` **599/599** (569 + 30; `gate_32` 10/10); volver al
+filtro anterior hace fallar **23** asserts; `worker.test.mjs` 49/49. El
+test original de `INV-70` pasaba porque solo cubría un caso sin exclusiones.
+
+**Sigue abierto (decisiones de Luis, no tocado)**: preguntas 1, 3 y 4 de
+`INVESTIGACION_COSTO_NO_ATRIBUIBLE_CFF.md` §5 (`exposure_total` fuera de
+alcance; agregado por categoría de exclusión; cómo declarar un impacto sin
+cifra) y una **nueva**: con cobertura `INSUFFICIENT` (`cff_total = null`) los
+cuadrantes y los perfiles **siguen mostrando la cifra** (verificado:
+`confirmed_observed = 1000`, Σ perfiles `1000`); es comportamiento previo,
+no del cambio, y queda la duda de si un `null` por insuficiencia debe
+acompañarse de cuadrantes/perfiles vacíos.
+
+<details>
+<summary>Hallazgo original (histórico, sin editar)</summary>
+
+
 **Estado: EN INVESTIGACIÓN / DECISIÓN PENDIENTE.** Detalle completo y
 evidencia en `INVESTIGACION_COSTO_NO_ATRIBUIBLE_CFF.md` (§1 y §6). Se
 registra aquí solo para que no se pierda entre sesiones:
@@ -492,7 +595,53 @@ registra aquí solo para que no se pierda entre sesiones:
 
 ---
 
+</details>
+
 ## 8. PIIO — la alerta `BRIDGE_SIN_REGLA` se calcula pero no llega a ninguna salida (observación, sin decidir si es defecto)
+
+**Estado: VERIFICADO CONTRA EL DOCUMENTO TÉCNICO (2026-09-26) — EL
+DOCUMENTO NO EXIGE LA ALERTA; queda como decisión de Luis, sin tocar el
+motor.** Hallazgo original más abajo, sin editar.
+
+**Lo que el documento dice, textual** (`Documento_Tecnico_PIIO_v1_1_FINAL.docx`,
+extraído a texto; búsqueda de `bridge`, `continuity`, `nueva serie`,
+`empalm`, `alerta`, `advertencia`, `warning`, `flag`, `visible`, `mostrar`):
+- §8.4: *"DEFINITION_CONTINUITY = CONTINUOUS | BRIDGED | NEW_SERIES.
+  **BRIDGED exige regla de transformación validada.** NEW_SERIES impide
+  calcular trayectoria a través de la ruptura."*
+- `INV-PIIO-29`: *"Ruptura de definición no se atraviesa sin bridge
+  validado."* `AC15` (BRIDGED): *"Solo unir con bridge validado."* `AC16`
+  (NEW_SERIES): *"Romper trayectoria."* `AC14` (CONTINUOUS): *"Mantener
+  continuidad."*
+- **Ninguna** de esas líneas pide mostrar una advertencia. El nombre
+  `BRIDGE_SIN_REGLA` **no aparece** en el documento: es un flag propio del
+  motor (`referencias.js:156`). El documento sí define un campo `flags[]`
+  en `KPI_STATE` (§ de estados), y una escala de severidad
+  `WARNING | DEGRADED | BLOCKING` (§30), pero no ata ninguna de las dos
+  cosas a este caso.
+
+**El requisito del documento se cumple**: un `BRIDGED` sin regla no se une
+(`traj = N_A`, verificado por ejecución en producción), que es exactamente
+`AC15`/`INV-PIIO-29`.
+
+**Precisión al hallazgo original**: en la salida el `KPI_STATE` lleva el
+flag **`NEW_REGIME`** (no `SERIE_NO_UNE`): `kpiState.js:116` evalúa
+`regimen()` antes que `puede_unir_serie`, y `temporal.js:267-269` devuelve
+`NEW_REGIME` también "por definición". Por eso `BRIDGED` sin regla y
+`NEW_SERIES` legítima son indistinguibles en la salida (lo ya registrado).
+La rama de `kpiState.js:117` (`SERIE_NO_UNE`) queda sin alcanzarse por este
+camino; no la investigué más.
+
+**Decisión de Luis**: (a) dejarlo — el documento se cumple; (b) volcar
+`BRIDGE_SIN_REGLA` al `flags[]` del `KPI_STATE` (campo que el documento ya
+define), cambio chico en `motor-piio` (no en el Worker), para poder
+distinguir un `BRIDGED` mal declarado de una `NEW_SERIES` legítima. No lo
+hago sin tu decisión porque toca un motor con su propia batería de tests
+y el documento no lo pide.
+
+<details>
+<summary>Hallazgo original (histórico, sin editar)</summary>
+
 
 **Estado: OBSERVACIÓN. Encontrada 2026-09-25** en la mini-prueba de
 `PIIO` (organización desechable, `continuity_mode` = `BRIDGED` **sin**
@@ -523,6 +672,8 @@ es una mejora de visibilidad.
 
 
 ---
+
+</details>
 
 ## 9. PIIO — la calibración propia por organización cambia el resultado pero NO cambia `calculation_version` ni `ruleset_version`
 
