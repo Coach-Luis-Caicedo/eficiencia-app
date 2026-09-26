@@ -665,6 +665,30 @@ forma de saber si alguien lo hizo (no revisé logs de acceso).
 
 ## 11. Worker — `calcular-aie` falla con datos reales en los meses de menos de 31 días (`p_hasta: period + '-31'`)
 
+**Estado: RESUELTO — 2026-09-26, commit `a4fde9b`.** Hallazgo original
+más abajo, sin editar.
+
+**Resolución aplicada**: `src/worker.js` gana `ultimoDiaDelMes(period)`
+(28/29/30/31, con bisiestos; valida `YYYY-MM` y responde `400` si el
+período viene mal formado, en vez de un `500` de la base) y
+`calcularAieHandler` la usa para `p_hasta`. **No es una decisión de
+diseño**: `period + '-31'` está mal en cualquier mes de menos de 31 días.
+
+**Por qué el test no lo vio, y qué se corrigió**: el mock de RPC de
+`worker.test.mjs` aceptaba cualquier cadena como fecha. Ahora valida todo
+`'YYYY-MM-DD'` como lo haría Postgres (columnas `date`) y rechaza fechas
+inexistentes con `22008`, **para todos los handlers**, no solo AIE — una
+regresión de esta clase en cualquier handler falla en el test, no en
+producción. Casos nuevos: `p_hasta` de enero/febrero 2026 (`31`/`28`),
+abril y noviembre (`30`), febrero 2028 (bisiesto, `29`), `p_desde`,
+período mal formado (`2026-13` → `400` sin tocar la base) y fecha
+inexistente en `calcular-sdmo`. **Verificado por mutación**: volver a
+`period + '-31'` hace fallar la suite. Suite: 49/49 (42 previos + 7).
+
+<details>
+<summary>Hallazgo original (histórico, sin editar)</summary>
+
+
 **Estado: PENDIENTE. BLOQUEANTE para `calcular-aie` en 5 de 12 meses.
 Encontrado 2026-09-26** al calcular los 8 motores sobre las 5
 organizaciones de simulación ya generadas (mismo flujo que el handler).
@@ -693,3 +717,5 @@ la RPC se llame).
 **Bloquea**: `calcular-aie` contra datos reales para cualquier serie que
 contenga uno de esos meses (con los 6 períodos de la simulación,
 2026-04..2026-09, contiene 3: abril, junio, septiembre).
+
+</details>
