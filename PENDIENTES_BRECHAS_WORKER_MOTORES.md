@@ -355,7 +355,61 @@ robustez.
 
 ## 6. PIIO — `leer_datos_piio()` no devuelve `ruleset_version`: `calcular-piio` queda `BLOCKED` con datos reales
 
-**Estado: PENDIENTE. BLOQUEANTE. Encontrado 2026-09-25** en la
+**Estado: RESUELTO — 2026-09-26** (sin comitear todavía). Ver el
+hallazgo original más abajo, sin editar, para no perder el rastro.
+
+**Decisión de Luis, sobre `INVESTIGACION_RULESET_VERSION_PIIO.md`**: vía
+(a), constante — pidió la recomendación entendiendo la necesidad del
+sistema (que funcione de punta a punta con resultados correctos), no una
+elección de las dos vías en abstracto.
+
+**Resolución aplicada**: `src/motores/piio.js` gana la constante
+`RULESET_VERSION_PIIO = 'PIIO-v1.1'` (mismo criterio que
+`RULESET_VERSION_CFF` en `src/motores/cff.js` — nombra el documento
+técnico vigente, sube manualmente cuando cambie `PARAMS` o una regla de
+derivación del motor, `INV-PIIO-65`; nada hace cumplir ese incremento
+hoy). `calcularPiio()` la inyecta de forma **no destructiva**:
+`Object.assign({ ruleset_version: RULESET_VERSION_PIIO }, datosPiio)` —
+si `leer_datos_piio()` algún día trae un valor persistido, ese gana.
+Verificado contra `035_funciones_lectura_motores_pendientes.sql`: la
+función **nunca** incluye la clave `ruleset_version` en su salida (ni
+como `null`), así que el patrón es seguro — no hay riesgo de que un
+`null` explícito pise la constante.
+
+**Por qué (a) y no (b)** (evidencia ya reunida en la investigación, sin
+repetirla aquí): el motor nunca ramifica sobre el *valor* de
+`ruleset_version` (cero comparaciones `===`/`switch`/`.match` en todo
+`motor-piio`), solo lo exige como etiqueta no vacía y componente de
+`calculation_version`. Persistirlo (b) crearía una columna con un único
+valor posible en todo el sistema, sin gobernanza real de quién lo
+cambia, y prometería una capacidad (reglas distintas por organización)
+que el motor no puede honrar.
+
+**Verificado por ejecución** (no solo en memoria, como en el diagnóstico
+original): con la constante inyectada y **los mismos catálogos vacíos
+del mock de `worker.test.mjs`**, `calcularPiio` pasa de `BLOCKED` a
+`COMPLETED` — no quedaba ningún otro bloqueo detrás de éste. Con eso se
+resolvió la incertidumbre que la investigación (§3) había dejado
+explícitamente abierta ("no sé si tras inyectar `ruleset_version` esos
+datos vacíos pasan a `COMPLETED` o siguen `BLOCKED` por otra
+validación").
+
+**Aserción de `worker.test.mjs` endurecida** (sección 10, `calcular-piio`):
+se agregaron dos aserciones nuevas — `run_status !== 'BLOCKED'` y
+`ruleset_version === 'PIIO-v1.1'` en la salida, confirmando que viajó de
+punta a punta aunque el mock no lo provee. La aserción original (`res.status
+=== 200 && piio_run` existe) se deja intacta debajo, ahora reforzada por
+las dos nuevas. Suite completa: **42/42** (los 40 previos + las 2
+nuevas), sin regresión en ningún otro escenario — es el único punto de
+contacto con PIIO en todo el archivo.
+
+**Sin comitear**: el cambio en `src/motores/piio.js` y en
+`src/worker.test.mjs`, y esta misma entrada del archivo.
+
+<details>
+<summary>Hallazgo y diagnóstico originales (histórico, sin editar)</summary>
+
+**Estado original: PENDIENTE. BLOQUEANTE. Encontrado 2026-09-25** en la
 mini-prueba de `PIIO` contra producción. **Corrige una clasificación
 errónea mía** del §3 de este archivo y de
 `INVESTIGACION_SIMULACION_PIIO.md` §2, donde `ruleset_version` figuraba
@@ -403,6 +457,16 @@ caso de CFF. Decisión de Luis.
 **Bloquea**: `calcular-piio` **completo contra datos reales** (hoy no
 puede devolver ningún resultado que no sea `BLOCKED`), y con él la
 simulación de PIIO.
+
+**Investigación de la decisión**: `INVESTIGACION_RULESET_VERSION_PIIO.md`
+(2026-09-26).
+
+</details>
+
+**Con esto, de las brechas bloqueantes de PIIO (§3 y §6) no queda
+ninguna abierta.** El hallazgo colateral de la propia investigación —
+calibración propia por organización fuera de la huella — sigue como §9,
+sin resolver, y no lo toca esta ronda.
 
 ---
 
@@ -456,3 +520,39 @@ alerta no existe en ninguna salida.
 **Pregunta abierta (para Luis)**: ¿el documento técnico de `PIIO`
 exige mostrar esa advertencia? Si sí, es un defecto del motor; si no,
 es una mejora de visibilidad.
+
+
+---
+
+## 9. PIIO — la calibración propia por organización cambia el resultado pero NO cambia `calculation_version` ni `ruleset_version`
+
+**Estado: OBSERVACIÓN CON EVIDENCIA. Encontrada 2026-09-26** al investigar
+`ruleset_version` (§6). **No es un hueco del Worker** (ninguna función
+SQL le pasa calibración al motor todavía): es una brecha de
+reproducibilidad del propio motor.
+
+**Verificado por ejecución** (datos reales de la organización de
+simulación "deterioro", `calcularPiio`, mismo `ruleset_version`):
+
+| Entrada | `KPI-CAL.traj` | flags | `calculation_version` |
+|---|---|---|---|
+| sin calibración propia | `DETERIORATING` | `CALIBRACION_GENERICA` | `rs=rs-X\|dc=v1\|pc=v1\|md=...` |
+| `input.umbralesTrayectoria = { band: 5 }` | **`STABLE`** | `CALIBRACION_PROPIA` | **idéntica** |
+
+`_calculationVersion` (`runPIIO.js:354-364`) solo mezcla `ruleset_version`
+y las versiones de catálogos/definiciones/referencias/jerarquía — **no**
+`umbralesTrayectoria`/`umbralesPersistencia`/`umbralesEstabilidad`. Dos
+corridas con las mismas "versiones" pueden dar resultados distintos, lo
+que contradice el enunciado del documento técnico (§31): *"MISMOS INPUTS
++ MISMAS VERSIONES → MISMO RESULTADO"*, y `INV-PIIO-65`/`AC67` (cambio
+material de reglas genera nueva versión). Nota: las 3 claves de
+calibración son campos del **`PIIO_INPUT`** (`runPIIO.js:189-190`,
+`phenomenon.js:543`), no de `opciones`; una nota anterior de
+`INVESTIGACION_SIMULACION_PIIO.md` §1 las ubicaba en `opciones` y era
+inexacta.
+
+**Pregunta abierta (Luis)**: ¿la calibración propia es parte de "las
+reglas" que `ruleset_version` debe identificar, o es otra dimensión de
+versión (p. ej. `calibration_version`)? Cerrar §6 con una constante **no
+resuelve esto** y no lo empeora: hoy `leer_datos_piio` no transporta
+ninguna calibración, así que ningún resultado del Worker la usa.

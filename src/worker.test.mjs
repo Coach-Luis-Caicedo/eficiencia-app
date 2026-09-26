@@ -290,6 +290,14 @@ const run = async () => {
   res = await worker.fetch(mockRequest('calcular-piio', { body: { organization_id: 'org-1', periods: ['2026-01'] } }), ENV, {});
   const cuerpoPiio = await res.json();
   ok(res.status === 200 && cuerpoPiio.piio_run, 'calcular-piio responde 200, runPIIOCompleto produjo piio_run');
+  // PENDIENTES_BRECHAS_WORKER_MOTORES.md §6: esta aserción antes solo
+  // comprobaba que piio_run existiera -- un run_status BLOCKED también
+  // lo cumple, y así estuvo pasando en silencio con datos reales (falta
+  // ruleset_version). Se exige explícitamente que NO quede BLOCKED, y
+  // que ruleset_version haya viajado de punta a punta (inyectado por
+  // src/motores/piio.js, no por el mock -- este mock sigue sin traerlo).
+  ok(cuerpoPiio.piio_run.run_status !== 'BLOCKED', 'calcular-piio: run_status no queda BLOCKED (antes se aceptaba en silencio)');
+  ok(cuerpoPiio.piio_run.ruleset_version === 'PIIO-v1.1', 'calcular-piio: ruleset_version viajó hasta PIIO_RUN aunque el mock no lo provee');
 
   // ═══════════════════════════════════════════════════════════════
   console.log('\n── 11. calcular-aie -- orquesta motor-iao + motor-sdmo por período, runCase() sin Python ──');
