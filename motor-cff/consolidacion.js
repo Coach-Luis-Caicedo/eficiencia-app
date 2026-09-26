@@ -499,6 +499,13 @@ function consolidarPeriodoYAlcance(entrada) {
     unresolved_impact_total: ctx.unresolved_impact_total,
     alcance_clasificacion: ctx.alcanceClasificacion,
     flags: ctx.flags,
+    // Componentes que SÍ entraron a CFF_TOTAL, con el valor exacto con que se
+    // sumaron (ctx.valores: ya normalizado y tras la transformación temporal).
+    // Fuente única para reconstruir la cifra componente por componente
+    // (INV-CFF-70) -- PENDIENTES_BRECHAS_WORKER_MOTORES.md §7.
+    seleccionados: ctx.admisibles.map(function (c) {
+      return { component_id: c.component_id, valor: ctx.valores[c.component_id] };
+    }),
     coverageInput: {
       componentes_candidatos: ctx.componentes.length,
       componentes_admisibles: ctx.admisibles.length,

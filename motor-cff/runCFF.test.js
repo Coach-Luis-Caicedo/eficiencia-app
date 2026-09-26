@@ -281,6 +281,84 @@ seccion('Validación de entrada — campos obligatorios de caso/versión');
 });
 
 // ═══════════════════════════════════════════════════════════════════════
+seccion('INV-CFF-70 con exclusiones — los 4 perfiles cuadran con cff_total (PENDIENTES §7)');
+// ═══════════════════════════════════════════════════════════════════════
+// El test original de INV-70 solo cubría un caso SIN exclusiones, por eso no
+// atrapó que los perfiles incluían componentes excluidos por la consolidación
+// (transferencia interna, fuera de alcance, CONTAINS, DUPLICATE). Los perfiles
+// deben reconstruir cff_total con EXACTAMENTE los componentes que se sumaron.
+function sumaPerfil(p) { return p.reduce(function (s, x) { return s + x.total; }, 0); }
+function cuadraTodo(r, esperado, etiqueta) {
+  var res = r.result;
+  near(res.cff_total, esperado, etiqueta + ' — cff_total = ' + esperado);
+  near(sumaPerfil(res.event_profile), esperado, etiqueta + ' — Σ event_profile = cff_total');
+  near(sumaPerfil(res.mechanism_profile), esperado, etiqueta + ' — Σ mechanism_profile = cff_total');
+  near(sumaPerfil(res.financial_nature_profile), esperado, etiqueta + ' — Σ financial_nature_profile = cff_total');
+  near(sumaPerfil(res.node_profile), esperado, etiqueta + ' — Σ node_profile = cff_total');
+}
+
+// (a) transferencia interna pura: se elimina de la consolidación (§14)
+var rIT = R.runCFF(casoValido({ eventos: [eventoValido({ components: [
+  compValida({ component_id: 'C_ok', original_value: 1000 }),
+  compValida({ component_id: 'C_it', original_value: 100, primary_mechanism: 'REPLACEMENT', esTransferenciaInternaPura: true })
+] })] }));
+cuadraTodo(rIT, 1000, '(a) transferencia interna pura');
+ok(!rIT.result.mechanism_profile.some(function (x) { return x.primary_mechanism === 'REPLACEMENT'; }),
+  '(a) el mecanismo del componente eliminado (REPLACEMENT) NO aparece en mechanism_profile');
+eq(rIT.result.coverage.attributable_events, 2,
+  '(a) coverage.attributable_events NO cambió de significado (sigue contando por estado de monetización/atribución: 2)');
+
+// (b) componente admisible por estado pero FUERA de alcance (scope_valid=false)
+var rSc = R.runCFF(casoValido({ eventos: [eventoValido({ components: [
+  compValida({ component_id: 'C_ok', original_value: 1000 }),
+  compValida({ component_id: 'C_fuera', original_value: 900, scope_valid: false })
+] })] }));
+cuadraTodo(rSc, 1000, '(b) fuera de alcance');
+
+// (c) CONTAINS FULL: el contenido no se suma sobre el contenedor
+var rCo = R.runCFF(casoValido({
+  eventos: [eventoValido({ components: [
+    compValida({ component_id: 'C_cont', original_value: 1000 }),
+    compValida({ component_id: 'C_dentro', original_value: 400, primary_mechanism: 'LOST_CAPACITY', financial_nature: 'CAPACITY_VALUE' })
+  ] })],
+  relaciones: [{ relation_type: 'CONTAINS', component_a_id: 'C_cont', component_b_id: 'C_dentro', direction: 'A_CONTAINS_B',
+    containment_scope: 'FULL', resolution_status: 'RESOLVED' }]
+}));
+cuadraTodo(rCo, 1000, '(c) CONTAINS FULL');
+ok(!rCo.result.financial_nature_profile.some(function (x) { return x.financial_nature === 'CAPACITY_VALUE'; }),
+  '(c) la naturaleza del contenido (CAPACITY_VALUE) NO aparece en financial_nature_profile');
+
+// (d) DUPLICATE sin resolver junto a un componente seguro: no hay doble conteo (INV-CFF-20)
+var rDu = R.runCFF(casoValido({
+  eventos: [eventoValido({ components: [
+    compValida({ component_id: 'C_safe', original_value: 10000 }),
+    compValida({ component_id: 'C_dupA', original_value: 4000 }),
+    compValida({ component_id: 'C_dupB', original_value: 4000 })
+  ] })],
+  relaciones: [{ relation_type: 'DUPLICATE', component_a_id: 'C_dupA', component_b_id: 'C_dupB', resolution_status: 'UNRESOLVED' }]
+}));
+cuadraTodo(rDu, 10000, '(d) DUPLICATE sin resolver + componente seguro (antes: perfiles 18000)');
+
+// (e) todo excluido: cff_total null (INSUFFICIENT) y perfiles VACÍOS, no el doble conteo de antes (2000)
+var rNada = R.runCFF(casoValido({
+  eventos: [eventoValido({ components: [
+    compValida({ component_id: 'C_dupA', original_value: 1000 }),
+    compValida({ component_id: 'C_dupB', original_value: 1000 })
+  ] })],
+  relaciones: [{ relation_type: 'DUPLICATE', component_a_id: 'C_dupA', component_b_id: 'C_dupB', resolution_status: 'UNRESOLVED' }]
+}));
+eq(rNada.result.cff_total, null, '(e) sin componentes seleccionables → cff_total = null (N_A, nunca 0)');
+eq([rNada.result.event_profile.length, rNada.result.mechanism_profile.length, rNada.result.financial_nature_profile.length, rNada.result.node_profile.length],
+  [0, 0, 0, 0], '(e) los 4 perfiles quedan vacíos (antes reportaban 2000: el doble conteo que cff_total se niega a sumar)');
+
+// (f) el valor del perfil es el MISMO con que se sumó (transformación STOCK -> flujo), no original_value
+var rSt = R.runCFF(casoValido({ eventos: [eventoValido({ components: [
+  compValida({ component_id: 'C1', original_value: 500 }),
+  compValida({ component_id: 'C2', original_value: 0, temporal_nature: 'STOCK', transformacionValidada: true, valorFlujoEquivalente: 120 })
+] })] }));
+cuadraTodo(rSt, 620, '(f) STOCK con transformación validada: el perfil usa el valor sumado (120), no original_value (0)');
+
+// ═══════════════════════════════════════════════════════════════════════
 seccion('Mutaciones — ejecutadas como paso de Bash aparte (ver mensaje de cierre)');
 // ═══════════════════════════════════════════════════════════════════════
 console.log('  1. AC51: inyectar un valor no determinista (Math.random) en un campo del CFF_RESULT →');

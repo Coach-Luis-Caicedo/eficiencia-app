@@ -347,7 +347,7 @@ function runCFF(caso) {
       reporting_currency: caso.reporting_currency, valuation_basis: caso.valuation_basis,
       confirmed_observed: 0, confirmed_estimated: 0, supported_observed: 0, supported_estimated: 0,
       cff_confirmed: 0, cff_supported_additional: 0, cff_total: 0,
-      exposure_total: 0, unresolved_impact_total: 0, flags: [],
+      exposure_total: 0, unresolved_impact_total: 0, flags: [], seleccionados: [],
       coverageInput: { componentes_candidatos: 0, componentes_admisibles: 0, componentes_excluidos: [] }
     };
   } else {
@@ -435,7 +435,16 @@ function runCFF(caso) {
     return MONETIZACION_ADMISIBLE.indexOf(c.monetization_status) !== -1 &&
       ATRIBUCION_ADMISIBLE.indexOf(c.attribution_status) !== -1;
   });
-  var valorDe = function (c) { return typeof c.normalized_value === 'number' ? c.normalized_value : c.valor; };
+  // Perfiles: SOLO los componentes que la consolidación seleccionó, con el valor
+  // con que los sumó -- así Σ perfil = cff_total (INV-CFF-70). Antes se filtraba
+  // solo por estado de monetización/atribución y entraban también los excluidos
+  // por alcance, relación, transferencia interna o costo compartido
+  // (PENDIENTES_BRECHAS_WORKER_MOTORES.md §7). `admisiblesFinales` se conserva
+  // sin cambio: alimenta coverage.attributable_events.
+  var valorSeleccionado = {};
+  (cons.seleccionados || []).forEach(function (s) { valorSeleccionado[s.component_id] = s.valor; });
+  var seleccionadosFinales = paraConsolidar.filter(function (c) { return valorSeleccionado[c.component_id] !== undefined; });
+  var valorDe = function (c) { return valorSeleccionado[c.component_id]; };
 
   // S8 — CFF_COVERAGE
   var coverage = {
@@ -477,12 +486,12 @@ function runCFF(caso) {
     exposure_total: cons.exposure_total,
     unresolved_impact_total: cons.unresolved_impact_total,
     coverage: coverage,
-    event_profile: perfilPor(admisiblesFinales.map(function (c) {
+    event_profile: perfilPor(seleccionadosFinales.map(function (c) {
       return { event_id: c.event_id, v: valorDe(c) };
     }), 'event_id', function (c) { return c.v; }),
-    mechanism_profile: perfilPor(admisiblesFinales, 'primary_mechanism', valorDe),
-    financial_nature_profile: perfilPor(admisiblesFinales, 'financial_nature', valorDe),
-    node_profile: perfilPor(admisiblesFinales.map(function (c) {
+    mechanism_profile: perfilPor(seleccionadosFinales, 'primary_mechanism', valorDe),
+    financial_nature_profile: perfilPor(seleccionadosFinales, 'financial_nature', valorDe),
+    node_profile: perfilPor(seleccionadosFinales.map(function (c) {
       var ev = caso.eventos.filter(function (e) { return e.event_id === c.event_id; })[0];
       return { node_id: ev ? ev.node_id : '(sin nodo)', v: valorDe(c) };
     }), 'node_id', function (c) { return c.v; }),
