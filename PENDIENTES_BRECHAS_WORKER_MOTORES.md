@@ -556,3 +556,106 @@ reglas" que `ruleset_version` debe identificar, o es otra dimensión de
 versión (p. ej. `calibration_version`)? Cerrar §6 con una constante **no
 resuelve esto** y no lo empeora: hoy `leer_datos_piio` no transporta
 ninguna calibración, así que ningún resultado del Worker la usa.
+
+
+---
+
+## 10. Despliegue — código fuente de los motores y documentos internos servidos públicamente (RESUELTO 2026-09-26)
+
+**Estado: RESUELTO en producción — verificado en vivo 2026-09-26
+19:43 UTC** (commit `caaf309`, push 19:42:15 UTC, despliegue automático
+detectado a los ~33 s). Se registra aquí porque es un incidente de
+seguridad: **el patrón ya se había repetido** (hubo un incidente igual
+en `eficiencia-site`, `/campus/` público, según Luis) y el §-de-origen
+de esta clase de hallazgo es "verificado una vez, nunca registrado".
+
+**Qué estaba expuesto** (verificado con `curl`, sin autenticación, todos
+`200`, en `eficiencia-app.coach-luiscaicedo.workers.dev`):
+- Código fuente de los motores: `/motor-piio/runPIIO.js` (40.919 B),
+  `/motor-cff/runCFF.js` (25.992 B), `/motor-ice-ieh/motor-ice-ieh.js`
+  (25.718 B). Por la misma causa, con muy alta probabilidad los 8 motores
+  y sus tests/READMEs (`motor-*/`, `aie_validation_kit/`; **no probé
+  cada archivo**; los 244 archivos de la simulación se calcularon sobre
+  el árbol en disco, que incluye archivos sin trackear, así que lo
+  realmente desplegado fue **menor**).
+- `/DOCUMENTO_MARCO_SISTEMA_EFICIENCIA.md` (102.150 B, la metodología
+  completa) y `/docs/DOCUMENTO_TECNICO_ICE_IEH_v2.md` (56.406 B).
+- Los **17** `.md` de la raíz que había en `origin` antes de este push
+  (contados con `git ls-tree`; verifiqué 6 con `curl`:
+  `INVESTIGACION_FACTOR_PRESTACIONAL_LATAM.md`,
+  `INVESTIGACION_VALIDACION_IFT.md`, `MAPEO_INTEGRACION_AIE.md`,
+  `PROMPT_CC_AUDITORIA_MOTOR_CALCULO_v2.md`,
+  `SD_MO_4_PREGUNTAS_EFICIENCIA.md`, `VALIDACION_IFT_CASOS_REALES.md`,
+  todos `200`). **Corrección**: el mensaje del commit `caaf309` dice
+  "~70 .md ... ya presentes en origin"; era incorrecto: 70 es el conteo
+  del árbol en disco (incluye el backlog sin trackear), no de `origin`.
+- **No estaban expuestos** (404): `src/`, `supabase/`, `.git/`, `.docx`,
+  `.dev.vars`.
+
+**Desde cuándo** (cota inferior, honesta): el historial de `git` solo dice
+cuándo cada archivo **entró a `origin`**, no cuándo se desplegó. Primer
+commit en `origin` antes de la corrección: `DOCUMENTO_MARCO` 2026-08-07;
+`motor-ice-ieh` 2026-09-03; `motor-cff` 2026-09-05; `motor-piio`
+2026-09-09; último `origin` previo: 2026-09-14. Como el despliegue es
+automático desde `main` (confirmado por Luis), la exposición es **no
+anterior** a esas fechas y **no posterior** a 2026-09-26 19:42 UTC. El
+`.assetsignore` original (`8d55ed9`, 2026-08-18) ya existía como "security:
+excluye .git/.claude/.wrangler/etc" — es decir, **ya hubo un arreglo
+previo de la misma clase, incompleto**. Antes de esa fecha no se
+verificó qué se servía (incluido `.git/`); queda **sin acotar**.
+
+**Causa raíz**: `.assetsignore` era una **lista negra** (`.git/`,
+`.claude/`, `.wrangler/`, `_referencia/`, `supabase/`, `node_modules/`,
+`files.zip`, `*.docx`, `*.pptx`; `src/` se sumó en `7b93729`, 2026-09-21,
+commit local que entró a `origin` recién en este push) sobre un
+`wrangler.jsonc` que sirve el directorio `"."` como assets. Toda ruta
+no listada se publicaba. Una lista negra se queda corta cada vez que se
+agrega algo nuevo.
+
+**Corrección** (`caaf309`): lista **blanca** (`*`, `!*.html`, `!assets/`,
+`!assets/**`). Simulada con reglas de git-ignore sobre el árbol real:
+244 → 10 archivos servidos (8 `.html` + `assets/img/logo.png` +
+`assets/img/logo-light.png`); el simulador reprodujo 7 de 8
+observaciones en vivo (la única diferencia, `.dev.vars`, era
+conservadora).
+
+**Verificación en vivo post-despliegue (2026-09-26 19:43:08 UTC, no por
+leer la config)**:
+- `404` (antes `200`): `runPIIO.js`, `runCFF.js`, `motor-ice-ieh.js`,
+  `DOCUMENTO_MARCO_SISTEMA_EFICIENCIA.md`,
+  `docs/DOCUMENTO_TECNICO_ICE_IEH_v2.md`,
+  `INVESTIGACION_FACTOR_PRESTACIONAL_LATAM.md`.
+- `404` (publicados por primera vez en ese push, **nunca accesibles**):
+  `PENDIENTES_BRECHAS_WORKER_MOTORES.md`,
+  `INVESTIGACION_RULESET_VERSION_PIIO.md`,
+  `INVESTIGACION_COSTO_NO_ATRIBUIBLE_CFF.md`,
+  `AUDITORIA_SUPABASE_MOTORES.md`, `scripts/*.mjs`,
+  `supabase/migrations/043_*.sql`, `src/worker.js`, `.dev.vars`,
+  `.git/config`, `.assetsignore`, `wrangler.jsonc`.
+- `200` (siguen sirviendo): `/`, `index.html`, `workbook.html`,
+  `crear_organizacion.html`, `cuestionario_ice_ieh.html`, `fpv.html`,
+  `assets/img/logo.png`, `assets/img/logo-light.png`.
+- Dominio custom `eficiencia.com.co` (apex): `404` en `runPIIO.js`,
+  `runCFF.js`, `DOCUMENTO_MARCO`, `PENDIENTES`, `.dev.vars`; `200` en `/`
+  y `workbook.html`. **No medí antes** qué exponía ese dominio, solo
+  confirmé el estado corregido. `www.eficiencia.com.co` no resuelve.
+- Worker: `/api/calcular-fpv|cff|piio|aie` sin `Authorization` → `401`
+  (los 4 endpoints están desplegados y exigen JWT; antes daban `404`).
+
+**Lo que NO se puede deshacer**: lo servido durante el período de
+exposición pudo copiarse o cachearse fuera de nuestro control; cerrar la
+ruta solo deja de servirlo. Quien haya visto los motores tiene la
+metodología completa de ICE-IEH/CFF/PIIO al nivel de código. No hay
+forma de saber si alguien lo hizo (no revisé logs de acceso).
+
+**Pendiente derivado, no bloqueante**:
+- `SUPABASE_URL`/`SUPABASE_ANON_KEY` en Cloudflare: si no están, los
+  endpoints `/api/calcular-*` darán `500` con JWT válido (no filtra
+  nada). Luis lo revisa.
+- Revisar los otros Workers de la cuenta (`amar-*`, `el-amor-existe`,
+  `payhip-webhook-*`) por el mismo patrón de `.assetsignore` incompleto.
+- Este arreglo es **contra el patrón**, no contra el síntoma: mientras
+  `wrangler.jsonc` siga sirviendo `directory: "."`, cualquier archivo
+  `.html` nuevo en la raíz **se publicará** (es lo que la lista blanca
+  permite a propósito). Un `.html` con información interna en la raíz
+  sería público.
