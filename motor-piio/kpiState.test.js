@@ -152,6 +152,16 @@ eq(nr.flags, ['NEW_REGIME'], '...flags=[NEW_REGIME] únicamente — la rama se e
 var snu = K.resolverTrayectoria([10, 13], rt, { continuidad: { puede_unir_serie: false } }, 'HIGHER_IS_WORSE', refCond());
 eq(snu.traj, 'N_A', 'serie no une → traj=N_A (INV-29)');
 ok(tieneFlag(snu, 'SERIE_NO_UNE'), '...por SERIE_NO_UNE (INV-29)');
+// BRIDGE_SIN_REGLA visible en KPI_STATE.flags (PENDIENTES §8): un BRIDGED sin
+// regla ya no es indistinguible de una NEW_SERIES legítima.
+var contBr = { modo: 'NEW_SERIES', puede_unir_serie: false, flags: ['BRIDGE_SIN_REGLA'] };
+var brNR = K.resolverTrayectoria([10, 13], rt, { continuidad: contBr }, 'HIGHER_IS_WORSE', refCond());
+eq(brNR.traj, 'N_A', 'BRIDGED sin regla → traj=N_A (AC15 / INV-29 sigue igual)');
+eq(brNR.flags, ['NEW_REGIME', 'BRIDGE_SIN_REGLA'], '...flags = NEW_REGIME + BRIDGE_SIN_REGLA (rama NEW_REGIME)');
+var brSNU = K.resolverTrayectoria([10, 13], rt, { continuidad: { puede_unir_serie: false, flags: ['BRIDGE_SIN_REGLA'] } }, 'HIGHER_IS_WORSE', refCond());
+eq(brSNU.flags, ['SERIE_NO_UNE', 'BRIDGE_SIN_REGLA'], '...flags = SERIE_NO_UNE + BRIDGE_SIN_REGLA (rama SERIE_NO_UNE)');
+var nsLeg = K.resolverTrayectoria([10, 13], rt, { continuidad: { modo: 'NEW_SERIES', puede_unir_serie: false, flags: [] } }, 'HIGHER_IS_WORSE', refCond());
+eq(nsLeg.flags, ['NEW_REGIME'], 'NEW_SERIES legítima: NO lleva BRIDGE_SIN_REGLA (se distingue del BRIDGED mal declarado)');
 
 // ═══════════════════════════════════════════════════════════════════════
 seccion('§11.3 / §28 — PERSISTENCIA (AJ — REAPERTURA Fase 5, 3 niveles de precedencia)');

@@ -113,9 +113,13 @@ function resolverTrayectoria(serieValores, refTempRes, directivas, directionalit
   if (!refTempRes || !refTempRes.ref || refTempRes.admissibility === 'NOT_ADMISSIBLE') {
     return { traj: 'N_A', flags: ['REF_TEMP_NO_ADMISIBLE'] };
   }
-  if (temporal.regimen(directivas || {}) === 'NEW_REGIME') return { traj: 'N_A', flags: ['NEW_REGIME'] }; // INV-28 / AC13
+  // Flags que `continuidadDefinicion` ya calculó (p. ej. BRIDGE_SIN_REGLA): sin
+  // esto, un BRIDGED sin regla es indistinguible en la salida de una NEW_SERIES
+  // legítima (PENDIENTES §8, decisión de Luis 2026-09-26).
+  var contFlags = (directivas && directivas.continuidad && directivas.continuidad.flags) || [];
+  if (temporal.regimen(directivas || {}) === 'NEW_REGIME') return { traj: 'N_A', flags: ['NEW_REGIME'].concat(contFlags) }; // INV-28 / AC13
   if (directivas && directivas.continuidad && directivas.continuidad.puede_unir_serie === false) {
-    return { traj: 'N_A', flags: ['SERIE_NO_UNE'] }; // INV-29 / AC16
+    return { traj: 'N_A', flags: ['SERIE_NO_UNE'].concat(contFlags) }; // INV-29 / AC16
   }
 
   var mag, base;

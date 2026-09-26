@@ -599,9 +599,19 @@ registra aquí solo para que no se pierda entre sesiones:
 
 ## 8. PIIO — la alerta `BRIDGE_SIN_REGLA` se calcula pero no llega a ninguna salida (observación, sin decidir si es defecto)
 
-**Estado: VERIFICADO CONTRA EL DOCUMENTO TÉCNICO (2026-09-26) — EL
-DOCUMENTO NO EXIGE LA ALERTA; queda como decisión de Luis, sin tocar el
-motor.** Hallazgo original más abajo, sin editar.
+**Estado: RESUELTO (2026-09-26, decisión de Luis: volcar el flag).** El
+documento técnico no exigía la alerta (verificado, abajo); se implementó
+igual por decisión de Luis. `resolverTrayectoria` (`kpiState.js`) ahora
+agrega a `flags` los flags que `continuidadDefinicion` ya había calculado
+(`BRIDGE_SIN_REGLA`), tanto en la rama `NEW_REGIME` como en `SERIE_NO_UNE`.
+Resultado extremo a extremo (`runPIIOCompleto`, 2 períodos): `BRIDGED` sin
+regla → `traj = N_A` y `flags` con `BRIDGE_SIN_REGLA`; `NEW_SERIES` legítima
+→ `traj = N_A` sin ese flag (ya distinguibles). `traj` no cambia (AC15 /
+INV-29 intactos). Tests: 4 asserts en `kpiState.test.js` + 2 extremo a
+extremo en `invariantes_aceptacion.test.js`; revertir el cambio hace fallar
+2 de `kpiState`; `motor-piio` todas las suites verdes; `worker.test.mjs`
+49/49. Hallazgo original y verificación contra el documento más abajo, sin
+editar.
 
 **Lo que el documento dice, textual** (`Documento_Tecnico_PIIO_v1_1_FINAL.docx`,
 extraído a texto; búsqueda de `bridge`, `continuity`, `nueva serie`,

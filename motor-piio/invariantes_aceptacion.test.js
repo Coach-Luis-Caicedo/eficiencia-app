@@ -183,6 +183,15 @@ ok(kpiPos(r13, 'k1').data_quality !== 'INVALID', 'AC14: continuity_mode=CONTINUO
 
 var r14 = R.runPIIOCompleto(baseInput({ metric_definitions: [md({ continuity_mode: 'BRIDGED' })] }));
 ok(r14.kpi_states.length > 0, 'AC15: BRIDGED sin bridge_rule se trata como NEW_SERIES (Fase 3) — la corrida sigue, sin unir series a ciegas');
+// PENDIENTES §8 (extremo a extremo): con historia suficiente, el KPI_STATE del
+// BRIDGED sin regla lleva BRIDGE_SIN_REGLA; la NEW_SERIES legítima, no.
+var obs2 = [obs({ value: 80, numerator: 80 }), obs({ observation_id: 'o1b', period_start: '2026-02', period_end: '2026-02', value: 30, numerator: 30 })];
+var rBr = R.runPIIOCompleto(baseInput({ periods: ['2026-01', '2026-02'], observations: obs2, metric_definitions: [md({ continuity_mode: 'BRIDGED' })] }));
+var rNs = R.runPIIOCompleto(baseInput({ periods: ['2026-01', '2026-02'], observations: obs2, metric_definitions: [md({ continuity_mode: 'NEW_SERIES' })] }));
+var stBr = rBr.kpi_states.filter(function (s) { return s.period === '2026-02'; })[0];
+var stNs = rNs.kpi_states.filter(function (s) { return s.period === '2026-02'; })[0];
+ok(stBr.traj === 'N_A' && stBr.flags.indexOf('BRIDGE_SIN_REGLA') !== -1, 'AC15 + §8: BRIDGED sin regla → traj=N_A Y flags incluye BRIDGE_SIN_REGLA en KPI_STATE');
+ok(stNs.traj === 'N_A' && stNs.flags.indexOf('BRIDGE_SIN_REGLA') === -1, '...NEW_SERIES legítima → traj=N_A SIN BRIDGE_SIN_REGLA (ya distinguibles)');
 
 // ═══════════════════════════════════════════════════════════════════════
 seccion('§14 — EVIDENCE_GROUP (AC20-22, INV-12/16/17)');
