@@ -169,8 +169,10 @@ ok(!rRangoObserved.valido, 'rango + monetization_status=OBSERVED → inválido (
 ok(rRangoObserved.invalidos.some(function (m) { return m.indexOf('OBSERVED') !== -1; }), 'el mensaje explica por qué');
 ok(C.validarEconomicComponent(componenteRango({ original_value_min: 900, original_value_max: 1100, monetization_status: 'EXPOSURE' })).valido,
   'rango + monetization_status=EXPOSURE → válido (solo OBSERVED está prohibido con rango)');
-ok(C.validarEconomicComponent(componenteRango({ original_value_min: 900, original_value_max: 1100, monetization_status: 'N_A' })).valido,
-  'rango + monetization_status=N_A → válido (completa los 4 valores de MONETIZATION_STATUS contra la regla: únicamente OBSERVED queda excluido)');
+ok(!C.validarEconomicComponent(componenteRango({ original_value_min: 900, original_value_max: 1100, monetization_status: 'N_A' })).valido,
+  'rango + monetization_status=N_A → INVÁLIDO (regla 7b, Q4: N_A no lleva cifra, ni valor ni rango; antes era válido)');
+ok(!C.validarEconomicComponent(componenteBase({ monetization_status: 'N_A' })).valido,
+  'original_value + monetization_status=N_A → INVÁLIDO (regla 7b: N_A y cifra son mutuamente excluyentes)');
 
 // ── Fase 1: recovery_realization_type (§7.1, campo nuevo — extensión del contrato) ──
 

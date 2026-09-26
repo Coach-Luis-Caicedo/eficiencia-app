@@ -56,10 +56,12 @@
  *      solo trae rango (nunca se promedia, nunca se elige un extremo —
  *      motor-cff/monetizacion.js). original_value_min/max también son
  *      campos NUEVOS, no están en el §22.2 literal.
- *   7b. (Q4, PENDIENTES §7) Excepción a 7: con monetization_status='N_A' el
- *      componente PUEDE no traer ninguna representación de valor ("detectado,
- *      no cuantificado"). El motor lo trata como material NO evaluado
- *      monetariamente (cobertura, limitations) y nunca lo suma ni inventa 0.
+ *   7b. (Q4, PENDIENTES §7) monetization_status='N_A' y la cifra son
+ *      MUTUAMENTE EXCLUYENTES: con N_A el componente NO trae original_value ni
+ *      rango ("detectado, no cuantificado", sin valor centinela; AC20); con
+ *      cualquier otro estado la cifra sigue siendo obligatoria (regla 7). El
+ *      motor lo trata como material NO evaluado monetariamente (cobertura,
+ *      limitations, cost_reconciliation) y nunca lo suma ni inventa 0.
  *   8. Cuando original_value_min/max están presentes (resultado en rango),
  *      monetization_status NO puede ser OBSERVED — un valor con
  *      incertidumbre estructural no es "observado" en el sentido de §10.
@@ -278,10 +280,14 @@ function reglasCondicionalesEconomicComponent(obj) {
     if (tieneValor && tieneRangoCompleto) {
       extra.push('original_value y original_value_min/max son mutuamente excluyentes — no declarar ambos, no promediar (mismo principio que MONETARY_BASIS.basis_value, §9)');
     }
-    // Regla 7b (PENDIENTES §7 Q4, decisión de Luis): "sin cifra" explícito, SIN valor
-    // centinela. monetization_status='N_A' ("no existe base suficiente para clasificar
-    // monetización", §10) admite no traer ninguna representación de valor: el impacto se
-    // detectó pero no se cuantificó. Con cualquier otro estado la cifra sigue siendo obligatoria.
+    // Regla 7b (PENDIENTES §7 Q4, decisión de Luis): "sin cifra" explícito, SIN valor centinela, y
+    // en las DOS direcciones: monetization_status='N_A' ("no existe base suficiente para clasificar
+    // monetización", §10) NO puede traer ninguna representación de valor (original_value ni rango) --
+    // "N_A no inventa cifra" (AC20, INV-CFF-55); con cualquier otro estado la cifra es obligatoria.
+    var tieneAlgunValor = tieneValor || tieneMin || tieneMax;
+    if (obj.monetization_status === 'N_A' && tieneAlgunValor) {
+      extra.push('monetization_status=N_A no puede traer original_value ni original_value_min/max: N_A significa "sin base para valorar" y no lleva cifra (AC20, INV-CFF-55); si hay cifra, el estado no es N_A');
+    }
     if (!tieneValor && !tieneRangoCompleto && !tieneMin && !tieneMax && obj.monetization_status !== 'N_A') {
       extra.push('debe declararse original_value, o original_value_min y original_value_max — ninguna representación de valor presente (solo monetization_status=N_A admite "sin cifra" explícita)');
     }
