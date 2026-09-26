@@ -659,3 +659,37 @@ forma de saber si alguien lo hizo (no revisé logs de acceso).
   `.html` nuevo en la raíz **se publicará** (es lo que la lista blanca
   permite a propósito). Un `.html` con información interna en la raíz
   sería público.
+
+
+---
+
+## 11. Worker — `calcular-aie` falla con datos reales en los meses de menos de 31 días (`p_hasta: period + '-31'`)
+
+**Estado: PENDIENTE. BLOQUEANTE para `calcular-aie` en 5 de 12 meses.
+Encontrado 2026-09-26** al calcular los 8 motores sobre las 5
+organizaciones de simulación ya generadas (mismo flujo que el handler).
+
+**Error exacto** (respuesta real de Supabase a la llamada que hace el
+handler): `leer_respuestas_sdmo` → `{"code":"22008","message":"date/time
+field value out of range: \"2026-04-31\""}`.
+
+**Causa**: `src/worker.js:142` (`calcularAieHandler`) arma el rango de
+`SDMO` como `p_desde: period + '-01'`, `p_hasta: period + '-31'`.
+`leer_respuestas_sdmo` recibe `date` (033: `sdmo_respuestas.jornada` es
+`date`), y `-31` no existe en febrero, abril, junio, septiembre ni
+noviembre. Para 2026 fallan `2026-02`, `2026-04`, `2026-06`, `2026-09`,
+`2026-11`; una serie de períodos que incluya cualquiera de ellos hace
+fallar **toda** la corrida de `AIE`.
+
+**Por qué no se vio**: `src/worker.test.mjs` sección 11 usa el mock de
+`fetch`, que responde cualquier `p_hasta` sin validar que sea una fecha
+real. Misma clase de trampa que §6 (mock que no reproduce la base).
+
+**Resolución (para decidir, no ejecutada)**: calcular el último día real
+del mes (`new Date(Date.UTC(y, m, 0)).getUTCDate()`) en vez de `-31`, y
+un test con un mes de 30 días y febrero que valide la fecha (no solo que
+la RPC se llame).
+
+**Bloquea**: `calcular-aie` contra datos reales para cualquier serie que
+contenga uno de esos meses (con los 6 períodos de la simulación,
+2026-04..2026-09, contiene 3: abril, junio, septiembre).
