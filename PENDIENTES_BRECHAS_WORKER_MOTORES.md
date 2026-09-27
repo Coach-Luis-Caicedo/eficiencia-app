@@ -1095,3 +1095,62 @@ falla es en AMBOS ejes), atribución `N_A` con monetización OBSERVED/ESTIMATED
 El cruce monetización `N_A` × CONFIRMED/SUPPORTED sí va a "efectos sin
 valoración" (§10 define `N_A` sin atribución y "Calidad de monetización ≠ calidad
 de atribución").
+
+---
+
+## 16. CFF/IFD — reconciliación entre costo realizado y exposición futura, pedida por la auditoría, no construida
+
+**Estado: PENDIENTE, no bloqueante hoy** (nada del sistema depende de esto para
+funcionar), pero dejar cerrado el tema de `cost_reconciliation` (§15) sin esta
+entrada sería impreciso: son dos piezas distintas y no hay que confundirlas en
+una relectura futura.
+
+**Origen**: `docs/Informe_revision_arquitectura_EFICIENCIA_23Sep2026.docx`
+(auditoría externa, 23 de septiembre de 2026; extraído a texto el
+2026-09-27, sin pandoc instalado — desempaquetando el `.docx` y despojando
+las etiquetas XML de `word/document.xml`). Cita textual exacta, cuadro
+"Debilidades de interpretación y acciones propuestas", fila CFF:
+
+> "La cifra consolidada exige atribución, admisibilidad y cobertura.
+> Componentes no resueltos pueden quedar fuera del total atribuible."
+> — "Presentar mapa reconciliado de costo cuantificado, parte atribuible,
+> atribución pendiente, otras causas, exposición y efectos sin valoración;
+> conservar exclusiones y prevenir duplicados."
+
+Esa fila es la que dio origen a `cost_reconciliation` (§15) y ya está resuelta
+para CFF solo. Pero la fila IFD del mismo cuadro pide algo que **no** se
+construyó:
+
+> "IFD proyecta consecuencias futuras y EEB no se reduce por una categoría de
+> atribución. VER, ROI_P y TRE siguen pendientes de auditoría." —
+> "Separar costo ocurrido de exposición futura; enlazar fenómeno, evento,
+> componente y ventana temporal antes de cualquier suma; impedir ROI o ahorro
+> no normativos."
+
+Y la tabla "Estado de las afirmaciones principales" marca, sin resolver:
+
+> "CFF e IFD incurren hoy en doble conteo" — "No verificado. Existe un riesgo
+> de integración que exige reconciliación."
+
+Las prioridades de la segunda revisión (punto 3) lo hacen explícito:
+
+> "inspeccionar el informe económico real y construir la reconciliación de
+> CFF con IFD sin sumar exposición futura a costo realizado."
+
+**Distinción con §15, para que no se confundan**: `cost_reconciliation` es de
+**un solo motor** (CFF): reorganiza `cff_total`, `exposure_total`,
+`unresolved_impact_total` y los componentes `N_A` de CFF en 5 categorías. Lo
+que pide esta entrada es **entre dos motores** (CFF e IFD): que un mismo
+fenómeno/evento no se sume dos veces — una vez como costo realizado en CFF y
+otra vez como proyección futura en IFD (`VER`/`ROI_P`/`TRE`) — y que la
+"exposición futura" de IFD no se mezcle con el "costo realizado" de CFF sin
+distinguirlos. No existe hoy ningún arnés ni código que cruce estos dos
+motores; el arnés más cercano documentado (`motor-piio↔motor-cff/motor-ifd`,
+Fase 12c de PIIO) prueba la integración de PIIO con CFF e IFD por separado,
+no la reconciliación CFF↔IFD que pide la auditoría.
+
+**No ejecutado, no diseñado.** Antes de construir nada aquí: definir qué
+campo de IFD (`VER`, `ROI_P`, `TRE`, o el propio `EPD`) se cruza con qué
+campo de CFF (`cff_total`, `exposure_total`, o un componente específico) y
+con qué llave (fenómeno/evento/componente + ventana temporal, como pide la
+cita) — nada de eso está definido todavía.
