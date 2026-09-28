@@ -1255,3 +1255,44 @@ diferencia del modo CSV, que sí muestra "Lote X de Y" en vivo. No es un
 error, pero es una experiencia de espera larga y silenciosa. Señalado para
 decidir si vale la pena una barra de progreso aquí también, no resuelto en
 esta ronda (no pedido).
+
+---
+
+## 20. Creación de organización — extender a carga automática por archivo, igual que las invitaciones
+
+**Estado: PENDIENTE, no bloqueante, NO diseñado.** Decisión de Luis
+(2026-09-28), registrada para no perderla mientras se sigue con el
+diagnóstico de Brevo. Se retoma cuando Luis lo priorice.
+
+**Contexto**: `crear_organizacion.html` (el nuevo, de 3 pasos) solo
+captura `nombre` y `sector`. El formulario legacy incrustado en
+`workbook.html` (`#norg-*`, líneas ~660-735) captura mucho más — país,
+áreas/departamentos, insumos del CFF (salario promedio, rotación base),
+directivo responsable, coordinador, comité de supervisión (lista de
+personas) — y hoy se llena a mano.
+
+**Decisión de Luis**: la creación de organización debe ser full
+automática, igual que ya se hizo con las invitaciones (§0 de
+`DISENO_ENVIO_INVITACIONES_BREVO.md`: la empresa provee el archivo, el
+consultor solo lo carga, sin escritura manual que pueda fallar). El
+archivo debe traer la información completa que hoy captura el formulario
+legacy.
+
+**Complejidad real, señalada para cuando se diseñe (no resuelta aquí)**:
+los campos no todos tienen la misma forma. Algunos son planos (país,
+sector), otros son listas (áreas — "una por línea"), y otros son listas de
+objetos con varios campos cada uno (comité de supervisión: nombre/cargo/
+email/teléfono, cantidad variable de personas). Un CSV de 3 columnas plano
+(el patrón que ya funciona para invitaciones) no alcanza aquí — hay que
+investigar la forma correcta del archivo (¿`.xlsx` con varias hojas?
+¿JSON estructurado? ¿varios CSV?) antes de diseñar la pantalla, mismo
+criterio que ya se usó para `MAPEO_ENTRADA_DATOS_WORKBOOK_NUEVO.md`.
+
+**Relacionado, sin resolver todavía tampoco**: `crear_organizacion.html`
+no está enlazado desde ningún punto de navegación real del sitio hoy
+(§ hallazgo de esta misma sesión, 2026-09-28) — el botón real de "Crear
+organización" en `workbook.html` sigue abriendo el formulario legacy
+incrustado, no esta página. Cuándo y cómo transicionar de uno a otro
+(y si esta ronda de carga por archivo debe esperar a esa transición, o
+construirse ya sobre `crear_organizacion.html` de todos modos) también
+queda sin decidir.
