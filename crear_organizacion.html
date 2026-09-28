@@ -163,6 +163,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--paper);color:var(--ink);f
       <div class="err-box" id="invitacion-err"></div>
       <div class="fg"><label class="fl">Identificador de la persona</label><input type="text" class="fi" id="inv-persona"><span class="fhint">Solo para ti -- ej. un nombre, un número de empleado. No se comparte con nadie más.</span></div>
       <div class="fg"><label class="fl">Nodo / área</label><input type="text" class="fi" id="inv-node"></div>
+      <div class="fg"><label class="fl">Correo</label><input type="text" class="fi" id="inv-email"></div>
       <button class="btn btn-gold" id="btn-invitacion" onclick="generarInvitacion()">Generar invitación</button>
     </div>
 
@@ -173,7 +174,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--paper);color:var(--ink);f
       <div class="fg">
         <label class="fl">Archivo CSV</label>
         <input type="file" accept=".csv,.txt" class="fi" id="csv-file" onchange="onArchivoCSV(event)">
-        <span class="fhint csv-hint">Encabezado obligatorio en la primera línea: <code>persona_id,node_id</code>, una fila por persona.</span>
+        <span class="fhint csv-hint">Encabezado obligatorio en la primera línea: <code>persona_id,node_id,email</code>, una fila por persona.</span>
       </div>
       <div class="err-box" id="csv-encabezado-err"></div>
 
@@ -240,6 +241,7 @@ var supa = supabase.createClient(SUPA_URL, SUPA_KEY);
 // creación, no algo que deba sobrevivir un refresh).
 var ORG_ID = null;
 var ORG_NOMBRE = null;
+var INV_GENERADA = null; // {persona_id, node_id, codigo, email} -- última invitación generada en modo "Una persona", mismo shape que una fila de CSV_GENERADAS
 
 function mostrarPaso(id) {
   ['paso-login', 'paso-crear-org', 'paso-invitacion', 'paso-enlace'].forEach(function (p) {
@@ -325,12 +327,17 @@ function generarInvitacion() {
   ocultarError('invitacion-err');
   var persona = document.getElementById('inv-persona').value.trim();
   var node = document.getElementById('inv-node').value.trim();
-  if (!persona || !node) {
-    mostrarError('invitacion-err', 'Completa el identificador de la persona y el nodo/área.');
+  var email = document.getElementById('inv-email').value.trim();
+  if (!persona || !node || !email) {
+    mostrarError('invitacion-err', 'Completa el identificador de la persona, el nodo/área y el correo.');
     return;
   }
   var btn = document.getElementById('btn-invitacion');
   btn.disabled = true;
+  // p_asignaciones NO lleva email -- generar_invitaciones_cuestionario
+  // (034) solo acepta {persona_id, node_id}, sin cambios. email se
+  // retiene del lado del cliente y se reúne con el resultado de la RPC
+  // abajo -- mismo criterio que el modo CSV (DISENO_CARGA_MASIVA_CSV.md §4).
   supa.schema('motores_eficiencia').rpc('generar_invitaciones_cuestionario', {
     p_organization_id: ORG_ID,
     p_asignaciones: [{ persona_id: persona, node_id: node }]
@@ -345,6 +352,7 @@ function generarInvitacion() {
       return;
     }
     var codigo = res.data[0].codigo;
+    INV_GENERADA = { persona_id: res.data[0].persona_id, node_id: res.data[0].node_id, codigo: codigo, email: email };
     var base = window.location.href.replace(/crear_organizacion\.html.*$/, '');
     document.getElementById('link-ice-ieh').textContent = base + 'cuestionario_ice_ieh.html?codigo=' + codigo;
     document.getElementById('link-sdmo').textContent = base + 'sdmo_nuevo.html?codigo=' + codigo;
@@ -356,6 +364,7 @@ function generarInvitacion() {
 function volverAInvitacion() {
   document.getElementById('inv-persona').value = '';
   document.getElementById('inv-node').value = '';
+  document.getElementById('inv-email').value = '';
   ocultarError('invitacion-err');
   mostrarPaso('paso-invitacion');
 }
@@ -368,18 +377,20 @@ function cambiarModo(modo) {
   document.getElementById('modo-csv').classList.toggle('hidden', modo !== 'csv');
 }
 
-var CSV_VALIDAS = [];        // {persona_id, node_id, linea}
-var CSV_GENERADAS = [];      // {persona_id, node_id, codigo} -- acumulador de éxito
+var CSV_VALIDAS = [];        // {persona_id, node_id, email, linea}
+var CSV_GENERADAS = [];      // {persona_id, node_id, codigo, email} -- acumulador de éxito
 var CSV_LOTES_FALLIDOS = []; // {indice, filas, error}
 
 // parsearCSV -- DISENO_CARGA_MASIVA_CSV.md §2, verbatim. Sensible a
 // mayúsculas en persona_id/node_id (mismo criterio que la base de
 // datos, sin inventar una normalización que no existe en ningún otro
 // lugar del sistema); encabezado insensible a mayúsculas/espacios.
+// email solo se valida como no-vacío -- ningún otro punto del sistema
+// valida formato de correo, no se inventa aquí (DISENO_CARGA_MASIVA_CSV.md §2).
 function parsearCSV(texto) {
   var lineas = texto.split(/\r\n|\n|\r/);
   var header = (lineas[0] || '').split(',').map(function (s) { return s.trim().toLowerCase(); });
-  if (header.length !== 2 || header[0] !== 'persona_id' || header[1] !== 'node_id') {
+  if (header.length !== 3 || header[0] !== 'persona_id' || header[1] !== 'node_id' || header[2] !== 'email') {
     return { encabezadoValido: false };
   }
   var validas = [];
@@ -389,14 +400,15 @@ function parsearCSV(texto) {
     var cruda = lineas[i];
     if (cruda.trim() === '') continue; // fila vacía -- ignorada en silencio
     var partes = cruda.split(',');
-    if (partes.length !== 2) {
-      errores.push({ linea: i + 1, contenido: cruda, motivo: 'no tiene exactamente 2 columnas' });
+    if (partes.length !== 3) {
+      errores.push({ linea: i + 1, contenido: cruda, motivo: 'no tiene exactamente 3 columnas' });
       continue;
     }
     var persona_id = partes[0].trim();
     var node_id = partes[1].trim();
-    if (!persona_id || !node_id) {
-      errores.push({ linea: i + 1, contenido: cruda, motivo: 'persona_id o node_id vacío' });
+    var email = partes[2].trim();
+    if (!persona_id || !node_id || !email) {
+      errores.push({ linea: i + 1, contenido: cruda, motivo: 'persona_id, node_id o email vacío' });
       continue;
     }
     if (vistos.hasOwnProperty(persona_id)) {
@@ -404,7 +416,7 @@ function parsearCSV(texto) {
       continue;
     }
     vistos[persona_id] = i + 1;
-    validas.push({ persona_id: persona_id, node_id: node_id, linea: i + 1 });
+    validas.push({ persona_id: persona_id, node_id: node_id, email: email, linea: i + 1 });
   }
   return { encabezadoValido: true, validas: validas, errores: errores };
 }
@@ -430,7 +442,7 @@ function onArchivoCSV(event) {
   lector.onload = function (e) {
     var resultado = parsearCSV(e.target.result);
     if (!resultado.encabezadoValido) {
-      mostrarError('csv-encabezado-err', 'La primera línea del archivo debe ser exactamente "persona_id,node_id". Revisa el archivo e inténtalo de nuevo.');
+      mostrarError('csv-encabezado-err', 'La primera línea del archivo debe ser exactamente "persona_id,node_id,email". Revisa el archivo e inténtalo de nuevo.');
       return;
     }
     renderizarResultadoParseo(resultado);
@@ -497,6 +509,10 @@ async function iniciarCargaCSV() {
   for (var l = 0; l < lotes.length; l++) {
     actualizarProgresoCSV(l + 1, lotes.length, CSV_GENERADAS.length, CSV_VALIDAS.length);
     var lote = lotes[l];
+    // p_asignaciones NO lleva email -- generar_invitaciones_cuestionario
+    // (034) solo acepta {persona_id, node_id}, sin cambios. email se
+    // retiene del lado del cliente y se reúne con el resultado de la
+    // RPC más abajo, por persona_id (único dentro del lote).
     var asignaciones = lote.map(function (f) { return { persona_id: f.persona_id, node_id: f.node_id }; });
     var res = await supa.schema('motores_eficiencia').rpc('generar_invitaciones_cuestionario', {
       p_organization_id: ORG_ID,
@@ -505,7 +521,12 @@ async function iniciarCargaCSV() {
     if (res.error) {
       CSV_LOTES_FALLIDOS.push({ indice: l + 1, filas: lote, error: res.error.message || 'error desconocido' });
     } else {
-      CSV_GENERADAS = CSV_GENERADAS.concat(res.data);
+      var emailPorPersona = {};
+      lote.forEach(function (f) { emailPorPersona[f.persona_id] = f.email; });
+      var filasConEmail = res.data.map(function (f) {
+        return { persona_id: f.persona_id, node_id: f.node_id, codigo: f.codigo, email: emailPorPersona[f.persona_id] };
+      });
+      CSV_GENERADAS = CSV_GENERADAS.concat(filasConEmail);
     }
   }
   actualizarProgresoCSV(lotes.length, lotes.length, CSV_GENERADAS.length, CSV_VALIDAS.length);
@@ -556,9 +577,9 @@ function mostrarResultadoFinalCSV() {
 // que ya devuelve generar_invitaciones_cuestionario (034:36), sin
 // transformar nada (DISENO_CARGA_MASIVA_CSV.md §5).
 function construirCSVSalida(generadas) {
-  var lineas = ['persona_id,node_id,codigo'];
+  var lineas = ['persona_id,node_id,codigo,email'];
   generadas.forEach(function (f) {
-    lineas.push([f.persona_id, f.node_id, f.codigo].join(','));
+    lineas.push([f.persona_id, f.node_id, f.codigo, f.email].join(','));
   });
   return lineas.join('\n');
 }
