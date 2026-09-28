@@ -1222,6 +1222,31 @@ masivo fallará a mitad de camino de forma predecible y hay que probarlo
 primero con un lote pequeño (25-30) para confirmar el punto exacto de
 corte, no directo con 190.
 
+**No es solo un problema de la prueba — es un límite real de producción**
+(decisión de Luis, 2026-09-28): con el diseño actual (2 subrequests por
+fila, sin troceo del lado del cliente), **cualquier organización con más
+de ~25 empleados va a chocar con esto en uso normal**, no solo en pruebas
+de escala. El proyecto sigue en construcción y no tiene clientes reales
+todavía, así que no hace falta resolverlo hoy — pero hay que decidir el
+camino **antes del primer cliente real de tamaño mediano**. Dos caminos,
+sin elegir:
+
+- **(a)** Subir el Worker a Cloudflare Workers Paid (~US$5/mes) — sube el
+  límite a 10.000 subrequests por defecto. Resuelve de raíz sin tocar
+  código. Camino simple, pero es un costo recurrente y no corrige el
+  límite en sí (10.000 también se agotaría con una organización lo
+  bastante grande, aunque muy por encima de cualquier escala plausible hoy).
+- **(b)** Rediseñar `enviar-invitaciones-cuestionario` para trocear el
+  envío en varias llamadas HTTP (el cliente llama el endpoint repetidas
+  veces, un lote a la vez — mismo patrón que ya usa `generarLotes()` del
+  CSV para *generar* invitaciones, `DISENO_CARGA_MASIVA_CSV.md §4`, solo
+  que aplicado al *envío*). Evita el costo mensual, pero es más código y
+  más superficie de fallo (progreso parcial entre llamadas, qué pasa si
+  el cliente cierra la pestaña a mitad de camino, etc.).
+
+No diseñado aquí — señalado para decidir con tiempo, no bajo la presión de
+una prueba fallando.
+
 **Aparte, esperable aunque no falle**: aun en plan Paid, 190 envíos
 secuenciales (Brevo + RPC por fila) probablemente toman **1-2.5 minutos
 de espera real** (estimado, no medido) en una sola llamada HTTP, con el
