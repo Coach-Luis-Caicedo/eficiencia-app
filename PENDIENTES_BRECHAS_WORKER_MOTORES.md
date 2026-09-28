@@ -1179,3 +1179,54 @@ SDMO (no un enlace de invitación único) antes de construir su envío
 automático. Mismo criterio que `invitaciones_fpv` en la migración `046`
 (mismo hueco estructural, señalado y dejado fuera a propósito) — no
 perder de vista, no resolver aquí.
+
+---
+
+## 19. Worker — `enviar-invitaciones-cuestionario` puede chocar con el límite de subrequests de Cloudflare, según el plan (verificado por lectura, no ejecutado a esa escala)
+
+**Estado: RIESGO IDENTIFICADO, no verificado por ejecución a escala real.
+Confirmar el plan de Cloudflare del Worker `eficiencia-app` ANTES de correr
+la prueba de 190 invitaciones.**
+
+**Por qué**: `enviarInvitacionesCuestionarioHandler` hace, por cada fila,
+2 llamadas de red desde el Worker: 1 a Brevo (`fetch`) + 1 RPC a Supabase
+(`marcar_invitacion_notificada`, también `fetch` por dentro,
+`src/lib/supabaseRpc.js`). Cada una de esas cuenta como un *subrequest* de
+Cloudflare Workers. 190 invitaciones = **380 subrequests** en una sola
+invocación del Worker (una sola petición HTTP del cliente).
+
+**Verificado contra la documentación oficial de Cloudflare (2026-09-28,
+`developers.cloudflare.com/workers/platform/limits`)**:
+
+| | Plan Free | Plan Paid |
+|---|---|---|
+| Subrequests por invocación | **50** | 10.000 (por defecto; configurable hasta 10 millones) |
+| CPU time por request | 10 ms | 30 s por defecto (hasta 5 min) |
+| Duración de pared (wall-clock) para un request HTTP | — | **sin límite mientras el cliente siga conectado** (`fetch()`/RPC en espera de red no cuenta como CPU time) |
+
+**Con el plan Free, 380 subrequests SUPERA por mucho el límite de 50** —
+el Worker fallaría alrededor de la invitación #25 (50 subrequests / 2 por
+fila), a la mitad del lote, con las primeras ~25 ya enviadas y marcadas
+pero el resto sin procesar. Con el plan Paid, 380 está muy por debajo de
+10.000 — sin riesgo por este límite.
+
+**El tiempo de CPU no es el riesgo real** (cada iteración solo parsea JSON
+pequeño; la espera de red no cuenta) — el riesgo real, si algo falla, es el
+límite de *subrequests*, no el de tiempo de ejecución que originalmente se
+sospechaba.
+
+**No verificado**: qué plan de Cloudflare tiene el proyecto `eficiencia-app`
+hoy (no tengo acceso al dashboard de Cloudflare). **Antes de correr el caso
+de 190 invitaciones reales, confirmar el plan** — si es Free, el envío
+masivo fallará a mitad de camino de forma predecible y hay que probarlo
+primero con un lote pequeño (25-30) para confirmar el punto exacto de
+corte, no directo con 190.
+
+**Aparte, esperable aunque no falle**: aun en plan Paid, 190 envíos
+secuenciales (Brevo + RPC por fila) probablemente toman **1-2.5 minutos
+de espera real** (estimado, no medido) en una sola llamada HTTP, con el
+botón deshabilitado y sin ninguna barra de progreso mientras tanto — a
+diferencia del modo CSV, que sí muestra "Lote X de Y" en vivo. No es un
+error, pero es una experiencia de espera larga y silenciosa. Señalado para
+decidir si vale la pena una barra de progreso aquí también, no resuelto en
+esta ronda (no pedido).

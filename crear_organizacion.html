@@ -198,6 +198,9 @@ body{font-family:'DM Sans',sans-serif;background:var(--paper);color:var(--ink);f
         <div class="ok-box" id="csv-resumen-final"></div>
         <div class="csv-error-list hidden" id="csv-lotes-fallidos"></div>
         <button class="btn btn-gold hidden" id="btn-csv-descargar" onclick="descargarResultadosCSV()">Descargar CSV de resultados</button>
+        <button class="btn btn-outline hidden" id="btn-csv-enviar-correo" onclick="enviarCorreoCSV()">Enviar invitaciones por correo</button>
+        <div class="ok-box hidden" id="csv-envio-resumen"></div>
+        <div class="csv-error-list hidden" id="csv-envio-fallidos"></div>
         <button class="btn btn-outline" onclick="reiniciarCSV()">Cargar otro archivo</button>
       </div>
 
@@ -225,6 +228,10 @@ body{font-family:'DM Sans',sans-serif;background:var(--paper);color:var(--ink);f
         <button class="btn btn-copy btn-outline" onclick="copiarEnlace('link-sdmo', this)">Copiar</button>
       </div>
     </div>
+
+    <button class="btn btn-outline" id="btn-enviar-correo" onclick="enviarCorreoUnaPersona()">Enviar invitación por correo</button>
+    <div class="ok-box hidden" id="envio-resumen"></div>
+    <div class="csv-error-list hidden" id="envio-fallidos"></div>
 
     <button class="btn btn-outline" onclick="volverAInvitacion()">+ Generar otra invitación</button>
   </div>
@@ -357,6 +364,8 @@ function generarInvitacion() {
     document.getElementById('link-ice-ieh').textContent = base + 'cuestionario_ice_ieh.html?codigo=' + codigo;
     document.getElementById('link-sdmo').textContent = base + 'sdmo_nuevo.html?codigo=' + codigo;
     document.getElementById('org-pill-3').textContent = ORG_NOMBRE;
+    document.getElementById('envio-resumen').classList.add('hidden');
+    document.getElementById('envio-fallidos').classList.add('hidden');
     mostrarPaso('paso-enlace');
   });
 }
@@ -571,6 +580,7 @@ function mostrarResultadoFinalCSV() {
   }
 
   document.getElementById('btn-csv-descargar').classList.toggle('hidden', CSV_GENERADAS.length === 0);
+  document.getElementById('btn-csv-enviar-correo').classList.toggle('hidden', CSV_GENERADAS.length === 0);
 }
 
 // CSV de salida -- construido directo del acumulador, mismas columnas
@@ -605,9 +615,88 @@ function reiniciarCSV() {
   document.getElementById('csv-resultado-parseo').classList.add('hidden');
   document.getElementById('csv-procesando').classList.add('hidden');
   document.getElementById('csv-terminado').classList.add('hidden');
+  document.getElementById('csv-envio-resumen').classList.add('hidden');
+  document.getElementById('csv-envio-fallidos').classList.add('hidden');
   CSV_VALIDAS = [];
   CSV_GENERADAS = [];
   CSV_LOTES_FALLIDOS = [];
+}
+
+// ── Envío por correo -- DISENO_ENVIO_INVITACIONES_BREVO.md §2. Comparte
+// implementación entre "Una persona" (1 fila, INV_GENERADA) y "Cargar
+// CSV" (N filas, CSV_GENERADAS) -- mismo shape {persona_id, node_id,
+// codigo, email} en los dos casos, por eso una sola función basta.
+//
+// Llama al Worker (no a Supabase directo) -- ruta nueva del mismo origen
+// que sirve esta página (`/api/...`, wrangler.jsonc `assets`+`main`),
+// nunca funciona en file:// local (no hay Worker detrás) -- solo en el
+// sitio desplegado.
+async function enviarInvitacionesPorCorreo(invitaciones, idBoton, idResumen, idFallidos) {
+  var btn = document.getElementById(idBoton);
+  var elResumen = document.getElementById(idResumen);
+  var elFallidos = document.getElementById(idFallidos);
+  elResumen.classList.add('hidden');
+  elFallidos.classList.add('hidden');
+  btn.disabled = true;
+
+  try {
+    var sesion = await supa.auth.getSession();
+    var jwt = sesion.data && sesion.data.session && sesion.data.session.access_token;
+    if (!jwt) {
+      elResumen.className = 'err-box show';
+      elResumen.textContent = 'Tu sesión expiró. Vuelve a iniciar sesión e inténtalo de nuevo.';
+      elResumen.classList.remove('hidden');
+      return;
+    }
+
+    var res = await fetch(window.location.origin + '/api/enviar-invitaciones-cuestionario', {
+      method: 'POST',
+      headers: { Authorization: 'Bearer ' + jwt, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ organization_id: ORG_ID, nombre_organizacion: ORG_NOMBRE, invitaciones: invitaciones })
+    });
+
+    if (!res.ok) {
+      var textoError = await res.text();
+      elResumen.className = 'err-box show';
+      elResumen.textContent = 'No se pudieron enviar los correos (' + res.status + '): ' + textoError;
+      elResumen.classList.remove('hidden');
+      return;
+    }
+
+    var cuerpo = await res.json();
+    elResumen.className = 'ok-box';
+    elResumen.textContent = cuerpo.enviados + ' de ' + cuerpo.total + ' correos enviados.';
+    elResumen.classList.remove('hidden');
+
+    if (cuerpo.fallidos && cuerpo.fallidos.length > 0) {
+      var html = '<div class="titulo">' + cuerpo.fallidos.length + ' correo' + (cuerpo.fallidos.length === 1 ? '' : 's') + ' NO se pudo' + (cuerpo.fallidos.length === 1 ? '' : 'ieron') + ' enviar</div>';
+      cuerpo.fallidos.forEach(function (f) {
+        html += '<div class="csv-lote-fallido">' +
+          '<div class="personas">persona_id: ' + escaparHtml(f.persona_id) + '</div>' +
+          '<div class="detalle">Error: ' + escaparHtml(f.motivo) + '</div>' +
+          '</div>';
+      });
+      elFallidos.innerHTML = html;
+      elFallidos.classList.remove('hidden');
+    }
+  } catch (e) {
+    // fetch pudo fallar por red, o porque no hay Worker detrás (file:// local)
+    elResumen.className = 'err-box show';
+    elResumen.textContent = 'No se pudo contactar el servidor de envío: ' + e.message;
+    elResumen.classList.remove('hidden');
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+function enviarCorreoUnaPersona() {
+  if (!INV_GENERADA) return;
+  return enviarInvitacionesPorCorreo([INV_GENERADA], 'btn-enviar-correo', 'envio-resumen', 'envio-fallidos');
+}
+
+function enviarCorreoCSV() {
+  if (!CSV_GENERADAS || CSV_GENERADAS.length === 0) return;
+  return enviarInvitacionesPorCorreo(CSV_GENERADAS, 'btn-csv-enviar-correo', 'csv-envio-resumen', 'csv-envio-fallidos');
 }
 
 // clipboard puede fallar (permisos, contexto no seguro) -- mismo
