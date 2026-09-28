@@ -46,7 +46,21 @@ function fechaInexistente(valor) {
   return f.getUTCFullYear() !== a || f.getUTCMonth() !== mes - 1 || f.getUTCDate() !== d;
 }
 
+// ── mock de Brevo -- por defecto ok:true; los tests de §Brevo lo reemplazan
+// por fila (BREVO_RESPUESTAS[email] -> {ok, status, texto}) para simular
+// fallos individuales sin tocar el mock de RPC de arriba. ──
+const BREVO_RESPUESTAS = {};
+const LLAMADAS_BREVO = [];
+
 globalThis.fetch = async (url, opts) => {
+  if (String(url) === 'https://api.brevo.com/v3/smtp/email') {
+    const body = JSON.parse(opts.body);
+    LLAMADAS_BREVO.push({ body, apiKey: opts.headers['api-key'] });
+    const destino = body.to[0].email;
+    const r = BREVO_RESPUESTAS[destino] || { ok: true, status: 201, texto: '{"messageId":"fake"}' };
+    return { ok: r.ok, status: r.status, text: async () => r.texto };
+  }
+
   const nombreRpc = String(url).split('/rest/v1/rpc/')[1];
   const body = JSON.parse(opts.body);
   LLAMADAS_RPC.push({ nombreRpc, body, authorization: opts.headers.Authorization });
@@ -67,6 +81,8 @@ globalThis.fetch = async (url, opts) => {
 const ENV = {
   SUPABASE_URL: 'https://fake.supabase.co',
   SUPABASE_ANON_KEY: 'fake-anon-key',
+  BREVO_API_KEY: 'fake-brevo-key',
+  BREVO_SENDER_EMAIL: 'invitaciones@eficiencia.com.co',
   ASSETS: { fetch: async (req) => new Response('static:' + new URL(req.url).pathname, { status: 200 }) }
 };
 
@@ -388,6 +404,73 @@ const run = async () => {
   // regresión de este tipo en CUALQUIER handler falla aquí, no en producción.
   res = await worker.fetch(mockRequest('calcular-sdmo', { body: { organization_id: 'org-1', desde: '2026-04-01', hasta: '2026-04-31', opts: optsDePrueba } }), ENV, {});
   ok(res.status !== 200, 'el mock rechaza una fecha inexistente (2026-04-31) también en calcular-sdmo, como la base real');
+
+  // ═══════════════════════════════════════════════════════════════
+  console.log('\n── 10b. enviar-invitaciones-cuestionario (DISENO_ENVIO_INVITACIONES_BREVO.md §2) ──');
+  // ═══════════════════════════════════════════════════════════════
+  res = await worker.fetch(mockRequest('enviar-invitaciones-cuestionario', { body: { invitaciones: [] } }), ENV, {});
+  ok(res.status === 400, 'array de invitaciones vacío -> 400');
+  res = await worker.fetch(mockRequest('enviar-invitaciones-cuestionario', { body: {} }), ENV, {});
+  ok(res.status === 400, 'sin "invitaciones" en el body -> 400 (no revienta con TypeError)');
+
+  RPC_RESPUESTAS.marcar_invitacion_notificada = null; // void -- PostgREST con Prefer:return=representation
+  LLAMADAS_BREVO.length = 0; LLAMADAS_RPC.length = 0;
+  res = await worker.fetch(mockRequest('enviar-invitaciones-cuestionario', {
+    body: {
+      organization_id: 'org-1',
+      invitaciones: [
+        { persona_id: 'P1', node_id: 'N1', codigo: 'COD1', email: 'p1@empresa.com' },
+        { persona_id: 'P2', node_id: 'N1', codigo: 'COD2', email: 'p2@empresa.com' }
+      ]
+    }
+  }), ENV, {});
+  let cuerpoBrevo = await res.json();
+  ok(res.status === 200, '2 filas, ambas exitosas -> 200');
+  eqLista(cuerpoBrevo, { total: 2, enviados: 2, fallidos: [] }, 'total/enviados/fallidos correctos con las 2 exitosas');
+  ok(LLAMADAS_BREVO.length === 2, 'se llamó a Brevo exactamente 2 veces, una por fila (secuencial, no en lote)');
+  ok(LLAMADAS_BREVO.every((l) => l.apiKey === 'fake-brevo-key'), 'el header api-key es env.BREVO_API_KEY en las 2 llamadas');
+  ok(LLAMADAS_BREVO[0].body.sender.email === 'invitaciones@eficiencia.com.co' && LLAMADAS_BREVO[0].body.sender.name === 'EFICIENCIA', 'sender = {name, email} = env.BREVO_SENDER_EMAIL');
+  ok(LLAMADAS_BREVO[0].body.to[0].email === 'p1@empresa.com' && LLAMADAS_BREVO[1].body.to[0].email === 'p2@empresa.com', 'to[0].email = el email de cada fila, en el orden del array (P1 antes que P2)');
+  ok(LLAMADAS_BREVO.every((l) => l.body.htmlContent.indexOf('COD1') !== -1 || l.body.htmlContent.indexOf('COD2') !== -1), 'htmlContent trae el código de esa fila (enlace de invitación), no un texto genérico');
+  ok(LLAMADAS_RPC.filter((l) => l.nombreRpc === 'marcar_invitacion_notificada').length === 2, 'marcar_invitacion_notificada se llamó 2 veces, una por envío exitoso');
+  ok(LLAMADAS_RPC.every((l) => l.nombreRpc !== 'marcar_invitacion_notificada' || l.authorization === 'Bearer fake.jwt.token'), 'marcar_invitacion_notificada reenvía el JWT del consultor, no service_role');
+
+  // fallo de Brevo en una fila: la otra se guarda igual, y NO se marca notificada la que falló
+  BREVO_RESPUESTAS['p1@empresa.com'] = { ok: false, status: 400, texto: '{"code":"invalid_parameter","message":"correo inválido"}' };
+  LLAMADAS_BREVO.length = 0; LLAMADAS_RPC.length = 0;
+  res = await worker.fetch(mockRequest('enviar-invitaciones-cuestionario', {
+    body: {
+      organization_id: 'org-1',
+      invitaciones: [
+        { persona_id: 'P1', node_id: 'N1', codigo: 'COD1', email: 'p1@empresa.com' },
+        { persona_id: 'P2', node_id: 'N1', codigo: 'COD2', email: 'p2@empresa.com' }
+      ]
+    }
+  }), ENV, {});
+  cuerpoBrevo = await res.json();
+  ok(res.status === 200, 'un fallo individual NO tumba la respuesta -> sigue 200 (best-effort, mismo estándar que amar-shared.js)');
+  ok(cuerpoBrevo.total === 2 && cuerpoBrevo.enviados === 1 && cuerpoBrevo.fallidos.length === 1, '1 de 2 enviada; la otra en fallidos');
+  eqLista(cuerpoBrevo.fallidos[0], { persona_id: 'P1', codigo: 'COD1', motivo: 'Brevo 400: {"code":"invalid_parameter","message":"correo inválido"}' }, 'fallidos[0] trae persona_id/codigo/motivo, mismo shape que lotesFallidos del CSV');
+  ok(LLAMADAS_RPC.filter((l) => l.nombreRpc === 'marcar_invitacion_notificada').length === 1, 'marcar_invitacion_notificada NO se llamó para la fila que falló en Brevo -- solo para la exitosa (P2)');
+  ok(LLAMADAS_RPC.some((l) => l.nombreRpc === 'marcar_invitacion_notificada' && l.body.p_codigo === 'COD2'), 'la única llamada a marcar_invitacion_notificada es con el código de P2, no P1');
+  delete BREVO_RESPUESTAS['p1@empresa.com'];
+
+  // fallo del RPC de marcado (Brevo sí envió) -- también va a fallidos, no se pierde en silencio
+  const fetchOriginalParaEsteTest = globalThis.fetch;
+  globalThis.fetch = async (url, opts) => {
+    if (String(url).indexOf('/rest/v1/rpc/marcar_invitacion_notificada') !== -1) {
+      return { ok: false, status: 500, text: async () => 'RPC no encontrada (simulado)' };
+    }
+    return fetchOriginalParaEsteTest(url, opts);
+  };
+  LLAMADAS_BREVO.length = 0;
+  res = await worker.fetch(mockRequest('enviar-invitaciones-cuestionario', {
+    body: { organization_id: 'org-1', invitaciones: [{ persona_id: 'P3', node_id: 'N1', codigo: 'COD3', email: 'p3@empresa.com' }] }
+  }), ENV, {});
+  cuerpoBrevo = await res.json();
+  ok(cuerpoBrevo.enviados === 0 && cuerpoBrevo.fallidos.length === 1 && cuerpoBrevo.fallidos[0].persona_id === 'P3', 'Brevo OK pero el RPC de marcado falla -> igual va a fallidos (no se asume "enviado" solo porque Brevo respondió)');
+  ok(LLAMADAS_BREVO.length === 1, 'el correo SÍ se llegó a intentar (Brevo se llamó) antes de que fallara el marcado');
+  globalThis.fetch = fetchOriginalParaEsteTest;
 
   // ═══════════════════════════════════════════════════════════════
   console.log('\n' + '═'.repeat(74));

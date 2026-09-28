@@ -158,6 +158,81 @@ async function calcularAieHandler(request, env) {
   return Response.json(calcularAie(cfg, dyn, ops));
 }
 
+/**
+ * enviarInvitacionesCuestionarioHandler -- DISENO_ENVIO_INVITACIONES_BREVO.md
+ * §2. NO genera invitaciones (eso lo hace el cliente, vía
+ * generar_invitaciones_cuestionario, supabase-js directo -- mismo patrón
+ * que DISENO_CARGA_MASIVA_CSV.md §4): solo notifica las ya creadas. El
+ * cliente ya reunió {persona_id, node_id, codigo, email} por fila (§0 --
+ * generar_invitaciones_cuestionario no acepta ni devuelve email).
+ *
+ * Secuencial, no paralelo -- mismo criterio que generarLotes() en
+ * DISENO_CARGA_MASIVA_CSV.md §4 (evita saturar el rate limit de Brevo).
+ * Un fallo individual (Brevo o el RPC de marcado) NO aborta el resto --
+ * se reporta en `fallidos[]`, mismo shape que lotesFallidos del CSV.
+ */
+async function enviarInvitacionesCuestionarioHandler(request, env) {
+  const jwt = extraerJWT(request);
+  const { invitaciones } = await leerParams(request);
+
+  if (!Array.isArray(invitaciones) || invitaciones.length === 0) {
+    throw new RespuestaError(400, 'invitaciones debe ser un array no vacío');
+  }
+
+  const enviados = [];
+  const fallidos = [];
+
+  for (const fila of invitaciones) {
+    try {
+      const res = await enviarCorreoInvitacion(env, fila);
+      if (!res.ok) {
+        const err = await res.text();
+        fallidos.push({ persona_id: fila.persona_id, codigo: fila.codigo, motivo: 'Brevo ' + res.status + ': ' + err });
+        continue; // no lanzar -- mismo estándar que amar-shared.js:168
+      }
+      await rpc(env, jwt, 'marcar_invitacion_notificada', { p_codigo: fila.codigo });
+      enviados.push(fila.codigo);
+    } catch (e) {
+      // fetch/timeout, o el RPC de marcado falló -- el correo pudo haber
+      // salido igual; se reporta como fallido para que el consultor lo
+      // vea, no se asume ningún estado.
+      fallidos.push({ persona_id: fila.persona_id, codigo: fila.codigo, motivo: e.message });
+    }
+  }
+
+  return Response.json({
+    total: invitaciones.length,
+    enviados: enviados.length,
+    fallidos: fallidos
+  });
+}
+
+/**
+ * enviarCorreoInvitacion -- mismo fetch() que
+ * app-el-amor-existe/js/amar-shared.js:150-163, mismo timeout (10s),
+ * payload confirmado contra ese código real (DISENO_ENVIO_INVITACIONES_
+ * BREVO.md §3): endpoint /v3/smtp/email estándar, sin templateId ni
+ * envío en lote, un destinatario por llamada.
+ */
+async function enviarCorreoInvitacion(env, fila) {
+  const enlace = (env.SITE_URL || 'https://eficiencia.com.co') + '/cuestionario_ice_ieh.html?codigo=' + encodeURIComponent(fila.codigo);
+  return fetch('https://api.brevo.com/v3/smtp/email', {
+    method: 'POST',
+    headers: {
+      'api-key': env.BREVO_API_KEY,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      sender: { name: 'EFICIENCIA', email: env.BREVO_SENDER_EMAIL },
+      to: [{ email: fila.email }],
+      subject: 'Tu invitación para responder el cuestionario EFICIENCIA',
+      htmlContent: '<!DOCTYPE html><html><body><p>Te invitamos a responder el cuestionario de EFICIENCIA.</p>' +
+        '<p><a href="' + enlace + '">' + enlace + '</a></p></body></html>'
+    }),
+    signal: AbortSignal.timeout(10000)
+  });
+}
+
 const RUTAS = {
   'calcular-ice-ieh': calcularIceIehHandler,
   'calcular-sdmo': calcularSdmoHandler,
@@ -166,7 +241,8 @@ const RUTAS = {
   'calcular-cff': calcularCffHandler,
   'calcular-ifd': calcularIfdHandler,
   'calcular-piio': calcularPiioHandler,
-  'calcular-aie': calcularAieHandler
+  'calcular-aie': calcularAieHandler,
+  'enviar-invitaciones-cuestionario': enviarInvitacionesCuestionarioHandler
 };
 
 export default {

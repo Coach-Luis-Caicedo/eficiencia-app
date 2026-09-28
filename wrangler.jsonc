@@ -8,6 +8,11 @@
   },
   "vars": {
     "SUPABASE_URL": "https://kapxcjehfaasttwfnnzq.supabase.co",
-    "SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImthcHhjamVoZmFhc3R0d2ZubnpxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODYxMzQ1NjYsImV4cCI6MjEwMTcxMDU2Nn0.s0NC1ILswMQHPf-rsY1kvGSn0LpBSckNdlw2TvzMXws"
+    "SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImthcHhjamVoZmFhc3R0d2ZubnpxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODYxMzQ1NjYsImV4cCI6MjEwMTcxMDU2Nn0.s0NC1ILswMQHPf-rsY1kvGSn0LpBSckNdlw2TvzMXws",
+    // Remitente verificado en Brevo para EFICIENCIA (SPF/DKIM/DMARC en verde,
+    // confirmado por Luis, DISENO_ENVIO_INVITACIONES_BREVO.md §2) -- pública
+    // por diseño (va en el From: de cada correo), no un secreto. BREVO_API_KEY
+    // SÍ es secreto (wrangler secret put, ya configurado, no vive aquí).
+    "BREVO_SENDER_EMAIL": "invitaciones@eficiencia.com.co"
   }
 }
