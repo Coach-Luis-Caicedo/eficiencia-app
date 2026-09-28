@@ -244,20 +244,29 @@ async function enviarCorreoInvitacion(env, fila, nombreOrganizacion) {
     'Responde de manera honesta — eso nos ayudará a descubrir lo que necesitamos mejorar para que tu experiencia sea la mejor:</p>' +
     '<p><a href="' + enlace + '">Cuestionario general</a></p>' +
     '</body></html>';
-  return fetch('https://api.brevo.com/v3/smtp/email', {
+  const cuerpo = JSON.stringify({
+    sender: { name: 'EFICIENCIA', email: env.BREVO_SENDER_EMAIL },
+    to: [{ email: fila.email }],
+    subject: 'Tu invitación — EFICIENCIA',
+    htmlContent: htmlContent
+  });
+  // LOG TEMPORAL -- diagnóstico Brevo (PENDIENTES §12, patrón), quitar en
+  // commit aparte apenas se diagnostique. Nunca imprime el valor real de
+  // BREVO_API_KEY, solo si existe.
+  console.log('[DIAG-BREVO] tiene BREVO_API_KEY:', !!env.BREVO_API_KEY);
+  console.log('[DIAG-BREVO] body enviado a Brevo:', cuerpo);
+  const res = await fetch('https://api.brevo.com/v3/smtp/email', {
     method: 'POST',
     headers: {
       'api-key': env.BREVO_API_KEY,
       'Content-Type': 'application/json'
     },
-    body: JSON.stringify({
-      sender: { name: 'EFICIENCIA', email: env.BREVO_SENDER_EMAIL },
-      to: [{ email: fila.email }],
-      subject: 'Tu invitación — EFICIENCIA',
-      htmlContent: htmlContent
-    }),
+    body: cuerpo,
     signal: AbortSignal.timeout(10000)
   });
+  console.log('[DIAG-BREVO] res.status:', res.status);
+  console.log('[DIAG-BREVO] res.headers:', res.headers ? JSON.stringify([...res.headers.entries()]) : '(sin headers -- mock de test)');
+  return res;
 }
 
 const RUTAS = {
