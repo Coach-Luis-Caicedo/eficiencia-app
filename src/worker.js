@@ -259,7 +259,13 @@ async function enviarCorreoInvitacion(env, fila, nombreOrganizacion) {
     method: 'POST',
     headers: {
       'api-key': env.BREVO_API_KEY,
-      'Content-Type': 'application/json'
+      'Content-Type': 'application/json',
+      // fetch() de Cloudflare Workers no manda User-Agent por defecto (a
+      // diferencia de curl/Invoke-RestMethod/navegadores) -- hipótesis en
+      // diagnóstico: el borde de Brevo rechaza en silencio (400 vacío,
+      // connection:close) sin este header. PENDIENTES §12-bis (Brevo).
+      'User-Agent': 'eficiencia-app',
+      Accept: 'application/json'
     },
     body: cuerpo,
     signal: AbortSignal.timeout(10000)
