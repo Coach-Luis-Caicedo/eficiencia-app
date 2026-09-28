@@ -1154,3 +1154,28 @@ campo de IFD (`VER`, `ROI_P`, `TRE`, o el propio `EPD`) se cruza con qué
 campo de CFF (`cff_total`, `exposure_total`, o un componente específico) y
 con qué llave (fenómeno/evento/componente + ventana temporal, como pide la
 cita) — nada de eso está definido todavía.
+
+---
+
+## 18. SDMO — el envío automático de invitaciones queda fuera de esta ronda (decisión de Luis, señalado, no enterrado)
+
+**Estado: DECIDIDO, no construido a propósito.** `DISENO_ENVIO_INVITACIONES_
+BREVO.md §2` (`enviarCorreoInvitacion`, `src/worker.js`) envía SOLO el
+enlace de ICE-IEH, aunque `crear_organizacion.html` genera el código de
+invitación para los dos instrumentos a la vez (mismo `codigo`, dos
+enlaces posibles: `cuestionario_ice_ieh.html` y `sdmo_nuevo.html`).
+
+**Por qué**: ICE-IEH es un evento único — un solo correo con un solo
+enlace lo cubre bien. SDMO es recurrente (3×/semana, ~156 oportunidades
+al año); un enlace de invitación único que la persona abre una vez y
+nunca más no es "menos completo que lo ideal" — genera la impresión falsa
+de que el sistema ya cubre SDMO cuando en realidad solo dio 1 de ~156
+oportunidades, sin nada que se lo recuerde después. Construir ese enlace
+ahora habría sido trabajo que casi seguro se descarta o se reescribe en
+cuanto se diseñe el recordatorio recurrente real.
+
+**Pendiente real**: diseñar un mecanismo de recordatorio recurrente para
+SDMO (no un enlace de invitación único) antes de construir su envío
+automático. Mismo criterio que `invitaciones_fpv` en la migración `046`
+(mismo hueco estructural, señalado y dejado fuera a propósito) — no
+perder de vista, no resolver aquí.

@@ -159,11 +159,15 @@ const RUTAS = {
 };
 ```
 
-**Contrato de entrada** — el cliente (consultor, ya autenticado) ya llamó
+**Contrato de entrada, actualizado con `nombre_organizacion` (2026-09-28,
+decisión de Luis)** — el cliente (consultor, ya autenticado) ya llamó
 `generar_invitaciones_cuestionario` por su cuenta (vía supabase-js directo,
 como hace hoy `DISENO_CARGA_MASIVA_CSV.md §4`, no a través del Worker — el
 Worker no genera invitaciones, solo notifica las ya creadas) y le agregó el
-`email` de cada fila (§0):
+`email` de cada fila (§0). `nombre_organizacion` va A NIVEL DEL CUERPO, no
+por fila — es el mismo para todo el lote; el cliente ya lo tiene en memoria
+(`ORG_NOMBRE` en `crear_organizacion.html`), el Worker no lo resuelve con
+una consulta aparte:
 
 ```
 POST /api/enviar-invitaciones-cuestionario
@@ -172,6 +176,7 @@ Content-Type: application/json
 
 {
   "organization_id": "...",
+  "nombre_organizacion": "Acme S.A.S.",
   "invitaciones": [
     { "persona_id": "p001", "node_id": "ventas", "codigo": "abc123...", "email": "persona@empresa.com" },
     ...
@@ -179,72 +184,24 @@ Content-Type: application/json
 }
 ```
 
-**Handler**, mismo estilo que los 8 ya existentes (`extraerJWT` +
-`RespuestaError` para validación, `rpc()` para todo lo que toca la base):
+**CONSTRUIDO** — `src/worker.js` (`enviarInvitacionesCuestionarioHandler`,
+`enviarCorreoInvitacion`, `escaparHtml`). No se duplica el código aquí para
+no divergir de la fuente real; lo que sigue es lo que cambió respecto al
+diseño original, no el código completo.
 
-```js
-async function enviarInvitacionesCuestionarioHandler(request, env) {
-  const jwt = extraerJWT(request);
-  const { invitaciones } = await leerParams(request);
+**Contenido del correo, aprobado por Luis (2026-09-28) — SOLO ICE-IEH**:
+`nombre_organizacion` reemplaza "(nombre de empresa)", escapado
+(`escaparHtml`: `& < > "`) antes de insertarlo en el HTML — viaja del
+cliente sin pasar por ninguna otra capa.
 
-  if (!Array.isArray(invitaciones) || invitaciones.length === 0) {
-    throw new RespuestaError(400, 'invitaciones debe ser un array no vacío');
-  }
-
-  const enviados = [];
-  const fallidos = [];
-
-  // Secuencial, no paralelo -- mismo criterio que generarLotes() en
-  // DISENO_CARGA_MASIVA_CSV.md §4 (evita saturar el rate limit de Brevo,
-  // y "N de M" como contador en vivo solo tiene sentido secuencial).
-  for (const fila of invitaciones) {
-    try {
-      const res = await enviarCorreoInvitacion(env, fila); // ver más abajo
-      if (!res.ok) {
-        const err = await res.text();
-        fallidos.push({ persona_id: fila.persona_id, codigo: fila.codigo, motivo: 'Brevo ' + res.status + ': ' + err });
-        continue; // no lanzar -- mismo estándar que amar-shared.js:168
-      }
-      await rpc(env, jwt, 'marcar_invitacion_notificada', { p_codigo: fila.codigo });
-      enviados.push(fila.codigo);
-    } catch (e) {
-      // fetch/timeout, o el RPC de marcado falló -- el correo pudo haber
-      // salido igual; se reporta como fallido para que el consultor lo
-      // vea, no se asume ningún estado.
-      fallidos.push({ persona_id: fila.persona_id, codigo: fila.codigo, motivo: e.message });
-    }
-  }
-
-  return Response.json({
-    total: invitaciones.length,
-    enviados: enviados.length,
-    fallidos: fallidos // [{persona_id, codigo, motivo}] -- mismo shape que lotesFallidos de la carga CSV
-  });
-}
-```
-
-**`enviarCorreoInvitacion`** — mismo `fetch()` que `amar-shared.js:150-163`,
-mismo timeout (10s), payload confirmado en §3:
-
-```js
-async function enviarCorreoInvitacion(env, fila) {
-  const enlace = `${env.SITE_URL || 'https://eficiencia.com.co'}/cuestionario_ice_ieh.html?codigo=${encodeURIComponent(fila.codigo)}`;
-  return fetch('https://api.brevo.com/v3/smtp/email', {
-    method: 'POST',
-    headers: {
-      'api-key': env.BREVO_API_KEY,
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({
-      sender: { name: 'EFICIENCIA', email: env.BREVO_SENDER_EMAIL /* pendiente de verificar en Brevo */ },
-      to: [{ email: fila.email }],
-      subject: 'Tu invitación para responder el cuestionario EFICIENCIA',
-      htmlContent: `<!DOCTYPE html><html><body>...</body></html>` // pendiente de redactar, fuera de este diseño
-    }),
-    signal: AbortSignal.timeout(10000)
-  });
-}
-```
+- Asunto: `Tu invitación — EFICIENCIA`
+- Cuerpo: el texto exacto que aprobó Luis, con un solo enlace
+  (`cuestionario_ice_ieh.html?codigo=...`, "Cuestionario general").
+  **NO incluye el enlace de SDMO** — decisión explícita,
+  `PENDIENTES_BRECHAS_WORKER_MOTORES.md §18`: SDMO es recurrente
+  (3×/semana) y un enlace de invitación único no lo cubre bien; genera la
+  impresión falsa de que el sistema ya lo resuelve. Queda señalado como
+  pendiente, no enterrado — mismo criterio que `invitaciones_fpv` en `046`.
 
 **Explícitamente no diseñado aquí, por proporcionalidad**:
 - El HTML exacto del correo (texto/estilo) — contenido, no arquitectura.

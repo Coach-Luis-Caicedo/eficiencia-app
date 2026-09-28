@@ -412,12 +412,17 @@ const run = async () => {
   ok(res.status === 400, 'array de invitaciones vacío -> 400');
   res = await worker.fetch(mockRequest('enviar-invitaciones-cuestionario', { body: {} }), ENV, {});
   ok(res.status === 400, 'sin "invitaciones" en el body -> 400 (no revienta con TypeError)');
+  res = await worker.fetch(mockRequest('enviar-invitaciones-cuestionario', {
+    body: { invitaciones: [{ persona_id: 'P1', node_id: 'N1', codigo: 'COD1', email: 'p1@empresa.com' }] }
+  }), ENV, {});
+  ok(res.status === 400, 'sin nombre_organizacion en el body -> 400');
 
   RPC_RESPUESTAS.marcar_invitacion_notificada = null; // void -- PostgREST con Prefer:return=representation
   LLAMADAS_BREVO.length = 0; LLAMADAS_RPC.length = 0;
   res = await worker.fetch(mockRequest('enviar-invitaciones-cuestionario', {
     body: {
       organization_id: 'org-1',
+      nombre_organizacion: 'Acme & Sons <Ltda>',
       invitaciones: [
         { persona_id: 'P1', node_id: 'N1', codigo: 'COD1', email: 'p1@empresa.com' },
         { persona_id: 'P2', node_id: 'N1', codigo: 'COD2', email: 'p2@empresa.com' }
@@ -432,6 +437,12 @@ const run = async () => {
   ok(LLAMADAS_BREVO[0].body.sender.email === 'invitaciones@eficiencia.com.co' && LLAMADAS_BREVO[0].body.sender.name === 'EFICIENCIA', 'sender = {name, email} = env.BREVO_SENDER_EMAIL');
   ok(LLAMADAS_BREVO[0].body.to[0].email === 'p1@empresa.com' && LLAMADAS_BREVO[1].body.to[0].email === 'p2@empresa.com', 'to[0].email = el email de cada fila, en el orden del array (P1 antes que P2)');
   ok(LLAMADAS_BREVO.every((l) => l.body.htmlContent.indexOf('COD1') !== -1 || l.body.htmlContent.indexOf('COD2') !== -1), 'htmlContent trae el código de esa fila (enlace de invitación), no un texto genérico');
+  ok(LLAMADAS_BREVO.every((l) => l.body.subject === 'Tu invitación — EFICIENCIA'), 'asunto exacto en las 2 llamadas');
+  ok(LLAMADAS_BREVO.every((l) => l.body.htmlContent.indexOf('cuestionario_ice_ieh.html?codigo=') !== -1), 'htmlContent trae el enlace de ICE-IEH');
+  ok(LLAMADAS_BREVO.every((l) => l.body.htmlContent.indexOf('sdmo_nuevo.html') === -1), 'htmlContent NO trae enlace de SDMO -- decisión de Luis, PENDIENTES §18: solo ICE-IEH en esta ronda');
+  ok(LLAMADAS_BREVO.every((l) => l.body.htmlContent.indexOf('un instrumento breve') !== -1 && l.body.htmlContent.indexOf('dos instrumentos') === -1), 'texto ajustado a un solo instrumento, no "dos instrumentos breves"');
+  ok(LLAMADAS_BREVO.every((l) => l.body.htmlContent.indexOf('Acme &amp; Sons &lt;Ltda&gt;') !== -1), 'nombre_organizacion reemplaza "(nombre de empresa)", ESCAPADO (& < > -- nombre con caracteres especiales a propósito)');
+  ok(LLAMADAS_BREVO.every((l) => l.body.htmlContent.indexOf('(nombre de empresa)') === -1), 'el placeholder literal "(nombre de empresa)" no sobrevive en el correo real');
   ok(LLAMADAS_RPC.filter((l) => l.nombreRpc === 'marcar_invitacion_notificada').length === 2, 'marcar_invitacion_notificada se llamó 2 veces, una por envío exitoso');
   ok(LLAMADAS_RPC.every((l) => l.nombreRpc !== 'marcar_invitacion_notificada' || l.authorization === 'Bearer fake.jwt.token'), 'marcar_invitacion_notificada reenvía el JWT del consultor, no service_role');
 
@@ -441,6 +452,7 @@ const run = async () => {
   res = await worker.fetch(mockRequest('enviar-invitaciones-cuestionario', {
     body: {
       organization_id: 'org-1',
+      nombre_organizacion: 'Acme S.A.S.',
       invitaciones: [
         { persona_id: 'P1', node_id: 'N1', codigo: 'COD1', email: 'p1@empresa.com' },
         { persona_id: 'P2', node_id: 'N1', codigo: 'COD2', email: 'p2@empresa.com' }
@@ -465,7 +477,7 @@ const run = async () => {
   };
   LLAMADAS_BREVO.length = 0;
   res = await worker.fetch(mockRequest('enviar-invitaciones-cuestionario', {
-    body: { organization_id: 'org-1', invitaciones: [{ persona_id: 'P3', node_id: 'N1', codigo: 'COD3', email: 'p3@empresa.com' }] }
+    body: { organization_id: 'org-1', nombre_organizacion: 'Acme S.A.S.', invitaciones: [{ persona_id: 'P3', node_id: 'N1', codigo: 'COD3', email: 'p3@empresa.com' }] }
   }), ENV, {});
   cuerpoBrevo = await res.json();
   ok(cuerpoBrevo.enviados === 0 && cuerpoBrevo.fallidos.length === 1 && cuerpoBrevo.fallidos[0].persona_id === 'P3', 'Brevo OK pero el RPC de marcado falla -> igual va a fallidos (no se asume "enviado" solo porque Brevo respondió)');

@@ -173,10 +173,13 @@ async function calcularAieHandler(request, env) {
  */
 async function enviarInvitacionesCuestionarioHandler(request, env) {
   const jwt = extraerJWT(request);
-  const { invitaciones } = await leerParams(request);
+  const { invitaciones, nombre_organizacion } = await leerParams(request);
 
   if (!Array.isArray(invitaciones) || invitaciones.length === 0) {
     throw new RespuestaError(400, 'invitaciones debe ser un array no vacío');
+  }
+  if (!nombre_organizacion || typeof nombre_organizacion !== 'string') {
+    throw new RespuestaError(400, 'nombre_organizacion es obligatorio (a nivel del cuerpo, no por fila)');
   }
 
   const enviados = [];
@@ -184,7 +187,7 @@ async function enviarInvitacionesCuestionarioHandler(request, env) {
 
   for (const fila of invitaciones) {
     try {
-      const res = await enviarCorreoInvitacion(env, fila);
+      const res = await enviarCorreoInvitacion(env, fila, nombre_organizacion);
       if (!res.ok) {
         const err = await res.text();
         fallidos.push({ persona_id: fila.persona_id, codigo: fila.codigo, motivo: 'Brevo ' + res.status + ': ' + err });
@@ -208,14 +211,39 @@ async function enviarInvitacionesCuestionarioHandler(request, env) {
 }
 
 /**
+ * escaparHtml -- nombre_organizacion viaja del cliente al HTML del correo sin
+ * pasar por ninguna otra capa; se escapa antes de insertarlo (mismo criterio
+ * que escaparHtml() de crear_organizacion.html, reimplementado aquí porque el
+ * Worker no comparte módulo de DOM con el cliente).
+ */
+function escaparHtml(s) {
+  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+/**
  * enviarCorreoInvitacion -- mismo fetch() que
  * app-el-amor-existe/js/amar-shared.js:150-163, mismo timeout (10s),
  * payload confirmado contra ese código real (DISENO_ENVIO_INVITACIONES_
  * BREVO.md §3): endpoint /v3/smtp/email estándar, sin templateId ni
  * envío en lote, un destinatario por llamada.
+ *
+ * SOLO ICE-IEH (decisión de Luis, PENDIENTES_BRECHAS_WORKER_MOTORES.md
+ * §18): SDMO es un instrumento recurrente (3x/semana) -- un enlace de
+ * invitación único no lo cubre bien y genera la impresión falsa de que
+ * el sistema ya lo resuelve. Queda señalado como pendiente, no enterrado
+ * -- mismo criterio que invitaciones_fpv en 046.
  */
-async function enviarCorreoInvitacion(env, fila) {
+async function enviarCorreoInvitacion(env, fila, nombreOrganizacion) {
   const enlace = (env.SITE_URL || 'https://eficiencia.com.co') + '/cuestionario_ice_ieh.html?codigo=' + encodeURIComponent(fila.codigo);
+  const nombre = escaparHtml(nombreOrganizacion);
+  const htmlContent = '<!DOCTYPE html><html><body>' +
+    '<p>' + nombre + ' está implementando el modelo de inteligencia relacional EFICIENCIA. ' +
+    'El propósito es mejorar las condiciones de tu participación en el sistema organizacional, ' +
+    'para impulsar el bienestar y las relaciones de trabajo. Te invitamos a ser parte de este proceso.</p>' +
+    '<p>Solo tienes que responder un instrumento breve. Tus respuestas son estrictamente confidenciales. ' +
+    'Responde de manera honesta — eso nos ayudará a descubrir lo que necesitamos mejorar para que tu experiencia sea la mejor:</p>' +
+    '<p><a href="' + enlace + '">Cuestionario general</a></p>' +
+    '</body></html>';
   return fetch('https://api.brevo.com/v3/smtp/email', {
     method: 'POST',
     headers: {
@@ -225,9 +253,8 @@ async function enviarCorreoInvitacion(env, fila) {
     body: JSON.stringify({
       sender: { name: 'EFICIENCIA', email: env.BREVO_SENDER_EMAIL },
       to: [{ email: fila.email }],
-      subject: 'Tu invitación para responder el cuestionario EFICIENCIA',
-      htmlContent: '<!DOCTYPE html><html><body><p>Te invitamos a responder el cuestionario de EFICIENCIA.</p>' +
-        '<p><a href="' + enlace + '">' + enlace + '</a></p></body></html>'
+      subject: 'Tu invitación — EFICIENCIA',
+      htmlContent: htmlContent
     }),
     signal: AbortSignal.timeout(10000)
   });
