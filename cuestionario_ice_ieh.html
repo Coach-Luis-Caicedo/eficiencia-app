@@ -174,6 +174,17 @@ body{font-family:'DM Sans',sans-serif;background:var(--paper);color:var(--ink);f
   <div class="done-sub">Este cuestionario requiere el enlace de invitación individual que te compartió tu organización. Si lo perdiste, pídele a tu consultor de EFICIENCIA que te lo reenvíe.</div>
 </div>
 
+<!-- Paso 4 (landing compartida, instrumentos.html) -- revalidación propia,
+     NO confía en que la persona vino de la landing (puede llegar por un
+     enlace guardado, o recargar a mitad de sesión). "Completado" es del
+     período actual (mes), no permanente -- mismo criterio que
+     motores_eficiencia.leer_estado_instrumentos_grupo1 (047). -->
+<div class="done-overlay" id="ya-completado-overlay">
+  <div class="done-icon">&#10003;</div>
+  <div class="done-title">Ya respondiste este mes</div>
+  <div class="done-sub">Ya completaste el cuestionario ICE · IEH de este período. Gracias -- la próxima invitación llegará el mes siguiente.</div>
+</div>
+
 <script>
 /*
   QUESTIONS -- las 31 preguntas reales, texto verbatim de
@@ -409,11 +420,33 @@ var CLAVE_LOCALSTORAGE = 'me_codigo';
   window.CODIGO_INVITACION = codigoUrl || codigoGuardado || null;
   if (!window.CODIGO_INVITACION) {
     document.getElementById('sin-codigo-overlay').classList.add('show');
+    return;
   }
   // Sin llamada de "cargar área" -- a diferencia del legacy
   // (areas_por_codigo), node_id ya viene fijado en la invitación
   // (generar_invitaciones_cuestionario, 034) -- el formulario se
   // muestra de inmediato, nada que cargar antes.
+
+  // Paso 4 -- revalidación propia (Grupo 1, landing instrumentos.html):
+  // no confiar en que la persona vino de la landing ya filtrada -- puede
+  // llegar por un enlace guardado, o recargar a mitad de sesión. Reusa
+  // la MISMA función de lectura que la landing (047) -- no duplica la
+  // lógica de "completado este mes" en el frontend. Si la llamada falla
+  // por algo que NO sea código inválido (red, timeout), se deja el
+  // formulario disponible -- fallar cerrado aquí sería peor que dejar
+  // responder de más (el UPSERT de registrar_respuesta_ice_ieh no rompe
+  // nada si ya había una fila de este período).
+  supa.schema('motores_eficiencia').rpc('leer_estado_instrumentos_grupo1', { p_codigo: window.CODIGO_INVITACION }).then(function (res) {
+    if (res.error) {
+      if (/código de invitación/.test(res.error.message || '')) {
+        document.getElementById('sin-codigo-overlay').classList.add('show');
+      }
+      return; // cualquier otro error: se deja el formulario disponible
+    }
+    if (res.data && res.data.ice_ieh && res.data.ice_ieh.completado) {
+      document.getElementById('ya-completado-overlay').classList.add('show');
+    }
+  }).catch(function () { /* red caída -- se deja el formulario disponible */ });
 })();
 </script>
 </body>

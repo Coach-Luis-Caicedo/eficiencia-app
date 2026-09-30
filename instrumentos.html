@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>EFICIENCIA — Tus instrumentos</title>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@600;700;800&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<style>
+/*
+  instrumentos.html -- landing compartida de Grupo 1 (ICE-IEH/SDMO),
+  único punto de entrada del enlace de invitación. NO mezcla los dos
+  formularios (ciclos de vida distintos -- ICE-IEH mensual con estado
+  "completado este mes", SDMO diario sin estado terminal) -- decide cuál
+  mostrar y deja el llenado a cuestionario_ice_ieh.html/sdmo_nuevo.html,
+  que siguen siendo archivos separados.
+
+  Mismo mecanismo de código que las dos páginas hijas (verificado contra
+  ellas, no inventado): querystring ?codigo=... con fallback a
+  localStorage['me_codigo'] -- MISMA clave, deliberadamente compartida
+  (cuestionario_ice_ieh.html:384-392).
+
+  "Completado" de ICE-IEH es del mes actual, no permanente (decisión de
+  Luis, 2026-09-30) -- motores_eficiencia.leer_estado_instrumentos_grupo1
+  (047) calcula el período server-side igual que periodoActual() del
+  cliente. El mes siguiente la tarjeta vuelve a "Responder" sola, sin
+  ninguna pieza nueva -- es como ya funciona ice_ieh_respuestas.
+
+  No hay alcance por organización (decisión de Luis, 2026-09-30): las dos
+  tarjetas se muestran siempre, para cualquier código válido -- la
+  confusión de "cuál me toca" se resuelve con las etiquetas de
+  intención/frecuencia y el peso visual de cada tarjeta, no con
+  restricción de acceso. No se valida aquí si una organización mide o no
+  ambos instrumentos.
+*/
+:root{
+  --azul:#0D2340; --azul-m:#1B3A5C; --azul-l:#2563A8; --azul-bg:#D6E4F7;
+  --dorado:#C9A227; --dorado-lt:#FEF8E3;
+  --paper:#F7F4EF; --paper-w:#EDE8DF; --rule:#D6CEBE;
+  --ink:#0D1B2A; --ink-m:#3D5A73; --ink-s:#7A97AD;
+  --iehs:#1A5C3A; --iehs-lt:#EAF5EF;
+  --r:10px; --shadow:0 2px 12px rgba(13,27,42,.08);
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{font-family:'DM Sans',sans-serif;background:var(--paper);color:var(--ink);font-size:15px;line-height:1.6;min-height:100vh}
+
+.site-header{background:var(--azul);padding:0}
+.header-inner{max-width:720px;margin:0 auto;display:flex;align-items:center;gap:10px;padding:14px 24px}
+.brand-mark{font-family:'Montserrat',sans-serif;font-weight:800;font-size:18px;line-height:1}
+.efi{color:var(--dorado)}.ciencia{color:#fff}
+
+.wrap{max-width:720px;margin:0 auto;padding:0 24px}
+.intro{margin:32px 0 26px}
+.intro-title{font-family:'Montserrat',sans-serif;font-size:22px;font-weight:700;margin-bottom:6px}
+.intro-desc{font-size:13.5px;color:var(--ink-m);line-height:1.7;max-width:520px}
+
+.estado-carga,.estado-error{background:#fff;border:1.5px solid var(--rule);border-radius:var(--r);padding:28px;text-align:center;color:var(--ink-m);font-size:14px}
+.estado-error{border-color:#e3b3b3;background:#FBEEEE;color:#7a2e2e}
+
+.btn{padding:12px 24px;border-radius:8px;border:none;cursor:pointer;font-family:'Montserrat',sans-serif;
+     font-weight:700;font-size:13px;transition:all .2s;letter-spacing:.04em;text-transform:uppercase;display:inline-block;text-decoration:none}
+.btn-gold{background:var(--dorado);color:var(--azul)}
+.btn-gold:hover{background:#ddb22e;box-shadow:0 6px 20px rgba(201,162,39,.4);transform:translateY(-2px)}
+.btn-ghost-lt{background:rgba(13,35,64,.06);color:var(--ink-m);cursor:default}
+
+/* ── ICE-IEH: la tarjeta "pesada" -- cuestionario largo, cadencia mensual,
+   comunica "esto toma tiempo, hazlo con calma" -- grande, oscura, sin urgencia. ── */
+.card-mensual{background:var(--azul);color:#fff;border-radius:16px;padding:30px 32px;margin-bottom:18px;position:relative;overflow:hidden}
+.card-mensual::before{content:'';position:absolute;top:-50px;right:-50px;width:180px;height:180px;border-radius:50%;background:radial-gradient(circle,rgba(201,162,39,.2) 0%,transparent 70%)}
+.card-label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--dorado);margin-bottom:10px}
+.card-mensual .card-titulo{font-family:'Montserrat',sans-serif;font-size:21px;font-weight:700;margin-bottom:6px}
+.card-mensual .card-desc{font-size:13px;color:rgba(255,255,255,.62);margin-bottom:20px;max-width:440px}
+.card-estado-ok{display:flex;align-items:center;gap:10px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);border-radius:8px;padding:12px 16px;font-size:13.5px;color:rgba(255,255,255,.85)}
+.card-estado-ok .check{color:var(--dorado);font-size:18px}
+
+/* ── SDMO: la tarjeta "ligera" -- registro breve, cadencia diaria,
+   comunica "esto es rápido, hazlo ahora mismo" -- compacta, clara, con
+   el dorado como color de acción (urgencia), no de fondo. ── */
+.card-diaria{background:var(--dorado-lt);border:1.5px solid var(--dorado);border-radius:12px;padding:20px 24px;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}
+.card-diaria .card-label{color:#8a6c14}
+.card-diaria .card-titulo{font-family:'Montserrat',sans-serif;font-size:16px;font-weight:700;color:var(--ink);margin-bottom:3px}
+.card-diaria .card-desc{font-size:12.5px;color:var(--ink-m)}
+
+.err-box{background:#FBEEEE;border:1px solid #e3b3b3;border-radius:8px;padding:14px 16px;font-size:13px;color:#7a2e2e;margin-top:8px}
+
+.done-overlay{display:none;position:fixed;inset:0;background:var(--azul);z-index:600;
+  align-items:center;justify-content:center;flex-direction:column;text-align:center;padding:40px}
+.done-overlay.show{display:flex}
+.done-icon{font-size:56px;margin-bottom:20px;color:var(--dorado)}
+.done-title{font-family:'Montserrat',sans-serif;font-size:28px;color:var(--dorado);font-weight:800;margin-bottom:10px}
+.done-sub{font-size:14px;color:rgba(255,255,255,.65);max-width:440px;line-height:1.7}
+</style>
+</head>
+<body>
+
+<header class="site-header">
+  <div class="header-inner">
+    <div class="brand-mark"><span class="efi">EFI</span><span class="ciencia">CIENCIA</span></div>
+  </div>
+</header>
+
+<div class="wrap">
+  <div class="intro">
+    <div class="intro-title">Tus instrumentos</div>
+    <div class="intro-desc">Elige qué vas a responder ahora. Los dos son parte del mismo proceso, pero funcionan distinto -- cada tarjeta te dice qué es y con qué frecuencia.</div>
+  </div>
+
+  <div id="estado-carga" class="estado-carga">Cargando tu estado...</div>
+  <div id="estado-error" class="estado-error" style="display:none"></div>
+
+  <div id="tarjetas" style="display:none">
+    <div class="card-mensual">
+      <div class="card-label">Cuestionario mensual &middot; 31 preguntas &middot; &#8776; 7 min</div>
+      <div class="card-titulo">ICE &middot; IEH</div>
+      <div class="card-desc">La medición completa de cómo está diseñada tu organización y cómo la vives. Tómate tu tiempo -- no hay apuro, pero sí hay que terminarlo de una vez.</div>
+      <div id="ice-ieh-accion"></div>
+    </div>
+
+    <div class="card-diaria">
+      <div>
+        <div class="card-label">Registro diario &middot; 4 preguntas &middot; &#8776; 1 min</div>
+        <div class="card-titulo">Sensor Diario (SDMO)</div>
+        <div class="card-desc" id="sdmo-nota">Un check-in breve de cómo viviste hoy tu jornada.</div>
+      </div>
+      <a class="btn btn-gold" id="sdmo-link" href="#">Registrar hoy</a>
+    </div>
+  </div>
+</div>
+
+<div class="done-overlay" id="sin-codigo-overlay">
+  <div class="done-icon">&#9888;</div>
+  <div class="done-title">Enlace no válido</div>
+  <div class="done-sub">Esta página requiere el enlace de invitación individual que te compartió tu organización. Si lo perdiste, pídele a tu consultor de EFICIENCIA que te lo reenvíe.</div>
+</div>
+
+<script>
+// Proyecto Supabase de EFICIENCIA -- mismo patrón que cuestionario_ice_ieh.html/sdmo_nuevo.html.
+var SUPA_URL = 'https://kapxcjehfaasttwfnnzq.supabase.co';
+var SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImthcHhjamVoZmFhc3R0d2ZubnpxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODYxMzQ1NjYsImV4cCI6MjEwMTcxMDU2Nn0.s0NC1ILswMQHPf-rsY1kvGSn0LpBSckNdlw2TvzMXws';
+var supa = supabase.createClient(SUPA_URL, SUPA_KEY);
+
+// Clave de localStorage IDÉNTICA a la de cuestionario_ice_ieh.html/
+// sdmo_nuevo.html -- el mismo código sirve a los dos instrumentos
+// (INVESTIGACION_FORMULARIO_EMPLEADO_ICE_IEH_SDMO.md §1), verificado
+// contra el código real de ambas páginas antes de escribir esto, no
+// asumido.
+var CLAVE_LOCALSTORAGE = 'me_codigo';
+
+function formatearFecha(iso) {
+  // iso = 'YYYY-MM-DD' -- se muestra dd/mm, mismo criterio simple que el
+  // resto del sistema (sin librería de fechas).
+  var partes = iso.split('-');
+  return partes[2] + '/' + partes[1];
+}
+
+(function () {
+  var params = new URLSearchParams(window.location.search);
+  var codigoUrl = params.get('codigo');
+  // Mismo hallazgo real que ya forzó el try/catch en cuestionario_ice_ieh.html
+  // (localStorage puede lanzar SecurityError -- navegación privada,
+  // almacenamiento deshabilitado, navegadores embebidos).
+  var codigoGuardado = null;
+  try {
+    if (codigoUrl) localStorage.setItem(CLAVE_LOCALSTORAGE, codigoUrl);
+    codigoGuardado = localStorage.getItem(CLAVE_LOCALSTORAGE);
+  } catch (e) { /* almacenamiento no disponible -- se sigue solo con la URL */ }
+  var codigo = codigoUrl || codigoGuardado || null;
+
+  if (!codigo) {
+    document.getElementById('estado-carga').style.display = 'none';
+    document.getElementById('sin-codigo-overlay').classList.add('show');
+    return;
+  }
+
+  var sdmoLink = document.getElementById('sdmo-link');
+  sdmoLink.href = 'sdmo_nuevo.html?codigo=' + encodeURIComponent(codigo);
+
+  supa.schema('motores_eficiencia').rpc('leer_estado_instrumentos_grupo1', { p_codigo: codigo }).then(function (res) {
+    document.getElementById('estado-carga').style.display = 'none';
+    if (res.error) {
+      if (/código de invitación/.test(res.error.message || '')) {
+        document.getElementById('sin-codigo-overlay').classList.add('show');
+        return;
+      }
+      var elErr = document.getElementById('estado-error');
+      elErr.textContent = 'No se pudo cargar tu estado. ' + (res.error.message || 'Verifica tu internet e intenta de nuevo.');
+      elErr.style.display = 'block';
+      return;
+    }
+
+    var estado = res.data;
+    document.getElementById('tarjetas').style.display = 'block';
+
+    var elIceIeh = document.getElementById('ice-ieh-accion');
+    if (estado.ice_ieh.completado) {
+      elIceIeh.innerHTML = '<div class="card-estado-ok"><span class="check">&#10003;</span> Ya completaste el cuestionario de este mes -- gracias.</div>';
+    } else {
+      var enlaceIceIeh = 'cuestionario_ice_ieh.html?codigo=' + encodeURIComponent(codigo);
+      elIceIeh.innerHTML = '<a class="btn btn-gold" href="' + enlaceIceIeh + '">Responder</a>';
+    }
+
+    var elSdmoNota = document.getElementById('sdmo-nota');
+    if (estado.sdmo.ultima_jornada) {
+      elSdmoNota.textContent = 'Última jornada registrada: ' + formatearFecha(estado.sdmo.ultima_jornada) + '. Un check-in breve de cómo viviste hoy tu jornada.';
+    } else {
+      elSdmoNota.textContent = 'Aún no has registrado ninguna jornada. Un check-in breve de cómo viviste hoy tu jornada.';
+    }
+  }).catch(function (err) {
+    document.getElementById('estado-carga').style.display = 'none';
+    var elErr = document.getElementById('estado-error');
+    elErr.textContent = 'No se pudo contactar el servidor. Verifica tu internet e intenta de nuevo.';
+    elErr.style.display = 'block';
+  });
+})();
+</script>
+</body>
+</html>
