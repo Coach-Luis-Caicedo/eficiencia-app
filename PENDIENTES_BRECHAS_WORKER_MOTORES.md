@@ -1296,3 +1296,32 @@ incrustado, no esta página. Cuándo y cómo transicionar de uno a otro
 (y si esta ronda de carga por archivo debe esperar a esa transición, o
 construirse ya sobre `crear_organizacion.html` de todos modos) también
 queda sin decidir.
+
+---
+
+## 21. Brevo — el correo de invitación (solo ICE-IEH, §18) ahora enlaza a una landing que SÍ muestra SDMO
+
+**Estado: TENSIÓN SEÑALADA entre dos decisiones reales, no resuelta por mi
+cuenta.** No bloqueante, no ejecutado nada -- solo registrado.
+
+`PENDIENTES §18` (2026-09-28): el correo automático cubre **solo ICE-IEH**
+a propósito -- SDMO es recurrente (3×/semana) y un enlace de invitación
+único no lo representa bien, daba la impresión falsa de que el sistema ya
+lo resuelve.
+
+`instrumentos.html` (2026-09-30, este commit `8878a45`): el enlace del
+mismo correo ahora apunta a la landing compartida, que **sí** muestra la
+tarjeta de SDMO ("Registro diario · 4 preguntas", con botón "Registrar
+hoy") junto a la de ICE-IEH.
+
+**Mi lectura, no una decisión tomada por mi cuenta**: no creo que esto
+contradiga §18 literalmente -- `instrumentos.html` no es un mecanismo de
+recordatorio recurrente, no promete que "ya está resuelto"; solo hace SDMO
+**descubrible** sin enviar un correo dedicado a eso. Pero es una tensión
+real entre las dos decisiones que Luis debería confirmar explícitamente,
+no algo que yo deba interpretar y dejar pasar. Si la respuesta es "no
+está bien, la persona que recibe el correo de ICE-IEH no debería ver SDMO
+todavía", la solución no es channel-specific en el código actual --
+`instrumentos.html` no sabe por qué canal llegó la persona (email vs.
+enlace copiado a mano vs. "Una persona"), así que habría que diseñarlo
+aparte, no es un cambio de una línea.
