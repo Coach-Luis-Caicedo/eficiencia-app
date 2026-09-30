@@ -438,7 +438,8 @@ const run = async () => {
   ok(LLAMADAS_BREVO[0].body.to[0].email === 'p1@empresa.com' && LLAMADAS_BREVO[1].body.to[0].email === 'p2@empresa.com', 'to[0].email = el email de cada fila, en el orden del array (P1 antes que P2)');
   ok(LLAMADAS_BREVO.every((l) => l.body.htmlContent.indexOf('COD1') !== -1 || l.body.htmlContent.indexOf('COD2') !== -1), 'htmlContent trae el código de esa fila (enlace de invitación), no un texto genérico');
   ok(LLAMADAS_BREVO.every((l) => l.body.subject === 'Tu invitación — EFICIENCIA'), 'asunto exacto en las 2 llamadas');
-  ok(LLAMADAS_BREVO.every((l) => l.body.htmlContent.indexOf('cuestionario_ice_ieh.html?codigo=') !== -1), 'htmlContent trae el enlace de ICE-IEH');
+  ok(LLAMADAS_BREVO.every((l) => l.body.htmlContent.indexOf('instrumentos.html?codigo=') !== -1), 'htmlContent trae el enlace a la landing compartida (instrumentos.html), NO directo a cuestionario_ice_ieh.html');
+  ok(LLAMADAS_BREVO.every((l) => l.body.htmlContent.indexOf('cuestionario_ice_ieh.html') === -1), 'ya NO apunta directo a un solo instrumento (2026-09-30 -- instrumentos.html existe para decidirlo)');
   ok(LLAMADAS_BREVO.every((l) => l.body.htmlContent.indexOf('sdmo_nuevo.html') === -1), 'htmlContent NO trae enlace de SDMO -- decisión de Luis, PENDIENTES §18: solo ICE-IEH en esta ronda');
   ok(LLAMADAS_BREVO.every((l) => l.body.htmlContent.indexOf('un instrumento breve') !== -1 && l.body.htmlContent.indexOf('dos instrumentos') === -1), 'texto ajustado a un solo instrumento, no "dos instrumentos breves"');
   ok(LLAMADAS_BREVO.every((l) => l.body.htmlContent.indexOf('Acme &amp; Sons &lt;Ltda&gt;') !== -1), 'nombre_organizacion reemplaza "(nombre de empresa)", ESCAPADO (& < > -- nombre con caracteres especiales a propósito)');

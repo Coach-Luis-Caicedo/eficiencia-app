@@ -234,7 +234,11 @@ function escaparHtml(s) {
  * -- mismo criterio que invitaciones_fpv en 046.
  */
 async function enviarCorreoInvitacion(env, fila, nombreOrganizacion) {
-  const enlace = (env.SITE_URL || 'https://eficiencia.com.co') + '/cuestionario_ice_ieh.html?codigo=' + encodeURIComponent(fila.codigo);
+  // Apunta a la landing compartida (instrumentos.html), NO directo a
+  // cuestionario_ice_ieh.html -- mismo criterio que crear_organizacion.html
+  // paso-enlace (2026-09-30): un enlace directo a un solo instrumento vuelve
+  // a mezclar la confusión que instrumentos.html existe para resolver.
+  const enlace = (env.SITE_URL || 'https://eficiencia.com.co') + '/instrumentos.html?codigo=' + encodeURIComponent(fila.codigo);
   const nombre = escaparHtml(nombreOrganizacion);
   const htmlContent = '<!DOCTYPE html><html><body>' +
     '<p>' + nombre + ' está implementando el modelo de inteligencia relacional EFICIENCIA. ' +

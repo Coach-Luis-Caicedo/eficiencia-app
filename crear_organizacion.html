@@ -211,21 +211,19 @@ body{font-family:'DM Sans',sans-serif;background:var(--paper);color:var(--ink);f
   <div class="step-card hidden" id="paso-enlace">
     <div class="step-eyebrow">Paso 3 de 3</div>
     <div class="step-title">Enlace listo</div>
-    <div class="ok-box">Comparte estos dos enlaces con la persona -- por WhatsApp, email, o el medio que prefieras. El mismo código sirve para los dos instrumentos.</div>
+    <!-- UN solo enlace, a la landing compartida (instrumentos.html) -- NO a
+         cuestionario_ice_ieh.html/sdmo_nuevo.html directo. La landing decide
+         cuál de los dos instrumentos mostrar (y con qué estado) -- compartir
+         un enlace directo a un solo instrumento vuelve a mezclar la
+         confusión que instrumentos.html existe para resolver. -->
+    <div class="ok-box">Comparte este enlace con la persona -- por WhatsApp, email, o el medio que prefieras. El mismo código sirve para los dos instrumentos; la persona elige cuál responder al abrirlo.</div>
     <div class="org-pill" id="org-pill-3"></div>
 
     <div class="link-card">
-      <div class="link-label">Cuestionario ICE · IEH</div>
+      <div class="link-label">Tus instrumentos (ICE · IEH + SDMO)</div>
       <div class="link-row">
-        <div class="link-text" id="link-ice-ieh"></div>
-        <button class="btn btn-copy btn-outline" onclick="copiarEnlace('link-ice-ieh', this)">Copiar</button>
-      </div>
-    </div>
-    <div class="link-card">
-      <div class="link-label">Sensor Diario (SDMO)</div>
-      <div class="link-row">
-        <div class="link-text" id="link-sdmo"></div>
-        <button class="btn btn-copy btn-outline" onclick="copiarEnlace('link-sdmo', this)">Copiar</button>
+        <div class="link-text" id="link-instrumentos"></div>
+        <button class="btn btn-copy btn-outline" onclick="copiarEnlace('link-instrumentos', this)">Copiar</button>
       </div>
     </div>
 
@@ -361,8 +359,7 @@ function generarInvitacion() {
     var codigo = res.data[0].codigo;
     INV_GENERADA = { persona_id: res.data[0].persona_id, node_id: res.data[0].node_id, codigo: codigo, email: email };
     var base = window.location.href.replace(/crear_organizacion\.html.*$/, '');
-    document.getElementById('link-ice-ieh').textContent = base + 'cuestionario_ice_ieh.html?codigo=' + codigo;
-    document.getElementById('link-sdmo').textContent = base + 'sdmo_nuevo.html?codigo=' + codigo;
+    document.getElementById('link-instrumentos').textContent = base + 'instrumentos.html?codigo=' + codigo;
     document.getElementById('org-pill-3').textContent = ORG_NOMBRE;
     document.getElementById('envio-resumen').classList.add('hidden');
     document.getElementById('envio-fallidos').classList.add('hidden');
