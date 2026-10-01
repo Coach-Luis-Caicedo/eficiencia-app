@@ -10,8 +10,8 @@
 /*
   instrumentos.html -- landing compartida de Grupo 1 (ICE-IEH/SDMO),
   único punto de entrada del enlace de invitación. NO mezcla los dos
-  formularios (ciclos de vida distintos -- ICE-IEH mensual con estado
-  "completado este mes", SDMO diario sin estado terminal) -- decide cuál
+  formularios (ciclos de vida distintos -- ICE-IEH periódico, SIN estado
+  terminal; SDMO diario, tampoco con estado terminal) -- decide cuál
   mostrar y deja el llenado a cuestionario_ice_ieh.html/sdmo_nuevo.html,
   que siguen siendo archivos separados.
 
@@ -20,11 +20,19 @@
   localStorage['me_codigo'] -- MISMA clave, deliberadamente compartida
   (cuestionario_ice_ieh.html:384-392).
 
-  "Completado" de ICE-IEH es del mes actual, no permanente (decisión de
-  Luis, 2026-09-30) -- motores_eficiencia.leer_estado_instrumentos_grupo1
-  (047) calcula el período server-side igual que periodoActual() del
-  cliente. El mes siguiente la tarjeta vuelve a "Responder" sola, sin
-  ninguna pieza nueva -- es como ya funciona ice_ieh_respuestas.
+  CORRECCIÓN REAL (2026-09-30, decisión de Luis, sobre 047): ICE-IEH NO
+  es mensual -- es periódico (semestral/anual/trimestral según la
+  organización), y el esquema no tiene ningún concepto de "ronda de
+  aplicación" -- no hay forma honesta de calcular "¿ya respondiste en
+  esta ronda?". La landing deja de gatear/bloquear el botón de ICE-IEH
+  -- motores_eficiencia.leer_estado_instrumentos_grupo1 (048, reemplaza
+  a 047) solo INFORMA la fecha de la última respuesta
+  (ice_ieh.ultima_respuesta, el period MÁS RECIENTE sin filtrar por mes
+  actual), simétrico a como ya se informa sdmo.ultima_jornada. El botón
+  "Responder" está SIEMPRE activo -- coherente con que
+  registrar_respuesta_ice_ieh (034) ya permite sobrescribir (ON
+  CONFLICT ... DO UPDATE): el motor nunca bloqueó una segunda respuesta,
+  solo la landing lo hacía parecer bloqueado.
 
   No hay alcance por organización (decisión de Luis, 2026-09-30): las dos
   tarjetas se muestran siempre, para cualquier código válido -- la
@@ -64,15 +72,16 @@ body{font-family:'DM Sans',sans-serif;background:var(--paper);color:var(--ink);f
 .btn-gold:hover{background:#ddb22e;box-shadow:0 6px 20px rgba(201,162,39,.4);transform:translateY(-2px)}
 .btn-ghost-lt{background:rgba(13,35,64,.06);color:var(--ink-m);cursor:default}
 
-/* ── ICE-IEH: la tarjeta "pesada" -- cuestionario largo, cadencia mensual,
-   comunica "esto toma tiempo, hazlo con calma" -- grande, oscura, sin urgencia. ── */
-.card-mensual{background:var(--azul);color:#fff;border-radius:16px;padding:30px 32px;margin-bottom:18px;position:relative;overflow:hidden}
-.card-mensual::before{content:'';position:absolute;top:-50px;right:-50px;width:180px;height:180px;border-radius:50%;background:radial-gradient(circle,rgba(201,162,39,.2) 0%,transparent 70%)}
+/* ── ICE-IEH: la tarjeta "pesada" -- cuestionario largo, cadencia
+   periódica (varía por organización, NO mensual), comunica "esto toma
+   tiempo, hazlo con calma" -- grande, oscura, sin urgencia. NUNCA bloquea
+   el botón -- solo informa la fecha de la última respuesta, si existe. ── */
+.card-pesada{background:var(--azul);color:#fff;border-radius:16px;padding:30px 32px;margin-bottom:18px;position:relative;overflow:hidden}
+.card-pesada::before{content:'';position:absolute;top:-50px;right:-50px;width:180px;height:180px;border-radius:50%;background:radial-gradient(circle,rgba(201,162,39,.2) 0%,transparent 70%)}
 .card-label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--dorado);margin-bottom:10px}
-.card-mensual .card-titulo{font-family:'Montserrat',sans-serif;font-size:21px;font-weight:700;margin-bottom:6px}
-.card-mensual .card-desc{font-size:13px;color:rgba(255,255,255,.62);margin-bottom:20px;max-width:440px}
-.card-estado-ok{display:flex;align-items:center;gap:10px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);border-radius:8px;padding:12px 16px;font-size:13.5px;color:rgba(255,255,255,.85)}
-.card-estado-ok .check{color:var(--dorado);font-size:18px}
+.card-pesada .card-titulo{font-family:'Montserrat',sans-serif;font-size:21px;font-weight:700;margin-bottom:6px}
+.card-pesada .card-desc{font-size:13px;color:rgba(255,255,255,.62);margin-bottom:20px;max-width:440px}
+.card-nota{font-size:12.5px;color:rgba(255,255,255,.55);margin-top:10px}
 
 /* ── SDMO: la tarjeta "ligera" -- registro breve, cadencia diaria,
    comunica "esto es rápido, hazlo ahora mismo" -- compacta, clara, con
@@ -110,11 +119,12 @@ body{font-family:'DM Sans',sans-serif;background:var(--paper);color:var(--ink);f
   <div id="estado-error" class="estado-error" style="display:none"></div>
 
   <div id="tarjetas" style="display:none">
-    <div class="card-mensual">
-      <div class="card-label">Cuestionario mensual &middot; 31 preguntas &middot; &#8776; 7 min</div>
+    <div class="card-pesada">
+      <div class="card-label">Cuestionario periódico &middot; 31 preguntas &middot; &#8776; 7 min</div>
       <div class="card-titulo">ICE &middot; IEH</div>
       <div class="card-desc">La medición completa de cómo está diseñada tu organización y cómo la vives. Tómate tu tiempo -- no hay apuro, pero sí hay que terminarlo de una vez.</div>
-      <div id="ice-ieh-accion"></div>
+      <a class="btn btn-gold" id="ice-ieh-link" href="#">Responder</a>
+      <div class="card-nota" id="ice-ieh-nota"></div>
     </div>
 
     <div class="card-diaria">
@@ -154,6 +164,15 @@ function formatearFecha(iso) {
   return partes[2] + '/' + partes[1];
 }
 
+var MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+function formatearMes(period) {
+  // period = 'YYYY-MM' -- se muestra "<mes> <año>" (ej. "marzo 2025"),
+  // mismo criterio simple que formatearFecha, sin librería.
+  var partes = period.split('-');
+  var mes = MESES[parseInt(partes[1], 10) - 1] || partes[1];
+  return mes + ' ' + partes[0];
+}
+
 (function () {
   var params = new URLSearchParams(window.location.search);
   var codigoUrl = params.get('codigo');
@@ -175,6 +194,10 @@ function formatearFecha(iso) {
 
   var sdmoLink = document.getElementById('sdmo-link');
   sdmoLink.href = 'sdmo_nuevo.html?codigo=' + encodeURIComponent(codigo);
+  // El botón de ICE-IEH SIEMPRE está activo -- ultima_respuesta nunca lo
+  // oculta ni lo deshabilita (corrección 2026-09-30: ICE-IEH no tiene
+  // estado terminal, es periódico, no mensual -- ver comentario de cabecera).
+  document.getElementById('ice-ieh-link').href = 'cuestionario_ice_ieh.html?codigo=' + encodeURIComponent(codigo);
 
   supa.schema('motores_eficiencia').rpc('leer_estado_instrumentos_grupo1', { p_codigo: codigo }).then(function (res) {
     document.getElementById('estado-carga').style.display = 'none';
@@ -192,12 +215,13 @@ function formatearFecha(iso) {
     var estado = res.data;
     document.getElementById('tarjetas').style.display = 'block';
 
-    var elIceIeh = document.getElementById('ice-ieh-accion');
-    if (estado.ice_ieh.completado) {
-      elIceIeh.innerHTML = '<div class="card-estado-ok"><span class="check">&#10003;</span> Ya completaste el cuestionario de este mes -- gracias.</div>';
+    // Solo informa -- nunca oculta ni deshabilita el botón "Responder"
+    // (ya quedó con su href puesto arriba, antes de esta respuesta).
+    var elIceIehNota = document.getElementById('ice-ieh-nota');
+    if (estado.ice_ieh.ultima_respuesta) {
+      elIceIehNota.textContent = 'Última respuesta: ' + formatearMes(estado.ice_ieh.ultima_respuesta) + '.';
     } else {
-      var enlaceIceIeh = 'cuestionario_ice_ieh.html?codigo=' + encodeURIComponent(codigo);
-      elIceIeh.innerHTML = '<a class="btn btn-gold" href="' + enlaceIceIeh + '">Responder</a>';
+      elIceIehNota.textContent = 'Aún no has respondido.';
     }
 
     var elSdmoNota = document.getElementById('sdmo-nota');

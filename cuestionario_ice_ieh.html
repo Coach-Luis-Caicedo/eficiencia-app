@@ -103,6 +103,13 @@ body{font-family:'DM Sans',sans-serif;background:var(--paper);color:var(--ink);f
 .incomplete-warn{background:rgba(201,162,39,.18);border:1px solid rgba(201,162,39,.4);border-radius:8px;
   padding:11px 14px;margin-bottom:14px;font-size:13px;color:var(--dorado)}
 
+/* Aviso de "ya tienes una respuesta registrada" -- INFORMATIVO, no un
+   problema (por eso el verde de IEHS, no el dorado de incomplete-warn) --
+   nunca bloquea, el formulario sigue debajo, visible y enviable. */
+.aviso-respuesta-previa{display:none;background:var(--iehs-lt);border:1px solid #b7dcc5;border-radius:8px;
+  padding:12px 16px;margin:0 0 20px;font-size:13.5px;color:var(--iehs);max-width:780px}
+.aviso-respuesta-previa.show{display:block}
+
 .float-counter{position:fixed;bottom:24px;right:24px;background:var(--azul);color:#fff;
   border-radius:50px;padding:10px 18px;font-size:13px;font-weight:700;
   box-shadow:0 4px 20px rgba(13,35,64,.35);display:flex;align-items:center;gap:10px;z-index:200;cursor:pointer}
@@ -140,6 +147,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--paper);color:var(--ink);f
       <span class="meta-pill">Escala 1&#8211;5</span>
     </div>
   </div>
+  <div class="aviso-respuesta-previa" id="aviso-respuesta-previa"></div>
 </div>
 
 <div class="questions" id="questions"></div>
@@ -174,16 +182,6 @@ body{font-family:'DM Sans',sans-serif;background:var(--paper);color:var(--ink);f
   <div class="done-sub">Este cuestionario requiere el enlace de invitación individual que te compartió tu organización. Si lo perdiste, pídele a tu consultor de EFICIENCIA que te lo reenvíe.</div>
 </div>
 
-<!-- Paso 4 (landing compartida, instrumentos.html) -- revalidación propia,
-     NO confía en que la persona vino de la landing (puede llegar por un
-     enlace guardado, o recargar a mitad de sesión). "Completado" es del
-     período actual (mes), no permanente -- mismo criterio que
-     motores_eficiencia.leer_estado_instrumentos_grupo1 (047). -->
-<div class="done-overlay" id="ya-completado-overlay">
-  <div class="done-icon">&#10003;</div>
-  <div class="done-title">Ya respondiste este mes</div>
-  <div class="done-sub">Ya completaste el cuestionario ICE · IEH de este período. Gracias -- la próxima invitación llegará el mes siguiente.</div>
-</div>
 
 <script>
 /*
@@ -341,6 +339,15 @@ function periodoActual() {
   return new Date().toISOString().slice(0, 7);
 }
 
+// Mismo helper que instrumentos.html -- 'YYYY-MM' -> "<mes> <año>", sin
+// librería de fechas (criterio ya usado en todo el sistema).
+var MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+function formatearMes(period) {
+  var partes = period.split('-');
+  var mes = MESES[parseInt(partes[1], 10) - 1] || partes[1];
+  return mes + ' ' + partes[0];
+}
+
 function exportar() {
   if (answered !== TOTAL) return; // botón ya queda disabled, defensa doble
   if (!CODIGO_INVITACION) {
@@ -430,23 +437,30 @@ var CLAVE_LOCALSTORAGE = 'me_codigo';
   // Paso 4 -- revalidación propia (Grupo 1, landing instrumentos.html):
   // no confiar en que la persona vino de la landing ya filtrada -- puede
   // llegar por un enlace guardado, o recargar a mitad de sesión. Reusa
-  // la MISMA función de lectura que la landing (047) -- no duplica la
-  // lógica de "completado este mes" en el frontend. Si la llamada falla
-  // por algo que NO sea código inválido (red, timeout), se deja el
-  // formulario disponible -- fallar cerrado aquí sería peor que dejar
-  // responder de más (el UPSERT de registrar_respuesta_ice_ieh no rompe
-  // nada si ya había una fila de este período).
+  // la MISMA función de lectura que la landing (048) -- no duplica la
+  // lógica en el frontend.
+  //
+  // CORRECCIÓN REAL (2026-09-30): ICE-IEH NO es mensual -- es periódico,
+  // sin concepto de "ronda" en el esquema. Ya NO bloquea con un overlay
+  // -- el aviso es SOLO INFORMATIVO, el formulario sigue siempre visible
+  // y enviable (coherente con que registrar_respuesta_ice_ieh ya permite
+  // sobrescribir, ON CONFLICT ... DO UPDATE -- el motor nunca bloqueó una
+  // segunda respuesta, solo esta página lo hacía parecer bloqueado). Si
+  // la llamada falla por algo que NO sea código inválido (red, timeout),
+  // simplemente no aparece el aviso -- no hay nada que "fallar cerrado".
   supa.schema('motores_eficiencia').rpc('leer_estado_instrumentos_grupo1', { p_codigo: window.CODIGO_INVITACION }).then(function (res) {
     if (res.error) {
       if (/código de invitación/.test(res.error.message || '')) {
         document.getElementById('sin-codigo-overlay').classList.add('show');
       }
-      return; // cualquier otro error: se deja el formulario disponible
+      return; // cualquier otro error: el aviso simplemente no aparece
     }
-    if (res.data && res.data.ice_ieh && res.data.ice_ieh.completado) {
-      document.getElementById('ya-completado-overlay').classList.add('show');
+    if (res.data && res.data.ice_ieh && res.data.ice_ieh.ultima_respuesta) {
+      var aviso = document.getElementById('aviso-respuesta-previa');
+      aviso.textContent = 'Ya tienes una respuesta registrada (última: ' + formatearMes(res.data.ice_ieh.ultima_respuesta) + '). Si envías este formulario, la actualiza.';
+      aviso.classList.add('show');
     }
-  }).catch(function () { /* red caída -- se deja el formulario disponible */ });
+  }).catch(function () { /* red caída -- el aviso simplemente no aparece */ });
 })();
 </script>
 </body>
